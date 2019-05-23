@@ -45,7 +45,17 @@ public:
       const double y = p[1];
       return std::sqrt(x*x+y*y)-radius;
     }
-    virtual void   velocity(const Point<dim> &p, Vector<double> &values) {}
+    virtual void   velocity(const Point<dim> &p, Vector<double> &values)
+    {
+      if (dim==2)
+      {
+        const double x = p[0]-this->center[0];
+        const double y = p[1]-this->center[1];
+        const double omega = this->angular_velocity[2];
+        values[0] = -omega*y+this->linear_velocity[0];
+        values[1] = omega*x+this->linear_velocity[1];
+      }
+    }
 protected:
 };
 

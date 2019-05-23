@@ -11,5 +11,5 @@ INCLUDE_DIRECTORIES(
 ADD_EXECUTABLE(ib_01 ib_01.cc)
 DEAL_II_SETUP_TARGET(ib_01)
 TARGET_LINK_LIBRARIES(ib_01 lethe)
-add_test( "IB" ib_01)
+add_test( "IB_01" ib_01)
 

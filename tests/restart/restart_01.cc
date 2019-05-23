@@ -39,7 +39,7 @@ void RestartNavierStokes<dim>::run()
   double error2 = this->calculateL2Error();
 
   deallog << "Error 2 : " << error2 << std::endl;
-  if(error2<error1) std::runtime_error("Zeroed solution has a lower error");
+  if(error2<error1) throw std::runtime_error("Zeroed solution has a lower error");
 
   printTime(this->pcout,this->simulationControl);
   this->triangulation.clear();
@@ -49,7 +49,7 @@ void RestartNavierStokes<dim>::run()
 
   double error3 = this->calculateL2Error();
   deallog << "Error 3 : " << error3 << std::endl;
-  if(!approximatelyEqual(error1,error3,1e-10)) std::runtime_error("Reloaded solution is not the same");
+  if(!approximatelyEqual(error1,error3,1e-10)) throw std::runtime_error("Reloaded solution is not the same");
 }
 
 int
