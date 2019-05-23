@@ -30,6 +30,9 @@
 
 #include "../tests.h"
 
+#include <thread>         // std::this_thread::sleep_for
+#include <chrono>         // std::chrono::seconds
+
 using namespace dealii;
 
 int
@@ -45,12 +48,6 @@ main(int argc, char* argv[])
 
     parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
                                                            (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
-
-    const double inner_radius = 0.25,
-                 outer_radius = 1.0;
-    Point<2>           circleCenter;
-
-    circleCenter = Point<2>(0,0);
 
     GridGenerator::hyper_cube (triangulation,
                                -1,1);
@@ -89,37 +86,80 @@ main(int argc, char* argv[])
     angular[2]=0;
 
     IBLevelSetCircle<2> circle(center,velocity,angular,0.3);
-    std::cout << "MPI process : "<< this_mpi_process << " " << locally_owned_dofs.size() << std::endl;
-
     auto d = locally_owned_dofs.begin(), enddof=locally_owned_dofs.end();
-    //for (unsigned d=0 ; d< locally_owned_dofs.size(); ++d)
     for (; d!=enddof;++d)
     {
-      std::cout << "---------------" <<  std::endl;
-
-      std::cout << "MPI process : "<< this_mpi_process << " " << " dof no       : " << *d << std::endl;
-
-      std::cout << " Value of VEC : " << levelSet_vector(*d) << std::endl;
-      levelSet_vector(*d)=999.;
-      std::cout << " Value of VEC : " << levelSet_vector(*d) << std::endl;
-      std::cout << " Support point: " << support_points[*d]  << std::endl;
       levelSet_vector(*d)=circle.distance(support_points[*d]);
-      std::cout << " Value of VEC : " << levelSet_vector(*d) << std::endl;
+//      std::cout << "---------------" <<  std::endl;
 
-      std::cout << "---------------" << std::endl;
+//      std::cout << "MPI process : "<< this_mpi_process << " " << " dof no       : " << *d << std::endl;
+
+//      std::cout << " Value of VEC : " << levelSet_vector(*d) << std::endl;
+//      levelSet_vector(*d)=999.;
+//      std::cout << " Value of VEC : " << levelSet_vector(*d) << std::endl;
+//      std::cout << " Support point: " << support_points[*d]  << std::endl;
+//      std::cout << " Value of VEC : " << levelSet_vector(*d) << std::endl;
+
+//      std::cout << "---------------" << std::endl;
 
     }
+//    std::cout << "finished " << this_mpi_process <<std::endl;
+//    std::this_thread::sleep_for (std::chrono::seconds(3+this_mpi_process*2));
+
+    //DataOut<2> data_out;
+    //
+    //data_out.attach_dof_handler (dof_handler);
+    //data_out.add_data_vector (levelSet_vector, "Level_Set");
+    //
+    //data_out.build_patches ();
+    //
+    //std::string fname= "level_set.vtk";
+    //
+    //std::ofstream output (fname.c_str());
+    //data_out.write_vtk (output);
+
+
     DataOut<2> data_out;
-
     data_out.attach_dof_handler (dof_handler);
-    data_out.add_data_vector (levelSet_vector, "Level_Set");
 
-    data_out.build_patches ();
+    Vector<float> subdomain (triangulation.n_active_cells());
+    for (unsigned int i=0; i<subdomain.size(); ++i)
+      subdomain(i) = triangulation.locally_owned_subdomain();
+    data_out.add_data_vector (subdomain, "subdomain");
+    TrilinosWrappers::MPI::Vector    levelSet_vector_global;
+    levelSet_vector_global.reinit(locally_relevant_dofs);
+    levelSet_vector_global=levelSet_vector;
+    data_out.add_data_vector (levelSet_vector_global, "Level_Set");
 
-    std::string fname= "level_set.vtk";
 
-    std::ofstream output (fname.c_str());
-    data_out.write_vtk (output);
+
+    data_out.build_patches (mapping);
+    std::string fname= "level_set";
+
+    const std::string filename = (fname+
+                                  "." +
+                                  Utilities::int_to_string
+                                  (triangulation.locally_owned_subdomain(), 4));
+    std::ofstream output ((filename + ".vtu").c_str());
+    data_out.write_vtu (output);
+
+    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
+    {
+      std::vector<std::string> filenames;
+      for (unsigned int i=0;
+           i<Utilities::MPI::n_mpi_processes(mpi_communicator);
+           ++i)
+        filenames.push_back (fname+
+                             "." +
+                             Utilities::int_to_string (i, 4) +
+                             ".vtu");
+
+      std::string pvtu_filename = (fname+
+                                   ".pvtu");
+      std::ofstream master_output ((pvtu_filename).c_str());
+      data_out.write_pvtu_record (master_output, filenames);
+
+    }
 
 //    DoFTools::map_dofs_to_support_points()
     //const unsigned int   dofs_per_cell = fe.dofs_per_cell;
