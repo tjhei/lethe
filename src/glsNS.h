@@ -360,10 +360,10 @@ void GLSNavierStokesSolver<dim>::setup_dofs ()
                                            locally_relevant_dofs);
 
 
-  std::vector<unsigned int> block_component(dim+1, 0);
-  block_component[dim] = 1;
-  dofs_per_block.resize (2);
-  DoFTools::count_dofs_per_block (dof_handler, dofs_per_block, block_component);
+  //std::vector<unsigned int> block_component(dim+1, 0);
+  //block_component[dim] = 1;
+  //dofs_per_block.resize (2);
+  //DoFTools::count_dofs_per_block (dof_handler, dofs_per_block, block_component);
 
   const MappingQ<dim>      mapping (degreeVelocity_,femParameters.qmapping_all);
   FEValuesExtractors::Vector velocities(0);

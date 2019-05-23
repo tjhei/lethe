@@ -1,6 +1,5 @@
 #include <deal.II/base/function.h>
 
-// Finally, this is as in previous programs:
 using namespace dealii;
 
 #ifndef LETHE_FORCINGFUNCTIONS_H
