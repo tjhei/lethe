@@ -129,12 +129,12 @@ void write_ib_data(parallel::distributed::Triangulation<dim> &triangulation,
   const MappingQ<dim>      mapping (1);
   DataOut<dim> data_out;
   data_out.attach_dof_handler (dof_handler);
-  std::vector<std::string> solution_names ("distance");
+  std::vector<std::string> solution_names (1,std::string("distance"));
   std::vector<DataComponentInterpretation::DataComponentInterpretation>
           data_component_interpretation(1,DataComponentInterpretation::component_is_scalar);
   for (int i = 0 ; i <dim ; ++i)
   {
-    solution_names.push_back("velocity");
+    solution_names.push_back(std::string("velocity"));
     data_component_interpretation.push_back(DataComponentInterpretation::component_is_part_of_vector);
   }
   data_out.add_data_vector (levelSet_vector_global, solution_names, DataOut<dim>::type_dof_data, data_component_interpretation);
