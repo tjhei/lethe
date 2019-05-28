@@ -41,8 +41,8 @@ public:
     // Value of the distance
     virtual double distance(const Point<dim> &p)
     {
-      const double x = p[0];
-      const double y = p[1];
+      const double x = p[0]-this->center[0];
+      const double y = p[1]-this->center[1];;
       return std::sqrt(x*x+y*y)-radius;
     }
     virtual void   velocity(const Point<dim> &p, Vector<double> &values)

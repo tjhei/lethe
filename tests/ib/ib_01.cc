@@ -58,8 +58,6 @@ void test1_distance_verification()
                                            locally_relevant_dofs);
   TrilinosWrappers::MPI::Vector    levelSet_distance;
   levelSet_distance.reinit (locally_owned_dofs, mpi_communicator);
-  TrilinosWrappers::MPI::Vector    levelSet_velocity;
-  levelSet_velocity.reinit (locally_owned_dofs, mpi_communicator);
 
   const MappingQ<2>      mapping (1);
   std::map< types::global_dof_index, Point< 2 > > support_points;
