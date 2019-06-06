@@ -14,8 +14,8 @@ class IBLevelSetFunctions
 {
 public:
     IBLevelSetFunctions();
-    IBLevelSetFunctions(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity):
-      center(p_center),linear_velocity(p_linear_velocity),angular_velocity(p_angular_velocity)
+    IBLevelSetFunctions(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, Tensor<1,1> T_scal):
+      center(p_center),linear_velocity(p_linear_velocity),angular_velocity(p_angular_velocity), scalar(T_scal)
     {}
 
     // Value of the distance
@@ -25,6 +25,7 @@ protected:
       Point<dim>    center;
       Tensor<1,dim> linear_velocity;
       Tensor<1,3>   angular_velocity; // rad/s
+      Tensor<1,1>   scalar; // will be used to make tests by solving the heat equation
 };
 
 
