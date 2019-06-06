@@ -34,17 +34,21 @@ class IBLevelSetCircle: public IBLevelSetFunctions<dim>
 {
 private:
   double radius;
+  bool inside;
 public:
-    IBLevelSetCircle(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double p_radius):
-      IBLevelSetFunctions<dim>(p_center,p_linear_velocity,p_angular_velocity),
-    radius(p_radius){}
+    IBLevelSetCircle(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, Tensor<1,1> T_scal, bool p_fluid_inside, double p_radius):
+      IBLevelSetFunctions<dim>(p_center,p_linear_velocity,p_angular_velocity, T_scal),
+    radius(p_radius),inside(p_fluid_inside) {}
 
     // Value of the distance
     virtual double distance(const Point<dim> &p)
     {
       const double x = p[0]-this->center[0];
       const double y = p[1]-this->center[1];;
-      return std::sqrt(x*x+y*y)-radius;
+
+      if (!inside){return std::sqrt(x*x+y*y)-radius;}
+      else {return -(std::sqrt(x*x+y*y)-radius);}
+
     }
     virtual void   velocity(const Point<dim> &p, Vector<double> &values)
     {
