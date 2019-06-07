@@ -73,9 +73,13 @@ void test1_distance_verification()
   angular[0]=0;
   angular[1]=0;
   angular[2]=1;
+  Tensor<1,1> T_scal;
+  T_scal[0]=1;
+  bool inside=0;
   double radius =0.3;
 
-  IBLevelSetCircle<2> circle(center,velocity,angular,radius);
+
+  IBLevelSetCircle<2> circle(center,velocity,angular, T_scal, inside, radius);
   auto d = locally_owned_dofs.begin(), enddof=locally_owned_dofs.end();
   for (; d!=enddof;++d)
   {
@@ -143,8 +147,11 @@ void test2_velocity_verification()
   angular[1]=0;
   angular[2]=1;
   double radius =1.;
+  Tensor<1,1> T_scal;
+  T_scal[0]=1;
+  bool inside=0;
 
-  IBLevelSetCircle<2> circle(center,velocity,angular,radius);
+  IBLevelSetCircle<2> circle(center,velocity,angular, T_scal, inside, radius);
   Vector<double> velocity_values(2);
   //std::cout << "number of dofs " << dof_handler.n_dofs() << std::endl;
   auto d = locally_owned_dofs.begin(), enddof=locally_owned_dofs.end();
@@ -228,8 +235,11 @@ void test3_complete_verification()
   angular[1]=0;
   angular[2]=1;
   double radius =1.;
+  Tensor<1,1> T_scal;
+  T_scal[0]=1;
+  bool inside=0;
 
-  IBLevelSetCircle<2> circle(center,velocity,angular,radius);
+  IBLevelSetCircle<2> circle(center,velocity,angular, T_scal, inside, radius);
   Vector<double> velocity_values(2);
   //std::cout << "number of dofs " << dof_handler.n_dofs() << std::endl;
   auto d = locally_owned_dofs.begin(), enddof=locally_owned_dofs.end();

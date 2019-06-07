@@ -47,14 +47,17 @@ void test1_composed_distance()
   angular[1]=0;
   angular[2]=0;
   double radius =0.5;
+  Tensor<1,1> T_scal;
+  T_scal[0]=1;
+  bool inside=0;
 
   Point<2> center2(0,0);
   velocity[0]=-1.;
   velocity[1]=0.;
   std::vector<IBLevelSetFunctions<2> *> ib_functions;
 
-  IBLevelSetCircle<2> circle1(center1,velocity,angular,radius);
-  IBLevelSetCircle<2> circle2(center2,velocity,angular,radius);
+  IBLevelSetCircle<2> circle1(center1,velocity,angular,T_scal, inside, radius);
+  IBLevelSetCircle<2> circle2(center2,velocity,angular,T_scal, inside, radius);
   ib_functions.push_back(&circle1);
   ib_functions.push_back(&circle2);
 
