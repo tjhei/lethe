@@ -31,8 +31,8 @@
 
 // Mes ajouts so far
 #include "nouvtriangles.h"
-#include "area.h"
-
+//#include "area.h"
+#include "integlocal.h"
 
 using namespace dealii;
 
@@ -109,7 +109,10 @@ void test1_loop_composed_distance()
   double areaa = 3.141 * radius * radius ;
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<int>                     No_pts_fluid(4);
+  std::vector<int>                     No_pts_solid(4);
+  double                               Tdirichlet = 0.0;
+
+  // créer la matrice entière, ainsi que le vecteur de second membre
 
   Point<2> a;
   a[0]=0;
@@ -127,27 +130,29 @@ void test1_loop_composed_distance()
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
+      double matelem[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};
+      double sec_membre_elem[4] = {0,0,0,0};
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         distance[dof_index] = levelSet_distance[local_dof_indices[dof_index]];
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         //std::cout << /* "Dof number : " << local_dof_indices[dof_index] << */ " - Point : " << dofs_points[dof_index] <<" - Distance : " << distance[dof_index] << std::endl;
       }
-      nouvtriangles(corresp, No_pts_fluid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
+      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
 
      //area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
      //areaa += area_temp; // CALCUL DE L'AIRE DE LA ZONE FLUIDE.
 
-     /*
-     if (nb_poly != 0) {std::cout << "Coor elem : "   << dofs_points[0] << ", "  << dofs_points[1] << ", "  << dofs_points[2] << ", "  << dofs_points[3] << "\n "  <<
+
+     /*if (nb_poly > 0) {std::cout << "Coor elem : "   << dofs_points[0] << ", "  << dofs_points[1] << ", "  << dofs_points[2] << ", "  << dofs_points[3] << "\n "  <<
                                      "Val f dist : "  << distance[0] << ", "  << distance[1] << ", "  << distance[2] << ", "  << distance[3] << "\n "  <<
                                      "Pts fluid : "  << No_pts_fluid[0] << ", " << No_pts_fluid[1] << ", " <<No_pts_fluid[2] << ", " <<No_pts_fluid[3] << "\n " <<
                                      "Num elem : "    << num_elem[0] << ", " << num_elem[1] << ", " << num_elem[2] << ", " << num_elem[3] << ", " << num_elem[4] << ", " << num_elem[5] << "\n " <<
                                      "Corresp : "     << corresp[0] << ", " << corresp[1] << ", " << corresp[2] << ", " << corresp[3] << ", " << corresp[4] << ", " << corresp[5] << ", " << corresp[6] << ", " << corresp[7] << ", " << corresp[8] << "\n " <<
 
-                                     "\n \n" <<std::endl;}
-    */
+                                     "\n \n"  <<  std::endl;}*/
 
+    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance);
     }
   }
   //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}

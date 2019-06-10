@@ -20,12 +20,14 @@ void calcbk(int trg_or_quad, double x, double y, std::vector<Point<2> > coor, do
         Bk[0][0] = (y3-y1)/jac;
         Bk[0][1] = (x3-x1)/jac;
         Bk[1][0] = (y2-y1)/jac;
-        Bk[1][1] = (x2-y1)/jac;
+        Bk[1][1] = (x2-x1)/jac;
 
         transpBk[0][0] = (y3-y1)/jac;
         transpBk[1][0] = (x3-x1)/jac;
         transpBk[0][1] = (y2-y1)/jac;
-        transpBk[1][1] = (x2-y1)/jac;
+        transpBk[1][1] = (x2-x1)/jac;
+
+       // std::cout << "bk " << Bk[0][0] <<" "<<Bk[0][1]<<"\n"<<Bk[1][0]<< " "<<Bk[1][1] << std::endl;
 
         for (int i = 0; i < 2; ++i) {
             for (int j = 0; j < 2; j++) {
