@@ -1,8 +1,7 @@
 #include "quadboundary.h"
 #include "trgboundary.h"
-#include <vector>
 
-void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
+void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
 {
     /* decomp_elem is a vector in which we shall store the coordinates of the sub_elements created with this function
      nb_poly will allow us to indicate the number of polygons returned in decomp_elem and to specify if we return triangles or a quadrilateral
@@ -29,7 +28,7 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
     //////int inv_vec_change_coor[4] {2, 3, 1, 0}; // to change coor from ref coor to deal.II coor
     int vec_change_coor[4] {3, 2, 0, 1}; // to change coor from deal.II coor to ref coor
 
-    No_pts_fluid = {-1, -1, -1, -1}; // there will be up to 4 points in the fluid, we will replace the -1 by the numerotation of the points that are in the solid
+    No_pts_solid = {-1, -1, -1, -1}; // there will be up to 4 points in the solid, we will replace the -1 by the numerotation of the points that are in the solid
 
     for (int jj = 0; jj < 4; ++jj) { // changing the coordinates
         coor_elem[jj]  = coor_elem1[vec_change_coor[jj]];
@@ -75,14 +74,14 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
                     decomp_elem[2]=coor_elem[(i+3) % 4];
 
                     corresp = {vec_change_coor[i], vec_change_coor[(i+1)%4], vec_change_coor[(i-1)%4], -1, -1, -1, -1, -1, -1};
-                    No_pts_fluid = {i, (i+1)%4, (i+3) % 4, -1};
+                    No_pts_solid[0] = (i+2) %4 ;
                     num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], coor_elem[(i+1) % 4], coor_elem[(i+3) % 4]}; //// il va falloir traiter ce cas autrement ...
-                      //////
+                     ////////
                     ///    ///
                     /// // ///
                     /// // ///
                     ///    ///
-                     ///////
+                     ////////
                     *nb_poly = 1;
                     break;
                 }
@@ -93,8 +92,8 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
 
                     corresp = {4, 5, vec_change_coor[3], vec_change_coor[0],-1,-1,-1,-1,-1};
                     num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], decomp_elem[0], decomp_elem[1]};
-                    No_pts_fluid[0]=vec_change_coor[3];
-                    No_pts_fluid[1]=vec_change_coor[0];
+                    No_pts_solid[0]=vec_change_coor[1];
+                    No_pts_solid[1]=vec_change_coor[2];
 
                     *nb_poly = -1;
                     break;
@@ -106,8 +105,8 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
 
                     corresp = {4, 5, vec_change_coor[(i+1) % 4], vec_change_coor[i],-1,-1,-1,-1,-1};
                     num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], decomp_elem[0], decomp_elem[1]};
-                    No_pts_fluid[0]=vec_change_coor[(i+1) % 4];
-                    No_pts_fluid[1]=vec_change_coor[i];
+                    No_pts_solid[0]=vec_change_coor[(i+2) % 4];
+                    No_pts_solid[1]=vec_change_coor[(i+3) % 4];
 
                     *nb_poly = -1;
                     break;
@@ -136,7 +135,7 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
             decomp_elem[2]=boundary_pts[1];
             //std::cout <<  vec_change_coor[b] << std::endl;
             num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[0], boundary_pts[1]};
-            No_pts_fluid[0]= vec_change_coor[b];
+            No_pts_solid = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], vec_change_coor[(b+3)%4], -1};
             corresp = {vec_change_coor[b], 4, 5, -1,-1,-1,-1,-1};
 
             *nb_poly = 1;
@@ -178,7 +177,7 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
                 decomp_elem [8] = boundary_pts[1];
 
                 corresp = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], 5, vec_change_coor[(b+2)%4], 4, 5, vec_change_coor[(b+2)%4], vec_change_coor[(b+3)%4], 4 };
-                No_pts_fluid = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], vec_change_coor[(b+3)%4], -1};
+                No_pts_solid[0]= vec_change_coor[b];
                 num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[1], boundary_pts[0]}; // boundary points are sorte differently because of the way the function trgboundary works
 
                 *nb_poly = 3;
@@ -201,8 +200,8 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
 
                 corresp = {vec_change_coor[(b+2) % 4], vec_change_coor[(b+3) % 4], vec_change_coor[(b+1) % 4], 4,-1,-1,-1,-1,-1};
                 num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], decomp_elem[3], decomp_elem[2]};
-                No_pts_fluid[0]=vec_change_coor[(b+2) % 4];
-                No_pts_fluid[1]=vec_change_coor[(b+3) % 4];
+                No_pts_solid[0]=vec_change_coor[(b+1) % 4];
+                No_pts_solid[1]=vec_change_coor[b];
 
             }
 
@@ -215,8 +214,8 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_fluid, st
 
                 corresp = {vec_change_coor[(b+1) % 4], vec_change_coor[(b+2) % 4], 5, vec_change_coor[(b+3) % 4], -1,-1,-1,-1,-1};
                 num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], decomp_elem[3], decomp_elem[2]};
-                No_pts_fluid[0]=vec_change_coor[(b+1) % 4];
-                No_pts_fluid[1]=vec_change_coor[(b+2) % 4];
+                No_pts_solid[0]=vec_change_coor[(b+1) % 4];
+                No_pts_solid[1]=vec_change_coor[(b) % 4];
 
             }
 

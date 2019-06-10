@@ -1,4 +1,6 @@
 #include "calcbk.h"
+#include "derinterpquad.h"
+
 double calcinteg(int trg_or_quad, int i, int j, std::vector<Point<2> > coor1)
 {
     // calcule l'intégrale du produit scalaire entre les grad de psi_i et psi_j, dans l'élément de coordonnées coor
@@ -27,7 +29,7 @@ double calcinteg(int trg_or_quad, int i, int j, std::vector<Point<2> > coor1)
     else
     {
         S = 0;
-        double gradi[2], gradj[2];
+        std::vector<double> gradi(2), gradj(2);
         double w[5], x[5];
         x[0] = -0.906179845938664;
         x[1] = -0.538469310105683;
@@ -44,8 +46,10 @@ double calcinteg(int trg_or_quad, int i, int j, std::vector<Point<2> > coor1)
         for (int ii=0; ii<5; ii++) {
             for (int jj = 0;  jj< 5; jj++) {
                 calcbk(trg_or_quad, x[ii], x[jj], coor, Bk_tBk);
-                S+= w[ii]*w[jj]*jacobian(trg_or_quad, x[ii], x[jj], coor)* gradinterp[i][0]*(Bk_tBk[0][0]*gradinterp[j][0] + Bk_tBk[0][1]*gradinterp[j][1])+
-                        gradinterp[i][1]*(Bk_tBk[1][0]*gradinterp[j][1] + Bk_tBk[1][1]*gradinterp[j][1]);
+                derinterpquad(ii, x[ii], x[jj], gradi);
+                derinterpquad(jj, x[ii], x[jj], gradj);
+                S+= w[ii]*w[jj]*jacobian(trg_or_quad, x[ii], x[jj], coor)*(  gradi[0]*(Bk_tBk[0][0]*gradj[0] + Bk_tBk[0][1]*gradj[1])+
+                        gradi[1]*(Bk_tBk[1][0]*gradj[0] + Bk_tBk[1][1]*gradj[1])   );
             }
         }
 
