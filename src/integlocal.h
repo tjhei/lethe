@@ -141,11 +141,11 @@ void integlocal(double Tdirichlet, double mat[4][4], double second_membre[4], st
         }
 
         //if (nb_poly==1) {for (int i = 0; i<6 ; i++ ) {std::cout << "ligne " << i << " = " << mat_elem2[i][0] << ", " << mat_elem2[i][1] << ", " << mat_elem2[i][2] << ", " << mat_elem2[i][3] << ", " << mat_elem2[i][4] << ", " << mat_elem2[i][5] << std::endl;
-      }
+    }
 
       //std::cout << "\n" << std::endl;}
 
-    }
+
 
 
 
