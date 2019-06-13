@@ -1,0 +1,4 @@
+#ifndef IBCOMPOSER1_H
+#define IBCOMPOSER1_H
+
+#endif // IBCOMPOSER1_H

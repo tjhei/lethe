@@ -45,7 +45,25 @@
 
 using namespace dealii;
 
+//class BoundaryValues : public Function<2>
+//{
+//public:
+//  BoundaryValues () : Function<2>() {}
+//  virtual double value (const Point<2>   &p,
+//                        const unsigned int  component = 0) const;
+//};
+
+//double BoundaryValues::value (const Point<2> &p,
+//                                   const unsigned int /*component*/) const
+//{
+//  return cos(M_PI_4*p[1]);
+//}
+
+
+
 void test1_loop_composed_distance()
+
+// on teste pour voir si une frontière droite nous fait obtenir qqch d'aberrant
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
@@ -55,13 +73,17 @@ void test1_loop_composed_distance()
   parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
                                                          (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
   GridGenerator::hyper_cube (triangulation,
-                             -2,2);
+                             0,4,true);
 
   // Refine it to get an interesting number of elements
   triangulation.refine_global(5);
 
   // Set-up the center, velocity and angular velocity of circle
-  Point<2> center1(0,0);
+
+  double abscisse = 1.23333; // appartient à la frontière supérieure
+
+  // Set-up the center, velocity and angular velocity of circle
+  Point<2> center1(0.2356,-0.0125);
   Tensor<1,2> velocity;
   velocity[0]=1.;
   velocity[1]=0.;
@@ -110,22 +132,13 @@ void test1_loop_composed_distance()
   std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
-  double                               fluid_area = 0;
-  double                               area_temp;
-  double areaa = M_PI * radius * radius ;
-  std::vector<Point<2> >               num_elem(6);
-  std::vector<int>                     corresp(9);
-  std::vector<int>                     No_pts_solid(4);
-  double                               Tdirichlet = 1.0;
-
   SparsityPattern                      sparsity_pattern;
   SparseMatrix<double>                 system_matrix;   // créer la matrice entière, ainsi que le vecteur de second membre
   DynamicSparsityPattern               dsp(dof_handler->n_dofs());
 
   Vector<double>                       solution;
   Vector<double>                       system_rhs;
+  double T = 1.0;
 
   DoFTools::make_sparsity_pattern (*dof_handler, dsp);
   sparsity_pattern.copy_from(dsp);
@@ -147,8 +160,7 @@ void test1_loop_composed_distance()
   endc = dof_handler->end();
   for (; cell!=endc; ++cell)
   {
-    area_temp = 0.0;
-    std::fill(decomp_elem.begin(), decomp_elem.end(), a);
+
     std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
 
     if (cell->is_locally_owned())
@@ -158,33 +170,12 @@ void test1_loop_composed_distance()
 
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
-        distance[dof_index] = levelSet_distance[local_dof_indices[dof_index]];
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-
-        //std::cout << /* "Dof number : " << local_dof_indices[dof_index] << */ " - Point : " << dofs_points[dof_index] <<" - Distance : " << distance[dof_index] << std::endl;
+        distance[dof_index] = dofs_points[dof_index][0]-abscisse; //levelSet_distance[local_dof_indices[dof_index]];
       }
-    //nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
-
-    //area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
-    //areaa += area_temp; // CALCUL DE L'AIRE DE LA ZONE FLUIDE.
 
 
-    /*if (nb_poly > 0) */{std::cout << "Coor elem : "   << dofs_points[0] << ", "  << dofs_points[1] << ", "  << dofs_points[2] << ", "  << dofs_points[3] << "\n "  <<
-                                     "Val f dist : "  << distance[0] << ", "  << distance[1] << ", "  << distance[2] << ", "  << distance[3] << "\n "  <<
-                                     /*"Pts fluid : "   << No_pts_fluid[0] << ", " << No_pts_fluid[1] << ", " <<No_pts_fluid[2] << ", " <<No_pts_fluid[3] << "\n " <<
-                                     "Num elem : "    << num_elem[0] << ", " << num_elem[1] << ", " << num_elem[2] << ", " << num_elem[3] << ", " << num_elem[4] << ", " << num_elem[5] << "\n " <<
-                                     "Corresp : "     << corresp[0] << ", " << corresp[1] << ", " << corresp[2] << ", " << corresp[3] << ", " << corresp[4] << ", " << corresp[5] << ", " << corresp[6] << ", " << corresp[7] << ", " << corresp[8] << "\n " <<
-
-                                     "\n \n"  <<*/  std::endl;}
-
-
-    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance);
-
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "Ligne " << i << " de la matrice : " << matelem[i][0] << ", " << matelem[i][1] << ", " << matelem[i][2] << ", " << matelem[i][3] << std::endl;
-    }
-    std::cout << "\n " << std::endl;
-
+    integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -201,7 +192,7 @@ void test1_loop_composed_distance()
 
   std::map<types::global_dof_index,double> boundary_values;
   VectorTools::interpolate_boundary_values (*dof_handler,
-                                            0,
+                                            1,
                                             Functions::ZeroFunction<2>(),
                                             boundary_values);
   MatrixTools::apply_boundary_values (boundary_values,

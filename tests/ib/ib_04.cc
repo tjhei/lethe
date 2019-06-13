@@ -38,15 +38,23 @@
 #include "write_data.h"
 #include "../tests.h"
 
-// Mes ajouts so far
-//#include "nouvtriangles.h"
-//#include "area.h"
+
 #include "integlocal.h"
+
 
 using namespace dealii;
 
 void test1_loop_composed_distance()
 {
+
+    //This one is to check if we can do the same as step-3 by calculating the elementary matrices in each element by ourselves
+
+    // Doesn't work though, I still can't explain why it doesn't since the values in the elementary matrices are supposed
+    // to be always the same from one element to another and are equal
+    // to what I've calculated on the paper
+
+
+
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
   unsigned int this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator));
@@ -58,10 +66,10 @@ void test1_loop_composed_distance()
                              -2,2);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(5);
+  triangulation.refine_global(4);
 
   // Set-up the center, velocity and angular velocity of circle
-  Point<2> center1(0,0);
+  Point<2> center1(0.2356,-0.0125);
   Tensor<1,2> velocity;
   velocity[0]=1.;
   velocity[1]=0.;
@@ -97,27 +105,20 @@ void test1_loop_composed_distance()
   const MappingQ<2>      mapping (1);
   std::map< types::global_dof_index, Point< 2 > > support_points;
   DoFTools::map_dofs_to_support_points ( mapping, *dof_handler,support_points );
-  FEValues<2> fe_values (mapping,
+  FEValues<2> fe_values (*fe, quadrature_formula,
+                                  update_values | update_gradients | update_JxW_values); /*(mapping,
                          *fe,
                          quadrature_formula,
                          update_values |
                          update_quadrature_points |
                          update_JxW_values
-                         );
+                         )*/
   const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
   const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
   std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
-  double                               fluid_area = 0;
-  double                               area_temp;
-  double areaa = M_PI * radius * radius ;
-  std::vector<Point<2> >               num_elem(6);
-  std::vector<int>                     corresp(9);
-  std::vector<int>                     No_pts_solid(4);
   double                               Tdirichlet = 1.0;
 
   SparsityPattern                      sparsity_pattern;
@@ -138,54 +139,43 @@ void test1_loop_composed_distance()
 
   std::vector<double> sec_membre_elem(dofs_per_cell);
 
-  Point<2> a;
-  a[0]=0;
-  a[1]=0;
-
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
   endc = dof_handler->end();
   for (; cell!=endc; ++cell)
   {
-    area_temp = 0.0;
-    std::fill(decomp_elem.begin(), decomp_elem.end(), a);
-    std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
+
 
     if (cell->is_locally_owned())
     {
+      std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
-        distance[dof_index] = levelSet_distance[local_dof_indices[dof_index]];
+        distance[dof_index] = 1; //levelSet_distance[local_dof_indices[dof_index]];
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
+        sec_membre_elem[dof_index] += 1 ;
+         // We thus resolve Laplacian(u) = 1 in the domain, u = 0 on the boundary of the domain
+       }
 
-        //std::cout << /* "Dof number : " << local_dof_indices[dof_index] << */ " - Point : " << dofs_points[dof_index] <<" - Distance : " << distance[dof_index] << std::endl;
-      }
-    //nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
+//      std::cout << "coor pt : " << dofs_points[0] << ", " << dofs_points[1] << ", " << dofs_points[2] << ", " << dofs_points[3] << std::endl;
+//      std::cout << "sec mem : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << "\n" << std::endl;
 
-    //area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
-    //areaa += area_temp; // CALCUL DE L'AIRE DE LA ZONE FLUIDE.
-
-
-    /*if (nb_poly > 0) */{std::cout << "Coor elem : "   << dofs_points[0] << ", "  << dofs_points[1] << ", "  << dofs_points[2] << ", "  << dofs_points[3] << "\n "  <<
-                                     "Val f dist : "  << distance[0] << ", "  << distance[1] << ", "  << distance[2] << ", "  << distance[3] << "\n "  <<
-                                     /*"Pts fluid : "   << No_pts_fluid[0] << ", " << No_pts_fluid[1] << ", " <<No_pts_fluid[2] << ", " <<No_pts_fluid[3] << "\n " <<
-                                     "Num elem : "    << num_elem[0] << ", " << num_elem[1] << ", " << num_elem[2] << ", " << num_elem[3] << ", " << num_elem[4] << ", " << num_elem[5] << "\n " <<
-                                     "Corresp : "     << corresp[0] << ", " << corresp[1] << ", " << corresp[2] << ", " << corresp[3] << ", " << corresp[4] << ", " << corresp[5] << ", " << corresp[6] << ", " << corresp[7] << ", " << corresp[8] << "\n " <<
-
-                                     "\n \n"  <<*/  std::endl;}
+    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance); // it calculates the values in the elem matrix
 
 
-    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance);
+    // this is to check the values of  the elementary matrix
 
     for (int i = 0; i < 4; ++i) {
         std::cout << "Ligne " << i << " de la matrice : " << matelem[i][0] << ", " << matelem[i][1] << ", " << matelem[i][2] << ", " << matelem[i][3] << std::endl;
     }
+    std::cout << " val sec memb : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << std::endl;
     std::cout << "\n " << std::endl;
 
 
+    // Assembling and solving further
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
@@ -208,7 +198,6 @@ void test1_loop_composed_distance()
                                       system_matrix,
                                       solution,
                                       system_rhs);
-  //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}
 
   SolverControl           solver_control (1000, 1e-12);
   SolverCG<>              solver (solver_control);
