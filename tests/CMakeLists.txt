@@ -5,4 +5,4 @@ ADD_SUBDIRECTORY(pvdhandler)
 ADD_SUBDIRECTORY(simulationcontrol)
 ADD_SUBDIRECTORY(restart)
 ADD_SUBDIRECTORY(ib)
-
+ADD_SUBDIRECTORY(sandbox)
