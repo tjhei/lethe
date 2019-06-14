@@ -39,9 +39,10 @@
 #include "../tests.h"
 
 // Mes ajouts so far
-//#include "nouvtriangles.h"
+#include "nouvtriangles.h"
 //#include "area.h"
-#include "integlocal.h"
+//#include "integlocal.h"
+#include "quad_elem.h"
 
 using namespace dealii;
 
@@ -73,14 +74,14 @@ void test1_loop_composed_distance()
   parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
                                                          (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
   GridGenerator::hyper_cube (triangulation,
-                             0,4,true);
+                             -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(5);
+  triangulation.refine_global(2);
 
   // Set-up the center, velocity and angular velocity of circle
 
-  double abscisse = 1.23333; // appartient à la frontière supérieure
+  double abscisse = 0.25; // appartient à la frontière supérieure
 
   // Set-up the center, velocity and angular velocity of circle
   Point<2> center1(0.2356,-0.0125);
@@ -138,7 +139,14 @@ void test1_loop_composed_distance()
 
   Vector<double>                       solution;
   Vector<double>                       system_rhs;
-  double T = 1.0;
+
+  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
+  std::vector<Point<2> >               num_elem(6);
+  std::vector<int>                     corresp(9);
+  std::vector<int>                     No_pts_solid(4);
+  double                               Tdirichlet = 1.0;
+
 
   DoFTools::make_sparsity_pattern (*dof_handler, dsp);
   sparsity_pattern.copy_from(dsp);
@@ -147,8 +155,13 @@ void test1_loop_composed_distance()
   solution.reinit (dof_handler->n_dofs());
   system_rhs.reinit (dof_handler->n_dofs());
 
-  double matelem[4][4];
 
+  FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
+
+
+  //double matelem[4][4];
+
+  std::vector<double> elem_rhs(dofs_per_cell);
   std::vector<double> sec_membre_elem(dofs_per_cell);
 
   Point<2> a;
@@ -162,6 +175,8 @@ void test1_loop_composed_distance()
   {
 
     std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
+    std::fill(elem_rhs.begin(), elem_rhs.end(), 0.0);
+    cell_mat =0;
 
     if (cell->is_locally_owned())
     {
@@ -175,18 +190,48 @@ void test1_loop_composed_distance()
       }
 
 
-    integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
+    //integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
+      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+      //std::cout << corresp[0] << corresp[1] << corresp[2] << corresp[3] << std::endl;
+        std::cout << nb_poly << std::endl;
+      if (nb_poly==0)
+      {
+          if (distance[0]>0)
+            quad_elemf(dofs_points, cell_mat, elem_rhs);
+          else
+          {
+            quad_elems(Tdirichlet, dofs_points, cell_mat, elem_rhs);
+          }
+      }
 
+      else {
+          quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+      }
+
+
+         for (int i = 0; i < 4; ++i) {
+             std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
+       }
+         std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
+         std::cout << "\n" << std::endl;
+
+//    for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+//      {
+//        for (unsigned int i=0; i<dofs_per_cell; ++i)
+//          elem_rhs[i] += (fe_values.shape_value (i, q_index) *
+//                          sec_membre_elem[i] *
+//                          fe_values.JxW (q_index));
+//      }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
         system_matrix.add (local_dof_indices[i],
                            local_dof_indices[j],
-                           matelem[i][j]);
+                           cell_mat[i][j]);
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
-      system_rhs(local_dof_indices[i]) += sec_membre_elem[i];
+      system_rhs(local_dof_indices[i]) += elem_rhs[i];
     }
   }
 
