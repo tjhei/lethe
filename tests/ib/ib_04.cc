@@ -37,7 +37,7 @@
 #include "iblevelsetfunctions.h"
 #include "write_data.h"
 #include "../tests.h"
-
+#include "quad_elem.h"
 
 #include "integlocal.h"
 
@@ -66,7 +66,7 @@ void test1_loop_composed_distance()
                              -2,2);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(4);
+  triangulation.refine_global(5);
 
   // Set-up the center, velocity and angular velocity of circle
   Point<2> center1(0.2356,-0.0125);
@@ -135,7 +135,11 @@ void test1_loop_composed_distance()
   solution.reinit (dof_handler->n_dofs());
   system_rhs.reinit (dof_handler->n_dofs());
 
-  double matelem[4][4];
+  std::vector<std::vector<double> > cell_mat(dofs_per_cell); // elementary matrix
+  for ( unsigned int i = 0 ; i < dofs_per_cell ; i++ )
+     cell_mat[i].resize(dofs_per_cell);
+
+//  double matelem[4][4];
 
   std::vector<double> sec_membre_elem(dofs_per_cell);
 
@@ -149,6 +153,10 @@ void test1_loop_composed_distance()
     if (cell->is_locally_owned())
     {
       std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
+
+      for ( unsigned int i = 0 ; i < dofs_per_cell ; i++ )
+         std::fill(cell_mat[i].begin(), cell_mat[i].end(), 0.0); // We reinit the elementary matrix
+
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
@@ -156,38 +164,40 @@ void test1_loop_composed_distance()
       {
         distance[dof_index] = 1; //levelSet_distance[local_dof_indices[dof_index]];
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        sec_membre_elem[dof_index] += 1 ;
+        sec_membre_elem[dof_index] = 0 ;
          // We thus resolve Laplacian(u) = 1 in the domain, u = 0 on the boundary of the domain
        }
 
 //      std::cout << "coor pt : " << dofs_points[0] << ", " << dofs_points[1] << ", " << dofs_points[2] << ", " << dofs_points[3] << std::endl;
 //      std::cout << "sec mem : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << "\n" << std::endl;
 
-    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance); // it calculates the values in the elem matrix
-
+    //integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance); // it calculates the values in the elem matrix
+    quad_elem(dofs_points, cell_mat, sec_membre_elem);
 
     // this is to check the values of  the elementary matrix
 
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "Ligne " << i << " de la matrice : " << matelem[i][0] << ", " << matelem[i][1] << ", " << matelem[i][2] << ", " << matelem[i][3] << std::endl;
-    }
-    std::cout << " val sec memb : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << std::endl;
-    std::cout << "\n " << std::endl;
+//    for (int i = 0; i < 4; ++i) {
+//        std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
+//    }
+//    std::cout << " val sec memb : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << std::endl;
+//    std::cout << "\n " << std::endl;
 
 
     // Assembling and solving further
+
+  }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
         system_matrix.add (local_dof_indices[i],
                            local_dof_indices[j],
-                           matelem[i][j]);
+                           cell_mat[i][j]);
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       system_rhs(local_dof_indices[i]) += sec_membre_elem[i];
     }
-  }
+
 
   std::map<types::global_dof_index,double> boundary_values;
   VectorTools::interpolate_boundary_values (*dof_handler,
@@ -221,6 +231,19 @@ main(int argc, char* argv[])
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
     test1_loop_composed_distance();
+//    Point<2> a (0,0);
+//    Point<2> b (2,0);
+//    Point<2> c (0,2);
+//    Point<2> d (2,2);
+//    std::vector<Point<2>> coor = {a,b,c,d};
+
+//    std::vector<std::vector<double> > cell_mat(4); // elementary matrix
+//    for ( unsigned int i = 0 ; i < 4 ; i++ )
+//       cell_mat[i].resize(4);
+//    std::vector<double>       cell_rhs (4);
+
+//    quad_elem(coor, cell_mat, cell_rhs);
+
   }
   catch (std::exception &exc)
   {
