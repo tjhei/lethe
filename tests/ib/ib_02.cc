@@ -47,8 +47,8 @@ void test1_composed_distance()
   angular[1]=0;
   angular[2]=0;
   double radius =0.5;
-  Tensor<1,1> T_scal;
-  T_scal[0]=1;
+  double T_scal;
+  T_scal=1;
   bool inside=0;
 
   Point<2> center2(0,0);
