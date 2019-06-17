@@ -11,3 +11,6 @@ INCLUDE_DIRECTORIES(
 ADD_EXECUTABLE(single_element single_element.cc)
 DEAL_II_SETUP_TARGET(single_element)
 TARGET_LINK_LIBRARIES(single_element lethe)
+ADD_EXECUTABLE(single_triangle single_triangle.cc)
+DEAL_II_SETUP_TARGET(single_triangle)
+TARGET_LINK_LIBRARIES(single_triangle lethe)
