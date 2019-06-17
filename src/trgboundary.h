@@ -44,13 +44,12 @@ void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<
     }
 
     // we then apply the transformation to get the coordinates in the element we're considering
-    Point<2> pt1(1), pt2(1);
+    Point<2> pt1, pt2;
 
     for (int j = 0; j < 4; ++j)
     {
         double L1 = interpolationquad(j, x1, y1);
         double L2 = interpolationquad(j, x2, y2);
-
 
         pt1[0]+= L1 * coor_elem[j][0];
         pt1[1]+= L1 * coor_elem[j][1];
