@@ -14,8 +14,8 @@ class IBLevelSetFunctions
 {
 public:
     IBLevelSetFunctions();
-    IBLevelSetFunctions(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double T_scal):
-      center_rotation(p_center),linear_velocity(p_linear_velocity),angular_velocity(p_angular_velocity), scalar_value(T_scal)
+    IBLevelSetFunctions(double p_scal=0):
+      scalar_value(p_scal)
     {}
 
     // Value of the distance
@@ -23,9 +23,6 @@ public:
     virtual double scalar  (const Point<dim> /*&p*/) {return scalar_value;}
     virtual void   velocity(const Point<dim> &p, Vector<double> &values)=0;
 protected:
-      Point<dim>    center_rotation;
-      Tensor<1,dim> linear_velocity;
-      Tensor<1,3>   angular_velocity; // rad/s
       double   scalar_value; // will be used to make tests by solving the heat equation
 };
 
@@ -34,18 +31,28 @@ template <int dim>
 class IBLevelSetCircle: public IBLevelSetFunctions<dim>
 {
 private:
+  Point<dim>    center;
+  Tensor<1,dim> linear_velocity;
+  Tensor<1,3>   angular_velocity; // rad/s
+
   double radius;
   bool inside;
+
+
 public:
-    IBLevelSetCircle(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double T_scal, bool p_fluid_inside, double p_radius):
-      IBLevelSetFunctions<dim>(p_center,p_linear_velocity,p_angular_velocity, T_scal),
-    radius(p_radius),inside(p_fluid_inside) {}
+  IBLevelSetCircle(Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double p_scal, bool p_fluid_inside, double p_radius):
+    IBLevelSetFunctions<dim>(p_scal),
+    center(p_center),
+    linear_velocity(p_linear_velocity),
+    angular_velocity(p_angular_velocity),
+    radius(p_radius),
+    inside(p_fluid_inside) {}
 
     // Value of the distance
     virtual double distance(const Point<dim> &p)
     {
-      const double x = p[0]-this->center_rotation[0];
-      const double y = p[1]-this->center_rotation[1];;
+      const double x = p[0]-this->center[0];
+      const double y = p[1]-this->center[1];;
 
       if (!inside){return std::sqrt(x*x+y*y)-radius;}
       else {return -(std::sqrt(x*x+y*y)-radius);}
@@ -55,13 +62,14 @@ public:
     {
       if (dim==2)
       {
-        const double x = p[0]-this->center_rotation[0];
-        const double y = p[1]-this->center_rotation[1];
+        const double x = p[0]-this->center[0];
+        const double y = p[1]-this->center[1];
         const double omega = this->angular_velocity[2];
         values[0] = -omega*y+this->linear_velocity[0];
         values[1] = omega*x+this->linear_velocity[1];
       }
     }
+
 protected:
 };
 
@@ -69,11 +77,17 @@ template <int dim>
 class IBLevelSetLine: public IBLevelSetFunctions<dim>
 { // ligne verticale ayant pour abscisse "abscisse"
 private:
-    double abscisse;
+  Point<dim>    center;
+  Tensor<1,dim> linear_velocity;
+  Tensor<1,3>   angular_velocity; // rad/s
+  double abscisse;
 public:
-    IBLevelSetLine(double p_coor, Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double T_scal):
-      IBLevelSetFunctions<dim>(p_center,p_linear_velocity,p_angular_velocity, T_scal),
-      abscisse(p_coor){}
+    IBLevelSetLine(double p_abscisse, Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double p_scal):
+      IBLevelSetFunctions<dim>(p_scal),
+      center(p_center),
+      linear_velocity(p_linear_velocity),
+      angular_velocity(p_angular_velocity),
+      abscisse(p_abscisse){}
 
     // Value of the distance
     virtual double distance(const Point<dim> &p)
@@ -90,8 +104,43 @@ public:
           values[i] = this->linear_velocity[i];
         }
     }
+};
 
-protected:
+
+template <int dim>
+class IBLevelSetPlane: public IBLevelSetFunctions<dim>
+{ // ligne verticale ayant pour abscisse "abscisse"
+private:
+  Point<dim>    center;
+  Tensor<1,dim> normal;
+  Tensor<1,dim> linear_velocity;
+  double norm_normal;
+public:
+    IBLevelSetPlane(Point<dim> p_center, Tensor<1,dim> p_normal, Tensor<1,dim> p_linear_velocity, double p_scal):
+      IBLevelSetFunctions<dim>(p_scal),
+      center(p_center),
+      normal(p_normal),
+      linear_velocity(p_linear_velocity)
+    {
+      norm_normal=normal.norm();
+    }
+
+    // Value of the distance
+    virtual double distance(const Point<dim> &p)
+    {
+      // Get the vector between p and the center
+      const Point<dim> vec=p-center;
+      return vec * normal/norm_normal;
+    }
+
+    // Value of the velocity
+    virtual void   velocity(const Point<dim> /*&p*/, Vector<double> &values)
+    {
+        for (int i = 0 ; i<dim ; ++i)
+        {
+          values[i] = this->linear_velocity[i];
+        }
+    }
 };
 
 //template<int dim>
