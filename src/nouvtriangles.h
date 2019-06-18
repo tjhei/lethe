@@ -198,11 +198,11 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_solid, st
                 decomp_elem [4] = boundary_pts[1];
                 decomp_elem [5] = boundary_pts[0];
 
-                decomp_elem [6] = coor_elem[(b+2)%4];
-                decomp_elem [7] = coor_elem[(b+3)%4];
-                decomp_elem [8] = boundary_pts[1];
+                decomp_elem [6] = coor_elem[(b+3)%4];
+                decomp_elem [7] = boundary_pts[1];
+                decomp_elem [8] = coor_elem[(b+2)%4];
 
-                corresp = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], 5, vec_change_coor[(b+2)%4], 4, 5, vec_change_coor[(b+2)%4], vec_change_coor[(b+3)%4], 4 };
+                corresp = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], 5, vec_change_coor[(b+2)%4], 4, 5, vec_change_coor[(b+3)%4],4 , vec_change_coor[(b+2)%4] };
                 No_pts_solid[0]= vec_change_coor[b];
                 num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[1], boundary_pts[0]}; // boundary points are sorte differently because of the way the function trgboundary works
 
