@@ -26,7 +26,7 @@
 
 using namespace dealii;
 
-void test1_composed_distance()
+void test1_composed_distances_circles()
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
@@ -68,8 +68,52 @@ void test1_composed_distance()
   ib_composer.calculateDistance();
   TrilinosWrappers::MPI::Vector levelSet_distance=ib_composer.getDistance();
 
-  write_ib_scalar_data<2>(triangulation,*dof_handler,mpi_communicator,levelSet_distance,"ls_composed_distance");
+  write_ib_scalar_data<2>(triangulation,*dof_handler,mpi_communicator,levelSet_distance,"ls_circles_composed_distance");
 }
+
+void test2_composed_distances_planes()
+{
+  MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
+  unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
+  unsigned int this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator));
+
+  parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
+                                                         (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
+  GridGenerator::hyper_cube (triangulation,
+                             -2,2);
+  triangulation.refine_global(6);
+
+  Point<2> center_left(-0.25,0);
+  Tensor<1,2> velocity;
+  velocity[0]=1.;
+  velocity[1]=0.;
+  Tensor<1,2> normal_left;
+  normal_left[0]=1.;
+  normal_left[1]=0.;
+  Tensor<1,2> normal_right;
+  normal_right[0]=-1.;
+  normal_right[1]=0.;
+  Point<2> center_right(+0.5,0);
+  double T_scal;
+  T_scal=1;
+
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+
+  IBLevelSetPlane<2> plane1(center_left,normal_left,velocity,T_scal);
+  IBLevelSetPlane<2> plane2(center_right,normal_right,velocity,T_scal);
+  ib_functions.push_back(&plane1);
+  ib_functions.push_back(&plane2);
+
+
+  IBComposer<2> ib_composer(&triangulation,ib_functions);
+
+  DoFHandler<2> *dof_handler(ib_composer.getDoFHandler());
+  ib_composer.calculateDistance();
+  TrilinosWrappers::MPI::Vector levelSet_distance=ib_composer.getDistance();
+
+  write_ib_scalar_data<2>(triangulation,*dof_handler,mpi_communicator,levelSet_distance,"ls_planes_composed_distance");
+}
+
 
 int
 main(int argc, char* argv[])
@@ -78,7 +122,8 @@ main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    test1_composed_distance();
+    test1_composed_distances_circles();
+    test2_composed_distances_planes();
   }
   catch (std::exception &exc)
   {
