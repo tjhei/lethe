@@ -47,8 +47,6 @@
 
 using namespace dealii;
 
-
-
 template <int dim>
 class BoundaryValues : public Function<dim>
 {
@@ -69,7 +67,15 @@ double BoundaryValues<dim>::value (const Point<dim> &p,
 
 void test1_loop_composed_distance()
 
-// on teste pour voir si une frontière droite nous fait obtenir qqch d'aberrant
+// T set to Tdirichlet in the solid part, set to 0 on the sides of the domain
+// this shows the result when the boundary is a circle of center "center1" and radius "radius"
+
+
+
+
+
+
+
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
@@ -82,7 +88,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(4);
+  triangulation.refine_global(5);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -99,7 +105,7 @@ void test1_loop_composed_distance()
   angular[2]=0;
   double T_scal;
   T_scal=1;
-  double radius =1.0;
+  double radius =0.76891;
   bool inside=0;
 
   // IB composer
@@ -186,21 +192,12 @@ void test1_loop_composed_distance()
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        distance[dof_index]=-dofs_points[dof_index](1)+dofs_points[dof_index](0)+1.51;
-
-//        if (dofs_points[dof_index][0]==-2 && dofs_points[dof_index][1]==2)
-//            distance[dof_index]=-1;
-//        else {distance[dof_index] = 1;}
-//        if (dofs_points[dof_index][0]==2 && dofs_points[dof_index][1]==-2)
-//            std::cout << local_dof_indices[dof_index] << std::endl;
+        distance[dof_index]=levelSet_distance[local_dof_indices[dof_index]];
       }
 
-    std::cout << distance[0] << ", " << distance[1] << ", " << distance[2] << ", " << distance[3] << "\n" << std::endl;
+    // std::cout << distance[0] << ", " << distance[1] << ", " << distance[2] << ", " << distance[3] << "\n" << std::endl;
 
-    //integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
-
-      //  std::cout << nb_poly << std::endl;
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -211,16 +208,14 @@ void test1_loop_composed_distance()
           }
       }
 
+      else if (nb_poly<0) {
+          quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+      }
+
       else {
           new_tri(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
       }
 
-
-         for (int i = 0; i < 4; ++i) {
-             std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
-       }
-         std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
-         std::cout << "\n" << std::endl;
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -236,17 +231,32 @@ void test1_loop_composed_distance()
   }
 
   std::map<types::global_dof_index,double> boundary_values;
-//  VectorTools::interpolate_boundary_values (*dof_handler,
-//                                            2,
-//                                            BoundaryValues<2>(),
-//                                            boundary_values);
 
-  boundary_values[109] = 0.;
+  VectorTools::interpolate_boundary_values (*dof_handler,
+                                            0,
+                                            Functions::ZeroFunction<2>(),
+                                            boundary_values);
+
+  VectorTools::interpolate_boundary_values (*dof_handler,
+                                            1,
+                                            Functions::ZeroFunction<2>(),
+                                            boundary_values);
+
+  VectorTools::interpolate_boundary_values (*dof_handler,
+                                            2,
+                                            Functions::ZeroFunction<2>(),
+                                            boundary_values);
+
+  VectorTools::interpolate_boundary_values (*dof_handler,
+                                            3,
+                                            Functions::ZeroFunction<2>(),
+                                            boundary_values);
+
   MatrixTools::apply_boundary_values (boundary_values,
                                       system_matrix,
                                       solution,
                                       system_rhs);
-  //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}
+
 
   SolverControl           solver_control (1000, 1e-12);
   SolverCG<>              solver (solver_control);
