@@ -45,7 +45,19 @@
 using namespace dealii;
 
 void test1_loop_composed_distance()
+
+// IT IS NOT RELEVANT ANYMORE SINCE IT USES QUAD_ELEM WHICH IS NO MORE ADAPTED FOR THIS CODE
+// !!!!!!!!!!
+// !!!!!!!!!!!
 {
+
+
+
+
+
+
+
+
 
     //This one is to check if we can do the same as step-3 by calculating the elementary matrices in each element by ourselves
 

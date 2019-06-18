@@ -46,25 +46,14 @@
 
 using namespace dealii;
 
-//class BoundaryValues : public Function<2>
-//{
-//public:
-//  BoundaryValues () : Function<2>() {}
-//  virtual double value (const Point<2>   &p,
-//                        const unsigned int  component = 0) const;
-//};
-
-//double BoundaryValues::value (const Point<2> &p,
-//                                   const unsigned int /*component*/) const
-//{
-//  return cos(M_PI_4*p[1]);
-//}
-
-
 
 void test1_loop_composed_distance()
 
-// on teste pour voir si une frontière droite nous fait obtenir qqch d'aberrant
+// we try to integrate the case where the boundary is a line, which creates only quadrilaterals in the element both in the fluid and in the solid
+// we solve here the heat equation, with T set to Tdirichlet in the solid and set to 0 on the side x=2, y in [-2, 2]
+// to visualize the calculated solution, just type "gnuplot" in the terminal, then "set style data lines" and eventually "splot "solution.gpl""
+
+
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
@@ -158,9 +147,6 @@ void test1_loop_composed_distance()
 
   FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
 
-
-  //double matelem[4][4];
-
   std::vector<double> elem_rhs(dofs_per_cell);
   std::vector<double> sec_membre_elem(dofs_per_cell);
 
@@ -186,13 +172,11 @@ void test1_loop_composed_distance()
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        distance[dof_index] = dofs_points[dof_index][0]-abscisse; //levelSet_distance[local_dof_indices[dof_index]];
+        distance[dof_index] = dofs_points[dof_index][0]-abscisse;
       }
 
-
-    //integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
-      //std::cout << corresp[0] << corresp[1] << corresp[2] << corresp[3] << std::endl;
+
         std::cout << nb_poly << std::endl;
       if (nb_poly==0)
       {
@@ -215,13 +199,6 @@ void test1_loop_composed_distance()
          std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
          std::cout << "\n" << std::endl;
 
-//    for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
-//      {
-//        for (unsigned int i=0; i<dofs_per_cell; ++i)
-//          elem_rhs[i] += (fe_values.shape_value (i, q_index) *
-//                          sec_membre_elem[i] *
-//                          fe_values.JxW (q_index));
-//      }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
@@ -244,7 +221,7 @@ void test1_loop_composed_distance()
                                       system_matrix,
                                       solution,
                                       system_rhs);
-  //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}
+
 
   SolverControl           solver_control (1000, 1e-12);
   SolverCG<>              solver (solver_control);
