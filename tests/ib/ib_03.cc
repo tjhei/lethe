@@ -39,9 +39,9 @@
 #include "../tests.h"
 
 // Mes ajouts so far
-//#include "nouvtriangles.h"
-//#include "area.h"
-#include "integlocal.h"
+#include "nouvtriangles.h"
+#include "area.h"
+//#include "integlocal.h"
 
 using namespace dealii;
 
@@ -58,7 +58,7 @@ void test1_loop_composed_distance()
                              -2,2);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(5);
+  triangulation.refine_global(6);
 
   // Set-up the center, velocity and angular velocity of circle
   Point<2> center1(0,0);
@@ -163,69 +163,71 @@ void test1_loop_composed_distance()
 
         //std::cout << /* "Dof number : " << local_dof_indices[dof_index] << */ " - Point : " << dofs_points[dof_index] <<" - Distance : " << distance[dof_index] << std::endl;
       }
-    //nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
 
-    //area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
-    //areaa += area_temp; // CALCUL DE L'AIRE DE LA ZONE FLUIDE.
+    //
+    area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
+    areaa += area_temp; // CALCUL DE L'AIRE DE LA ZONE FLUIDE.
 
 
-    /*if (nb_poly > 0) */{std::cout << "Coor elem : "   << dofs_points[0] << ", "  << dofs_points[1] << ", "  << dofs_points[2] << ", "  << dofs_points[3] << "\n "  <<
+    /*if (nb_poly > 0) {std::cout << "Coor elem : "   << dofs_points[0] << ", "  << dofs_points[1] << ", "  << dofs_points[2] << ", "  << dofs_points[3] << "\n "  <<
                                      "Val f dist : "  << distance[0] << ", "  << distance[1] << ", "  << distance[2] << ", "  << distance[3] << "\n "  <<
-                                     /*"Pts fluid : "   << No_pts_fluid[0] << ", " << No_pts_fluid[1] << ", " <<No_pts_fluid[2] << ", " <<No_pts_fluid[3] << "\n " <<
+                                     "Pts fluid : "   << No_pts_fluid[0] << ", " << No_pts_fluid[1] << ", " <<No_pts_fluid[2] << ", " <<No_pts_fluid[3] << "\n " <<
                                      "Num elem : "    << num_elem[0] << ", " << num_elem[1] << ", " << num_elem[2] << ", " << num_elem[3] << ", " << num_elem[4] << ", " << num_elem[5] << "\n " <<
                                      "Corresp : "     << corresp[0] << ", " << corresp[1] << ", " << corresp[2] << ", " << corresp[3] << ", " << corresp[4] << ", " << corresp[5] << ", " << corresp[6] << ", " << corresp[7] << ", " << corresp[8] << "\n " <<
 
-                                     "\n \n"  <<*/  std::endl;}
+                                     "\n \n"  << std::endl;}*/
 
 
-    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance);
+//    integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance);
 
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "Ligne " << i << " de la matrice : " << matelem[i][0] << ", " << matelem[i][1] << ", " << matelem[i][2] << ", " << matelem[i][3] << std::endl;
+//    for (int i = 0; i < 4; ++i) {
+//        std::cout << "Ligne " << i << " de la matrice : " << matelem[i][0] << ", " << matelem[i][1] << ", " << matelem[i][2] << ", " << matelem[i][3] << std::endl;
+//    }
+//    std::cout << "\n " << std::endl;
+
+
+
+//    for (unsigned int i=0; i<dofs_per_cell; ++i)
+//      for (unsigned int j=0; j<dofs_per_cell; ++j)
+//        system_matrix.add (local_dof_indices[i],
+//                           local_dof_indices[j],
+//                           matelem[i][j]);
+
+
+//    for (unsigned int i=0; i<dofs_per_cell; ++i)
+//      system_rhs(local_dof_indices[i]) += sec_membre_elem[i];
+//    }
+//  }
+
+//  std::map<types::global_dof_index,double> boundary_values;
+//  VectorTools::interpolate_boundary_values (*dof_handler,
+//                                            0,
+//                                            Functions::ZeroFunction<2>(),
+//                                            boundary_values);
+//  MatrixTools::apply_boundary_values (boundary_values,
+//                                      system_matrix,
+//                                      solution,
+//                                      system_rhs);
+//  //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}
+
+//  SolverControl           solver_control (1000, 1e-12);
+//  SolverCG<>              solver (solver_control);
+//  solver.solve (system_matrix, solution, system_rhs,
+//                PreconditionIdentity());
+
+//  DataOut<2> data_out;
+//  data_out.attach_dof_handler (*dof_handler);
+//  data_out.add_data_vector (solution, "solution");
+//  data_out.build_patches ();
+//  std::ofstream output ("solution.gpl");
+//  data_out.write_gnuplot (output);
+        }
     }
-    std::cout << "\n " << std::endl;
-
-
-
-    for (unsigned int i=0; i<dofs_per_cell; ++i)
-      for (unsigned int j=0; j<dofs_per_cell; ++j)
-        system_matrix.add (local_dof_indices[i],
-                           local_dof_indices[j],
-                           matelem[i][j]);
-
-
-    for (unsigned int i=0; i<dofs_per_cell; ++i)
-      system_rhs(local_dof_indices[i]) += sec_membre_elem[i];
-    }
-  }
-
-  std::map<types::global_dof_index,double> boundary_values;
-  VectorTools::interpolate_boundary_values (*dof_handler,
-                                            0,
-                                            Functions::ZeroFunction<2>(),
-                                            boundary_values);
-  MatrixTools::apply_boundary_values (boundary_values,
-                                      system_matrix,
-                                      solution,
-                                      system_rhs);
-  //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}
-
-  SolverControl           solver_control (1000, 1e-12);
-  SolverCG<>              solver (solver_control);
-  solver.solve (system_matrix, solution, system_rhs,
-                PreconditionIdentity());
-
-  DataOut<2> data_out;
-  data_out.attach_dof_handler (*dof_handler);
-  data_out.add_data_vector (solution, "solution");
-  data_out.build_patches ();
-  std::ofstream output ("solution.gpl");
-  data_out.write_gnuplot (output);
-
+  std::cout << "Erreur sur l'aire de la zone fluide = " << areaa - 16 << std::endl;
 }
 
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
   try
   {

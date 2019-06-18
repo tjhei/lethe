@@ -135,9 +135,8 @@ void test1_loop_composed_distance()
   solution.reinit (dof_handler->n_dofs());
   system_rhs.reinit (dof_handler->n_dofs());
 
-  std::vector<std::vector<double> > cell_mat(dofs_per_cell); // elementary matrix
-  for ( unsigned int i = 0 ; i < dofs_per_cell ; i++ )
-     cell_mat[i].resize(dofs_per_cell);
+  FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
+
 
 //  double matelem[4][4];
 
@@ -154,8 +153,6 @@ void test1_loop_composed_distance()
     {
       std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
 
-      for ( unsigned int i = 0 ; i < dofs_per_cell ; i++ )
-         std::fill(cell_mat[i].begin(), cell_mat[i].end(), 0.0); // We reinit the elementary matrix
 
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
@@ -172,7 +169,7 @@ void test1_loop_composed_distance()
 //      std::cout << "sec mem : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << "\n" << std::endl;
 
     //integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance); // it calculates the values in the elem matrix
-    quad_elem(dofs_points, cell_mat, sec_membre_elem);
+    quad_elemf(dofs_points, cell_mat, sec_membre_elem);
 
     // this is to check the values of  the elementary matrix
 

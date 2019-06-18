@@ -3,12 +3,35 @@
 
 void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
 {
-    /* decomp_elem is a vector in which we shall store the coordinates of the sub_elements created with this function
-     nb_poly will allow us to indicate the number of polygons returned in decomp_elem and to specify if we return triangles or a quadrilateral
-     coor_elem are the coordinates of each summit of the element considered
-     val_f gives the value of the distance function for each summit of the element
+    /* *** decomp_elem is a vector in which we shall store the coordinates of the sub_elements created with this function
 
-     This code is made to work with the following numerotation for the summits of the element
+     *** nb_poly will allow us to indicate the number of sub_elements created in decomp_elem and to specify if we return triangles or a quadrilateral
+     nb_ poly is pretty simple :
+        - positive if the sub_elements are triangles, then it indicates the number created
+        - 0 if the element considered is totally in the fluid or in the solid
+        - -1 if we create a qudrilateral
+
+     *** corresp : returns the equivalence between the local numerotation in the sub-elements and the numerotation in the initial element, its length is 9 so that we don,t have to create a dynamic array
+     so for ex. if we create only one triangle, we shall fill only the 3 first elements of corresp and then we will put -1 to all the others elements of corresp
+     Example :
+
+     2-5--3     Let this rectangle be the element studied. For this example, the vertices 0, 1 and 3 are in the solid, 4 and 5 are the points of intersection between the sides of the rectangle and the boundary
+     |/   |
+     4    |     The vertices of the sub-element created would be 2, 4 and 5. Thus, corresp would be {2, 4, 5, -1, -1,  ..., -1}
+     |    |     Here nb_poly = 1. Decom_elem gives the coordinates of 2, 4 and 5 (in this order !).
+     0----1
+
+     *** No_pts_solid gives the number associated to the vertex in the solid (we do not consider the points on the boundary). Its length is 4, so we give the numbers of the vertices in the solid and then fill the rest of the vector with -1.
+     In the previous example, No_pts_solid = {0, 1, 3, -1}
+
+     *** num_elem[i] gives the coordinates of the point associated to the number i in the numerotation of the element. In this example, num_elem[0] would be the coordinates of the point 0, and thus would be equal to coor_elem1[0].
+
+     *** You also have to give :
+     - coor_elem1 : the coordinates of each vertex of the element considered
+     - val_f1 : the value of the distance function for each vertex of the element
+
+    IMPORTANT :
+     This code is made to work with the following numerotation for the vertices of the element
 
           1----0
           |    |
@@ -20,7 +43,10 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<int> &No_pts_solid, st
           |    |
           0----1
 
-     Thus we shall make a local numerotation for the summits, and create a local vector for the distance function matching with it. */
+     Thus we shall make a local numerotation for the vertices, and create a local vector for the distance function matching with it.
+     FOR THAT WE JUST HAVE TO USE THE VECTOR "vec_change_coor"
+
+*/
 
     std::vector<Point<2> > coor_elem(4);
     std::vector<double> val_f(4);

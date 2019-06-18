@@ -43,6 +43,7 @@
 //#include "area.h"
 //#include "integlocal.h"
 #include "quad_elem.h"
+#include "new_tri.h"
 
 using namespace dealii;
 
@@ -60,6 +61,21 @@ using namespace dealii;
 //  return cos(M_PI_4*p[1]);
 //}
 
+template <int dim>
+class BoundaryValues : public Function<dim>
+{
+public:
+  BoundaryValues () : Function<dim>() {}
+  virtual double value (const Point<dim>   &p,
+                        const unsigned int  component = 0) const;
+};
+
+template <int dim>
+double BoundaryValues<dim>::value (const Point<dim> &p,
+                                   const unsigned int /*component*/) const
+{
+  return p(1)/7.0 + 2.0/7.0;
+}
 
 
 void test1_loop_composed_distance()
@@ -77,7 +93,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(2);
+  triangulation.refine_global(1);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -123,6 +139,7 @@ void test1_loop_composed_distance()
   FEValues<2> fe_values (mapping,
                          *fe,
                          quadrature_formula,
+                         update_gradients |
                          update_values |
                          update_quadrature_points |
                          update_JxW_values
@@ -145,7 +162,7 @@ void test1_loop_composed_distance()
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
   std::vector<int>                     No_pts_solid(4);
-  double                               Tdirichlet = 1.0;
+  double                               Tdirichlet = 1;
 
 
   DoFTools::make_sparsity_pattern (*dof_handler, dsp);
@@ -162,38 +179,43 @@ void test1_loop_composed_distance()
   //double matelem[4][4];
 
   std::vector<double> elem_rhs(dofs_per_cell);
-  std::vector<double> sec_membre_elem(dofs_per_cell);
 
   Point<2> a;
   a[0]=0;
   a[1]=0;
+  Vector<int> sgn (dofs_per_cell);
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
   endc = dof_handler->end();
   for (; cell!=endc; ++cell)
   {
-
-    std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
     std::fill(elem_rhs.begin(), elem_rhs.end(), 0.0);
-    cell_mat =0;
+    cell_mat = 0;
+
+    sgn=-1;
 
     if (cell->is_locally_owned())
     {
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
+
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        distance[dof_index] = dofs_points[dof_index][0]-abscisse; //levelSet_distance[local_dof_indices[dof_index]];
+        if (dofs_points[dof_index][0]==-2 && dofs_points[dof_index][1]==2)
+            distance[dof_index]=1;
+        else {distance[dof_index] = -1;}
+        if (distance[dof_index]>0)
+            sgn(dof_index) = 1;
       }
 
 
     //integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
       //std::cout << corresp[0] << corresp[1] << corresp[2] << corresp[3] << std::endl;
-        std::cout << nb_poly << std::endl;
+      //  std::cout << nb_poly << std::endl;
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -205,7 +227,7 @@ void test1_loop_composed_distance()
       }
 
       else {
-          quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+          new_tri(Tdirichlet, nb_poly, corresp, decomp_elem, elem_rhs);
       }
 
 
@@ -238,8 +260,9 @@ void test1_loop_composed_distance()
   std::map<types::global_dof_index,double> boundary_values;
   VectorTools::interpolate_boundary_values (*dof_handler,
                                             1,
-                                            Functions::ZeroFunction<2>(),
+                                            BoundaryValues<2>(),
                                             boundary_values);
+
   MatrixTools::apply_boundary_values (boundary_values,
                                       system_matrix,
                                       solution,
