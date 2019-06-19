@@ -1,3 +1,5 @@
+#ifndef JACOBIAN_H
+#define JACOBIAN_H
 double jacobian(int trg_or_quad, double x, double y, std::vector<Point<2> > coor)
 {
     /* calculates the jacobian of the polygon of coordinates given by coor
@@ -41,3 +43,4 @@ double jacobian(int trg_or_quad, double x, double y, std::vector<Point<2> > coor
         return ((B11 + y * C11)*(B22 + x * C21) - (B21 + y * C21)*(B12 + x * C11)) ;
     }
 }
+#endif

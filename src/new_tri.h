@@ -6,6 +6,10 @@
 #include <deal.II/base/index_set.h>
 #include <deal.II/lac/full_matrix.h>
 
+#include "T_analytical.h"
+#include "interpolationtrg.h"
+#include "jacobian.h"
+
 using namespace dealii;
 
 void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<int> No_pts_solid, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
@@ -44,8 +48,6 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
             corresp_loc[1] = corresp[3*n+1];
             corresp_loc[2] = corresp[3*n+2];
 
-//            std::cout << "corresp " << corresp_loc[0] << ", " << corresp_loc[1] << ", " << corresp_loc[2] << "\n" << std::endl;
-
             double x1, x2, x3, y1, y2, y3;
             double jac;
 
@@ -55,7 +57,6 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
             y1 = pt1(1);
             y2 = pt2(1);
             y3 = pt3(1);
-            //std::cout << "pts : " << pt1 << " , " << pt2 << " , " << pt3 << "\n" << std::endl;
             jac = (x2-x1)*(y3-y1)-(y2-y1)*(x3-x1);
 
             double a11,a12, a13, a22,a33,a32;
@@ -72,13 +73,9 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
                 for (int l = 0; l < 3; ++l) {
                     M[corresp_loc[k]][corresp_loc[l]] += Melem[k][l];
 
-                } /*std::cout << Melem[k][0] << ", "  << Melem[k][1] << ", " << Melem[k][2]   << std::endl;*/
+                }
             }
-//            std::cout << "\n" << std::endl;
-//            for (int i = 0; i < 6; ++i) {
-//                std::cout << M[i][0] << ", " <<  M[i][1] << ", " << M[i][2] << ", " << M[i][3] << ", " << M[i][4] << ", " << M[i][5] << std::endl;
-//            }
-//            std::cout << "\n" << std::endl;
+
         }
 
         for (unsigned int j = 0; j < 4; ++j) {
@@ -86,7 +83,6 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
                 cell_mat[j][var] = M[j][var];
             }
             cell_rhs[j] += -Tdirichlet * (M[j][4] + M[j][5]);
-            //std::cout << cell_rhs[j] << std::endl;
         }
 
         int i =0;
@@ -98,11 +94,41 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
                 cell_rhs[No_pts_solid[i]] = Tdirichlet;
                 i++;
             }
-        //if (nb_poly>0) {for (int i = 0; i<6 ; i++ ) {std::cout << "ligne " << i << " = " << mat_elem2[i][0] << ", " << mat_elem2[i][1] << ", " << mat_elem2[i][2] << ", " << mat_elem2[i][3] << ", " << mat_elem2[i][4] << ", " << mat_elem2[i][5] << std::endl;}}
-//        std::cout << "pts_solid : " << No_pts_solid[0] << ", " << No_pts_solid[1] << ", " << No_pts_solid[2] << ", " <<No_pts_solid[3] << std::endl;
-//        std::cout << "\n" << std::endl;
-
 
 }
 
+double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<int> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
+{
+    double err = 0;
 
+    double xi[4] = {1./3.,0.2,0.2,0.6};
+    double eta[4] = {1./3.,0.2,0.6,0.2};
+    double w[4] = {-0.28125, 0.2604166, 0.2604166, 0.2604166};
+    double Tinterp;
+
+    double Tloc[3];
+    std::vector<Point<2>> trg(3);
+    double jk;
+    Point<2> pt;
+
+    for (int n = 0; n < nbtrg; ++n)
+    {
+        Tloc[0] = T[corresp[3*n]];
+        Tloc[1] = T[corresp[3*n+1]];
+        Tloc[2] = T[corresp[3*n+2]];
+
+        trg[0] = decomp_elem[3*n];
+        trg[1] = decomp_elem[3*n+1];
+        trg[2] = decomp_elem[3*n+2];
+        jk = jacobian(0, 0, 0, trg);
+
+        for (int i = 0; i < 4; ++i) {
+                pt(0)=xi[i];
+                pt(1)=eta[i];
+
+                Tinterp = interpolationtrg(0, xi[i],eta[i])*Tloc[0] + interpolationtrg(1, xi[i],eta[i])*Tloc[1] + interpolationtrg(2, xi[i],eta[i])*Tloc[2];
+                err+=std::pow(T_analytical(pt, center, T1, T2, r1, r2)-Tinterp,2)*jk*w[i];
+        }
+    }
+    return err;
+}

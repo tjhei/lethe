@@ -1,5 +1,8 @@
 #include <deal.II/base/point.h>
 
+#ifndef T_ANALYTICAL_H
+#define T_ANALYTICAL_H
+
 using namespace dealii;
 
 double T_analytical(Point<2> pt, Point<2> center, double T1, double T2, double r1, double r2)
@@ -12,7 +15,9 @@ double T_analytical(Point<2> pt, Point<2> center, double T1, double T2, double r
     r_eff = sqrt(pt_eff.square());
 
     double A,B;
-    A = r1*r2*((T2-T1)/(r2-r1));
-    B = A/(r1*r1) + T1;
-    return -A/r_eff+B;
+    A = (T2-T1)/log(r1/r2);
+    B = A*log(r1) + T1;
+    return -A*log(r_eff)+B;
 }
+
+#endif //T_ANALYTICAL_H

@@ -1,3 +1,6 @@
+#ifndef INTERPOLATIONTRG_H
+#define INTERPOLATIONTRG_H
+
 double interpolationtrg(int i, double x, double y)
 {
     if (i==0){return 1-x-y;}
@@ -6,3 +9,5 @@ double interpolationtrg(int i, double x, double y)
         return y;
     }
 }
+
+#endif

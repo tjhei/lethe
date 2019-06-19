@@ -44,6 +44,8 @@
 //#include "integlocal.h"
 #include "quad_elem.h"
 #include "new_tri.h"
+#include "T_analytical.h"
+#include "t_calc_interp.h"
 
 using namespace dealii;
 
@@ -87,7 +89,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(5);
+  triangulation.refine_global(6);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -131,7 +133,7 @@ void test1_loop_composed_distance()
 
   // Loop over all elements and extract the distances into a local array
   FESystem<2> *fe(ib_composer.getFESystem());
-  QGauss<2>              quadrature_formula(1);
+  QGauss<2>              quadrature_formula(4);
   const MappingQ<2>      mapping (1);
   std::map< types::global_dof_index, Point< 2 > > support_points;
   DoFTools::map_dofs_to_support_points ( mapping, *dof_handler,support_points );
@@ -161,8 +163,8 @@ void test1_loop_composed_distance()
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
   std::vector<int>                     No_pts_solid(4);
-  double                               Tdirichlet = 1;
-
+  double                               T1 = 1;
+  double                               T2 = 2;
 
   DoFTools::make_sparsity_pattern (*dof_handler, dsp);
   sparsity_pattern.copy_from(dsp);
@@ -170,7 +172,6 @@ void test1_loop_composed_distance()
 
   solution.reinit (dof_handler->n_dofs());
   system_rhs.reinit (dof_handler->n_dofs());
-
 
   FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
   std::vector<double> elem_rhs(dofs_per_cell);
@@ -181,6 +182,7 @@ void test1_loop_composed_distance()
 
   int int_or_ext;
   double r;
+  double Tdirichlet;
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
@@ -203,17 +205,19 @@ void test1_loop_composed_distance()
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         distance[dof_index]=levelSet_distance[local_dof_indices[dof_index]];
         r = (dofs_points[dof_index](0)-center(0))* (dofs_points[dof_index](0)-center(0))+ (dofs_points[dof_index](1)-center(1))*(dofs_points[dof_index](1)-center(1));
-        if (r > 1.2) // condition adapted to this problem (r2 = 1.5...)
+        if ( r > 1.2){
             int_or_ext+=1;
+        }
+
       }
 
 
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
       if (int_or_ext == 4)
-          Tdirichlet = 2;
+          Tdirichlet = T2;
       else {
-          Tdirichlet = 1;
+          Tdirichlet = T1;
       }
 
 
@@ -267,14 +271,48 @@ void test1_loop_composed_distance()
   solver.solve (system_matrix, solution, system_rhs,
                 PreconditionIdentity());
 
-  DataOut<2> data_out;
-  data_out.attach_dof_handler (*dof_handler);
-  data_out.add_data_vector (solution, "solution");
-  data_out.build_patches ();
-  std::ofstream output ("solution.gpl");
-  data_out.write_gnuplot (output);
+  double err=0;
+  std::vector<double> T(6);
+
+  cell = dof_handler->begin_active();
+  for (; cell!=endc; ++cell)
+  {
+      fe_values.reinit(cell);
+      cell->get_dof_indices (local_dof_indices);
+
+      for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
+      {
+        dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
+        distance[dof_index]=levelSet_distance[local_dof_indices[dof_index]];
+        T[dof_index]=solution[local_dof_indices[dof_index]];
+      }
+
+      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+
+      if (nb_poly==0)
+      {
+          if (distance[0]>0){
+              for (unsigned int q=0; q<n_q_points; q++) {
+                err+=std::pow(T_analytical(fe_values.quadrature_point (q), center, T1, T2, radius1, radius2)-T_calc_interp(T, fe_values.quadrature_point (q)), 2)
+                        *fe_values.JxW(q);
+              }
+          }
+
+      }
+
+      else if (nb_poly<0) {
+        err+=quad_elem_L2(center, T1, T2, radius1, radius2, corresp, No_pts_solid, decomp_elem, T);
+      }
+
+      else {
+        T[4]=T[No_pts_solid[0]];
+        T[5]=T[No_pts_solid[0]];
+        err+=new_tri_L2(nb_poly, decomp_elem, corresp, No_pts_solid, center, T1, T2, radius1, radius2, T);
+      }
 
 
+  }
+  std::cout << err << std::endl;
 }
 
 int main(int argc, char* argv[])
