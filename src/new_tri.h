@@ -44,7 +44,7 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
             corresp_loc[1] = corresp[3*n+1];
             corresp_loc[2] = corresp[3*n+2];
 
-            std::cout << "corresp " << corresp_loc[0] << ", " << corresp_loc[1] << ", " << corresp_loc[2] << "\n" << std::endl;
+//            std::cout << "corresp " << corresp_loc[0] << ", " << corresp_loc[1] << ", " << corresp_loc[2] << "\n" << std::endl;
 
             double x1, x2, x3, y1, y2, y3;
             double jac;
@@ -72,13 +72,13 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
                 for (int l = 0; l < 3; ++l) {
                     M[corresp_loc[k]][corresp_loc[l]] += Melem[k][l];
 
-                } std::cout << Melem[k][0] << ", "  << Melem[k][1] << ", " << Melem[k][2]   << std::endl;
+                } /*std::cout << Melem[k][0] << ", "  << Melem[k][1] << ", " << Melem[k][2]   << std::endl;*/
             }
-            std::cout << "\n" << std::endl;
-            for (int i = 0; i < 6; ++i) {
-                std::cout << M[i][0] << ", " <<  M[i][1] << ", " << M[i][2] << ", " << M[i][3] << ", " << M[i][4] << ", " << M[i][5] << std::endl;
-            }
-            std::cout << "\n" << std::endl;
+//            std::cout << "\n" << std::endl;
+//            for (int i = 0; i < 6; ++i) {
+//                std::cout << M[i][0] << ", " <<  M[i][1] << ", " << M[i][2] << ", " << M[i][3] << ", " << M[i][4] << ", " << M[i][5] << std::endl;
+//            }
+//            std::cout << "\n" << std::endl;
         }
 
         for (unsigned int j = 0; j < 4; ++j) {

@@ -73,11 +73,14 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
     decomp_elem[2]=pt1;
     decomp_elem[3]=pt2;
     Doing this the returned quadrilateral wouldn't have its summits in the right order*/
+
+    /// i varie entre 1 et 4 !!!!!! d'où le fait qu'on prenne i-1 % 4 et i % 4
     decomp_elem[3]=coor_elem[(i-1) % 4];
     decomp_elem[2]=coor_elem[(i) % 4];
     decomp_elem[0]=pt1;
     decomp_elem[1]=pt2;
-
-    // std::cout <<"Nouvel élément " << decomp_elem[0] << ", " << decomp_elem[1] << ", " << decomp_elem[2] << ", " << decomp_elem[3] << std::endl;
-
+    /*std::cout <<"coor elem " << coor_elem[0] << ", " << coor_elem[1] << ", " <<coor_elem[2] << ", " <<coor_elem[3] << std::endl;
+    std::cout <<"fct dist " << val_f[0] << ", " << val_f[1] << ", " <<val_f[2] << ", " <<val_f[3] << std::endl;
+    std::cout <<"Nouvel élément " << decomp_elem[0] << ", " << decomp_elem[1] << ", " << decomp_elem[2] << ", " << decomp_elem[3] << "\n \n" << std::endl;
+    */
 }
