@@ -41,4 +41,7 @@ DEAL_II_SETUP_TARGET(ib_07)
 TARGET_LINK_LIBRARIES(ib_07 lethe)
 add_test( "IB_07" ib_07)
 
-
+ADD_EXECUTABLE(ib_08 ib_08.cc)
+DEAL_II_SETUP_TARGET(ib_08)
+TARGET_LINK_LIBRARIES(ib_08 lethe)
+add_test( "IB_08" ib_08)

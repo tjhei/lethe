@@ -1,4 +1,4 @@
-﻿//BASE
+//BASE
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/utilities.h>
@@ -60,15 +60,14 @@ template <int dim>
 double BoundaryValues<dim>::value (const Point<dim> &p,
                                    const unsigned int /*component*/) const
 {
-   return 1;
+   return 2;
   //return p(1)/7.0 + 2.0/7.0;
 }
 
 
 void test1_loop_composed_distance()
 
-// T set to Tdirichlet in the solid part, set to 0 on the sides of the domain
-// this shows the result when the boundary is a circle of center "center1" and radius "radius"
+// solves the heat equation between 2 circles, T set to 2 on the ext circle and to 1 on the int circles
 
 
 
@@ -106,13 +105,17 @@ void test1_loop_composed_distance()
   double T_scal;
   T_scal=1;
   double radius1 =0.76891;
+  double radius2 =1.56841;
   bool inside=0;
 
   // IB composer
   std::vector<IBLevelSetFunctions<2> *> ib_functions;
   // Add a shape to it
   IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal, inside, radius1);
+  IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal, 1, radius2);
+
   ib_functions.push_back(&circle1);
+  ib_functions.push_back(&circle2);
 
   IBComposer<2> ib_composer(&triangulation,ib_functions);
 
@@ -176,6 +179,8 @@ void test1_loop_composed_distance()
   a[0]=0;
   a[1]=0;
 
+  int int_or_ext;
+
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
   endc = dof_handler->end();
@@ -183,6 +188,8 @@ void test1_loop_composed_distance()
   {
     std::fill(elem_rhs.begin(), elem_rhs.end(), 0.0);
     cell_mat = 0;
+
+    int_or_ext =0; // doesnt work if you don't refine at least 4 times
 
     if (cell->is_locally_owned())
     {
@@ -194,11 +201,21 @@ void test1_loop_composed_distance()
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         distance[dof_index]=levelSet_distance[local_dof_indices[dof_index]];
+        if (dofs_points[dof_index](0)*dofs_points[dof_index](0) + dofs_points[dof_index](1)*dofs_points[dof_index](1) > 1.2)
+            int_or_ext+=1;
       }
 
     // std::cout << distance[0] << ", " << distance[1] << ", " << distance[2] << ", " << distance[3] << "\n" << std::endl;
 
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+
+      if (int_or_ext == 4)
+          Tdirichlet = 2;
+      else {
+          Tdirichlet = 1;
+      }
+
+
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -235,22 +252,7 @@ void test1_loop_composed_distance()
 
   VectorTools::interpolate_boundary_values (*dof_handler,
                                             0,
-                                            Functions::ZeroFunction<2>(),
-                                            boundary_values);
-
-  VectorTools::interpolate_boundary_values (*dof_handler,
-                                            1,
-                                            Functions::ZeroFunction<2>(),
-                                            boundary_values);
-
-  VectorTools::interpolate_boundary_values (*dof_handler,
-                                            2,
-                                            Functions::ZeroFunction<2>(),
-                                            boundary_values);
-
-  VectorTools::interpolate_boundary_values (*dof_handler,
-                                            3,
-                                            Functions::ZeroFunction<2>(),
+                                            BoundaryValues<2>(),
                                             boundary_values);
 
   MatrixTools::apply_boundary_values (boundary_values,
