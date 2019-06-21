@@ -70,6 +70,7 @@ double BoundaryValues<dim>::value (const Point<dim> &p,
 void test1_loop_composed_distance()
 
 // solves the heat equation between 2 circles, T set to 2 on the ext circle and to 1 on the int circles
+// calculates the L2 norm of (T_analytical - T_calculated)
 
 
 
@@ -89,7 +90,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(6);
+  triangulation.refine_global(8);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -224,7 +225,19 @@ void test1_loop_composed_distance()
       if (nb_poly==0)
       {
           if (distance[0]>0)
-            quad_elemf(dofs_points, cell_mat, elem_rhs);
+              for (int i = 0; i < 4; ++i) {
+                  for (int j = 0; j < 4; ++j) {
+                      for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+                      {
+                          cell_mat[i][j] += fe_values.shape_grad(i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index);
+                      }
+                  }
+                      for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+                      {
+                          elem_rhs[i] += 0 ;
+                      }
+              }
+
           else
           {
             quad_elems(Tdirichlet, dofs_points, cell_mat, elem_rhs);
@@ -266,7 +279,7 @@ void test1_loop_composed_distance()
                                       system_rhs);
 
 
-  SolverControl           solver_control (1000, 1e-12);
+  SolverControl           solver_control (3000, 1e-12);
   SolverCG<>              solver (solver_control);
   solver.solve (system_matrix, solution, system_rhs,
                 PreconditionIdentity());
@@ -305,8 +318,10 @@ void test1_loop_composed_distance()
       }
 
       else {
+
         T[4]=T[No_pts_solid[0]];
         T[5]=T[No_pts_solid[0]];
+
         err+=new_tri_L2(nb_poly, decomp_elem, corresp, No_pts_solid, center, T1, T2, radius1, radius2, T);
       }
 

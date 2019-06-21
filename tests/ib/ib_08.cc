@@ -220,7 +220,18 @@ void test1_loop_composed_distance()
       if (nb_poly==0)
       {
           if (distance[0]>0)
-            quad_elemf(dofs_points, cell_mat, elem_rhs);
+              for (int i = 0; i < 4; ++i) {
+                  for (int j = 0; j < 4; ++j) {
+                      for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+                      {
+                          cell_mat[i][j] += fe_values.shape_grad(i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index);
+                      }
+                  }
+                      for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+                      {
+                          elem_rhs[i] += 0 ;
+                      }
+              }
           else
           {
             quad_elems(Tdirichlet, dofs_points, cell_mat, elem_rhs);

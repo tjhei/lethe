@@ -99,6 +99,8 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
 
 double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<int> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
 {
+    // evaluates the L2 norm of (T_analytical - T_calculated) where T_calculated is the solution found with finite elements and interpolated on the triangles
+
     double err = 0;
 
     double xi[4] = {1./3.,0.2,0.2,0.6};
@@ -120,14 +122,20 @@ double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int>
         trg[0] = decomp_elem[3*n];
         trg[1] = decomp_elem[3*n+1];
         trg[2] = decomp_elem[3*n+2];
+
         jk = jacobian(0, 0, 0, trg);
+        Point<2> pt_loc (0,0);
 
         for (int i = 0; i < 4; ++i) {
+
                 pt(0)=xi[i];
                 pt(1)=eta[i];
 
+                pt_loc(0) = (1-pt(0)-pt(1))*trg[0](0)+pt(0)*trg[1](0)+pt(1)*trg[2](0);
+                pt_loc(1) = (1-pt(0)-pt(1))*trg[0](1)+pt(0)*trg[1](1)+pt(1)*trg[2](1);
+
                 Tinterp = interpolationtrg(0, xi[i],eta[i])*Tloc[0] + interpolationtrg(1, xi[i],eta[i])*Tloc[1] + interpolationtrg(2, xi[i],eta[i])*Tloc[2];
-                err+=std::pow(T_analytical(pt, center, T1, T2, r1, r2)-Tinterp,2)*jk*w[i];
+                err+=std::pow(T_analytical(pt_loc, center, T1, T2, r1, r2)-Tinterp,2)*jk*w[i];
         }
     }
     return err;
