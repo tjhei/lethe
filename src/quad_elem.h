@@ -26,10 +26,7 @@
 
 #include <thread>
 #include <chrono>
-
-#include "nouvtriangles.h"
-
-
+#include "enum_solid_fluid.h"
 
 using namespace dealii;
 
@@ -80,7 +77,7 @@ void quad_elem_mix(double Tdirichlet, std::vector<In_fluid_or_in_solid> No_pts_s
 
     double M[6][6] = {{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0}};
 
-    int num_pts_solid[2];
+    int num_pts_solid[4]={-1,-1,-1,-1};
     int a =0;
     for (int i = 0; i < 4; ++i) {
         if (No_pts_solid[i]==solid)
@@ -88,7 +85,7 @@ void quad_elem_mix(double Tdirichlet, std::vector<In_fluid_or_in_solid> No_pts_s
             num_pts_solid[a]=i;
             a+=1;
         }
-        if (a==1)
+        if (a==2)
             break;
     }
 
@@ -127,7 +124,7 @@ void quad_elem_mix(double Tdirichlet, std::vector<In_fluid_or_in_solid> No_pts_s
     }
 }
 
-double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2, std::vector<int> corresp, std::vector<int> No_pts_solid, std::vector<Point<2>> decomp_elem, std::vector<double> sol_loc)
+double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2, std::vector<int> corresp, std::vector<In_fluid_or_in_solid> pts_statut, std::vector<Point<2>> decomp_elem, std::vector<double> sol_loc)
 {
 
     // Create a dummy empty triangulation
@@ -176,6 +173,13 @@ double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2,
         endc = dof_handler.end();
 
     std::vector<double> T_quad(4);
+    int No_pts_solid[4] = {-1,-1,-1,-1};
+    int a=0;
+    for (int i=0;i<4;i++) {
+        if (pts_statut[i]==solid)
+        {No_pts_solid[a]=i; a+=1;}
+    }
+
     T_quad[0]=sol_loc[No_pts_solid[0]]; //the vertices in the solid have a set T
     T_quad[1]=sol_loc[No_pts_solid[0]];
     T_quad[2]=sol_loc[corresp[2]];

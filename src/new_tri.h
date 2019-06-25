@@ -9,18 +9,17 @@
 #include "T_analytical.h"
 #include "interpolationtrg.h"
 #include "jacobian.h"
-
+#include "enum_solid_fluid.h"
 using namespace dealii;
 
-void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<int> No_pts_solid, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
+void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<In_fluid_or_in_solid> pts_statut, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
 {
     // For a given element and the values of the distance function at its vertices, gives back the elementary matrix in the finite elements method
     // for the heat equation
 
     // determines the number of sub-elements
 
-    // No_pts_solid allows to know which points are in the solid : it gives the numerotation associated to the vertices in the solid, has a length of four elements
-    // you just have to see trough its elements and when No_pts_solid[i] < 0, it means there are no more vertices in the solid
+    // pts_status allows to know if a point is "solid" or "fluid" (with an enum)
 
     // corresp allows to know the equivalence between the numerotation among one subelement and the numerotation of the element
 
@@ -36,7 +35,12 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
 
         Point<2> pt1, pt2, pt3;
         std::vector<int>           corresp_loc(3);
-
+        int No_pts_solid[4] = {-1,-1,-1,-1};
+        int a=0;
+        for (int i=0;i<4;i++) {
+            if (pts_statut[i]==solid)
+            {No_pts_solid[a]=i; a+=1;}
+        }
 
         for (int n = 0; n < nbtrg; ++n)
         {
@@ -97,7 +101,7 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
 
 }
 
-double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<int> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
+double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<In_fluid_or_in_solid> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
 {
     // evaluates the L2 norm of (T_analytical - T_calculated) where T_calculated is the solution found with finite elements and interpolated on the triangles
 

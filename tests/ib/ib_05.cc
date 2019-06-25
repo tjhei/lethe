@@ -105,14 +105,14 @@ void test1_loop_composed_distance()
 
   // Loop over all elements and extract the distances into a local array
   FESystem<2> *fe(ib_composer.getFESystem());
-  QGauss<2>              quadrature_formula(1);
+  QGauss<2>              quadrature_formula(3);
   const MappingQ<2>      mapping (1);
   std::map< types::global_dof_index, Point< 2 > > support_points;
   DoFTools::map_dofs_to_support_points ( mapping, *dof_handler,support_points );
   FEValues<2> fe_values (mapping,
                          *fe,
                          quadrature_formula,
-                         update_values |
+                         update_values | update_gradients |
                          update_quadrature_points |
                          update_JxW_values
                          );
@@ -129,11 +129,12 @@ void test1_loop_composed_distance()
   Vector<double>                       solution;
   Vector<double>                       system_rhs;
 
+
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<int>                     No_pts_solid(4);
+  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
   double                               Tdirichlet = 1.0;
 
 
@@ -181,10 +182,27 @@ void test1_loop_composed_distance()
       if (nb_poly==0)
       {
           if (distance[0]>0)
-            quad_elemf(dofs_points, cell_mat, elem_rhs);
+              for (int i = 0; i < 4; ++i) {
+                  for (int j = 0; j < 4; ++j) {
+                      for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+                      {
+                          cell_mat[i][j] += fe_values.shape_grad(i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index);
+                      }
+                  }
+              }
           else
           {
-            quad_elems(Tdirichlet, dofs_points, cell_mat, elem_rhs);
+              for (int i = 0; i < 4; ++i) {
+                  for (int j = 0; j < 4; ++j) {
+                        if (i==j)
+                          cell_mat[i][j] = 1;
+                        else {
+                          cell_mat[i][j] = 0;
+                        }
+
+                  }
+                  elem_rhs[i] += Tdirichlet;
+             }
           }
       }
 

@@ -44,6 +44,25 @@
 
 
 using namespace dealii;
+void test0_nouv_tri()
+{
+    // asserts that "nouv_triangles" works well
+    Point<2> pt1 (0,0);
+    Point<2> pt2 (1,0);
+    Point<2> pt3 (0,1);
+    Point<2> pt4 (1,1);
+
+    std::vector<double> distance1 = {1,1,1,-1};
+    std::vector<double> distance2 = {1,-1,-1,-1};
+    std::vector<double> distance3 = {1,1,-1,-1};
+
+    std::vector<double> decomp_elem(9);
+    std::vector<int>    corresp(9);
+    std::vector<int>    num_elem(6);
+
+
+}
+
 
 void test1_loop_composed_distance() // Gives the error between the calculated fluid area and the theoretical area of the fluid part
 {
@@ -117,7 +136,7 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
   double areaa = M_PI * radius * radius ;
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<int>                     No_pts_solid(4);
+  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
 
   Point<2> a;
   a[0]=0;

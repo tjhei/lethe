@@ -3,13 +3,13 @@
 #include "deal.II/base/point.h"
 #include <vector>
 
+#include "enum_solid_fluid.h"
 #ifndef NOUVTRIANGLES_H
 #define NOUVTRIANGLES_H
 
 
 using namespace dealii;
 
-enum In_fluid_or_in_solid {fluid, solid};
 
 void nouvtriangles(std::vector<int> &corresp, std::vector<In_fluid_or_in_solid> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
 {

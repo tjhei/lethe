@@ -83,11 +83,10 @@ void test1_square_subelement()
   distance[3]=-0.5;
 
 
-
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<int>                     No_pts_solid(4);
+  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
@@ -209,11 +208,10 @@ void test2_single_triangle_subelement()
   distance[3]=-sqrt(0.5*0.5+0.5*0.5);
 
 
-
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<int>                     No_pts_solid(4);
+  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
@@ -331,7 +329,7 @@ void test3_triple_triangle_subelement()
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<int>                     No_pts_solid(4);
+  std::vector<In_fluid_or_in_solid>                     No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 

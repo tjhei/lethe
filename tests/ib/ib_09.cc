@@ -163,7 +163,8 @@ void test1_loop_composed_distance()
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<int>                     No_pts_solid(4);
+
+  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
   double                               T1 = 1;
   double                               T2 = 2;
 
@@ -240,7 +241,17 @@ void test1_loop_composed_distance()
 
           else
           {
-            quad_elems(Tdirichlet, dofs_points, cell_mat, elem_rhs);
+              for (int i = 0; i < 4; ++i) {
+                  for (int j = 0; j < 4; ++j) {
+                        if (i==j)
+                          cell_mat[i][j] = 1;
+                        else {
+                          cell_mat[i][j] = 0;
+                        }
+
+                  }
+                  elem_rhs[i] += Tdirichlet;
+             }
           }
       }
 
