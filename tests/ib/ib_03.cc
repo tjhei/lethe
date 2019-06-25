@@ -51,16 +51,44 @@ void test0_nouv_tri()
     Point<2> pt2 (1,0);
     Point<2> pt3 (0,1);
     Point<2> pt4 (1,1);
+    std::vector<Point<2>> coor(4);
+    coor[0] = pt1;
+    coor[1] = pt2;
+    coor[2] = pt3;
+    coor[3] = pt4;
 
     std::vector<double> distance1 = {1,1,1,-1};
     std::vector<double> distance2 = {1,-1,-1,-1};
     std::vector<double> distance3 = {1,1,-1,-1};
 
-    std::vector<double> decomp_elem(9);
+    std::vector<Point<2>> decomp_elem(9);
     std::vector<int>    corresp(9);
-    std::vector<int>    num_elem(6);
+    std::vector<Point<2>>    num_elem(6);
+    std::vector<In_fluid_or_in_solid> No_pts_solid(4);
+    int nb_poly;
 
+    std::vector<int> cor_thq1 = {2, 0, 5, 0, 4, 5, 1, 4, 0}; // what we should get for corresp
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance1);
+    for (int i = 0; i < 9; ++i) {
+        if (cor_thq1[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the first case");
+        corresp[i] = -1; //we reset the values of corresp for the next case
+    }
 
+    std::vector<int> cor_thq2 = {0,4,5, -1,-1,-1,-1,-1,-1};
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance2);
+    for (int i = 0; i < 9; ++i) {
+        if (cor_thq2[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the second case");
+        corresp[i] =-1;
+    }
+
+    std::vector<int> cor_thq3 = {4,5,1,0, -1,-1,-1,-1,-1};
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance3);
+    for (int i = 0; i < 9; ++i) {
+        if (cor_thq3[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the third case");
+    }
+
+    double areaa = area(nb_poly, decomp_elem, distance3, coor)-1.0/2.0;
+    if ((areaa>0.0001) || (areaa<-0.0001)) throw std::runtime_error("Failed to evaluate the area of the fluid domain");
 }
 
 
@@ -80,7 +108,7 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
   triangulation.refine_global(6);
 
   // Set-up the center, velocity and angular velocity of circle
-  Point<2> center1(0,0);
+  Point<2> center1(0.1254,0);
   Tensor<1,2> velocity;
   velocity[0]=1.;
   velocity[1]=0.;
@@ -90,7 +118,7 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
   angular[2]=0;
   double T_scal;
   T_scal=1;
-  double radius =1.0;
+  double radius =1.014;
   bool inside=0;
 
   // IB composer
@@ -160,13 +188,12 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
         distance[dof_index] = levelSet_distance[local_dof_indices[dof_index]];
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
       }
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance); // on a plus besoin de decomp_elem en théorie parce aue la combinaison de corresp et num_elem nous donne les coordonnées de la décomposition, à voir si on garde ou pas
-
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
     area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
     areaa += area_temp;
         }
     }
-  std::cout << "Erreur sur l'aire de la zone fluide = " << areaa - 16 << std::endl;
+  std::cout << "Error on the area of the fluid zone = " << areaa - 16 << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -175,6 +202,7 @@ int main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
+    test0_nouv_tri();
     test1_loop_composed_distance();
   }
   catch (std::exception &exc)
