@@ -27,12 +27,14 @@
 #include <thread>
 #include <chrono>
 
+#include "nouvtriangles.h"
+
 
 
 using namespace dealii;
 
 
-void quad_elem_mix(double Tdirichlet, std::vector<int> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
+void quad_elem_mix(double Tdirichlet, std::vector<In_fluid_or_in_solid> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
 {
 
     // Create a dummy empty triangulation
@@ -78,10 +80,17 @@ void quad_elem_mix(double Tdirichlet, std::vector<int> No_pts_solid, std::vector
 
     double M[6][6] = {{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0}};
 
-    int vec_sol[6] = {1,1,1,1,1,1};
-    vec_sol[No_pts_solid[0]] = -1;
-    vec_sol[No_pts_solid[1]] = -1;
-
+    int num_pts_solid[2];
+    int a =0;
+    for (int i = 0; i < 4; ++i) {
+        if (No_pts_solid[i]==solid)
+        {
+            num_pts_solid[a]=i;
+            a+=1;
+        }
+        if (a==1)
+            break;
+    }
 
     typename DoFHandler<2>::active_cell_iterator
         cell = dof_handler.begin_active(),
@@ -94,8 +103,8 @@ void quad_elem_mix(double Tdirichlet, std::vector<int> No_pts_solid, std::vector
 
           // The coefficient associated to the summits in the solid are set to 0 except for the one on the diagona
 
-              M[No_pts_solid[i]][No_pts_solid[i]]=1;
-              cell_rhs[No_pts_solid[i]] = Tdirichlet;
+              M[num_pts_solid[i]][num_pts_solid[i]]=1;
+              cell_rhs[num_pts_solid[i]] = Tdirichlet;
           }
 
           for (unsigned int i = 0; i < 4; ++i) {

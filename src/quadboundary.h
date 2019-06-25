@@ -1,4 +1,6 @@
 #include "interpolationquad.h"
+#ifndef QUADBOUNDARY_H
+#define QUADBOUNDAR_H
 void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<2> > coor_elem, std::vector<double> val_f)
 {
     double x1, x2, y1, y2;
@@ -84,3 +86,4 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
     std::cout <<"Nouvel élément " << decomp_elem[0] << ", " << decomp_elem[1] << ", " << decomp_elem[2] << ", " << decomp_elem[3] << "\n \n" << std::endl;
     */
 }
+#endif // QUADBOUNDARY_H

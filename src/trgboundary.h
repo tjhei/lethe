@@ -1,3 +1,5 @@
+#ifndef TRGBOUNDARY_H
+#define TRGBOUNDARY_H
 void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<2> > coor_elem, std::vector<double> val_f)
 {
     double x1, x2, y1, y2;
@@ -63,4 +65,4 @@ void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<
     // the points of intersection are returned in the vector boundary_pts, and are in the right order if there is only one summit in the fluid
     // if there are 3 summits in the fluid, you have to change the order so that the triangles that will be created can be described in the trigonometrical order
 }
-
+#endif // TRGBOUNDARY_H
