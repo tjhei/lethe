@@ -183,7 +183,7 @@ void test1_loop_composed_distance()
                   cell_mat[i][j] += fe_values.shape_grad(i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index);
               }
           }
-
+      }
     // Assembling and solving further
 
   }
