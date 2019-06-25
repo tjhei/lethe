@@ -39,7 +39,6 @@
 #include "../tests.h"
 #include "quad_elem.h"
 
-#include "integlocal.h"
 
 
 using namespace dealii;
@@ -177,20 +176,13 @@ void test1_loop_composed_distance()
          // We thus resolve Laplacian(u) = 1 in the domain, u = 0 on the boundary of the domain
        }
 
-//      std::cout << "coor pt : " << dofs_points[0] << ", " << dofs_points[1] << ", " << dofs_points[2] << ", " << dofs_points[3] << std::endl;
-//      std::cout << "sec mem : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << "\n" << std::endl;
-
-    //integlocal(Tdirichlet, matelem, sec_membre_elem, dofs_points, distance); // it calculates the values in the elem matrix
-    quad_elemf(dofs_points, cell_mat, sec_membre_elem);
-
-    // this is to check the values of  the elementary matrix
-
-//    for (int i = 0; i < 4; ++i) {
-//        std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
-//    }
-//    std::cout << " val sec memb : " << sec_membre_elem[0] << ", " << sec_membre_elem[1] << ", " << sec_membre_elem[2] << ", " << sec_membre_elem[3] << std::endl;
-//    std::cout << "\n " << std::endl;
-
+      for (int i = 0; i < 4; ++i) {
+          for (int j = 0; j < 4; ++j) {
+              for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+              {
+                  cell_mat[i][j] += fe_values.shape_grad(i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index);
+              }
+          }
 
     // Assembling and solving further
 

@@ -1,4 +1,0 @@
-#ifndef INTEGLOCAL1_H
-#define INTEGLOCAL1_H
-
-#endif // INTEGLOCAL1_H
