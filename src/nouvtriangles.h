@@ -70,7 +70,7 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<In_fluid_or_in_solid> 
         //std::cout << coor_elem[jj] << std::endl;
     }
 
-    double accuracy = 0.0001;
+    double accuracy = 0.0000000001;
 
     // We will start by finding if there are any changes in the sign of the distance function among the the summits
 
