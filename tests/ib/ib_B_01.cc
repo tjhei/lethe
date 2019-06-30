@@ -1,3 +1,16 @@
+/* ---------------------------------------------------------------------
+ *  Unit test for the decomposition of elements into sub triangulations
+ *  Test 1 - Decompose a square into a smaller square and integrate
+ *  Test 2 - Decompose a square into a single triangle and integrate
+ *  Test 3 - Decompose a square into three triangles and integrate
+ *
+ *  The variable tested for is the volume of the integration
+ * ---------------------------------------------------------------------
+ *
+ * Author: Bruno Blais, Polytechnique Montreal
+ */
+
+
 //BASE
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -38,7 +51,7 @@
 #include "write_data.h"
 #include "../tests.h"
 
-// Mes ajouts so far
+// Triangles decomposition tools
 #include "nouvtriangles.h"
 
 using namespace dealii;
@@ -86,7 +99,7 @@ void test1_square_subelement()
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
+  std::vector<node_status>    No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
@@ -211,7 +224,7 @@ void test2_single_triangle_subelement()
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
+  std::vector<node_status>    No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
@@ -254,7 +267,7 @@ void test2_single_triangle_subelement()
       DoFHandler<2>                  sub_dof_handler(sub_triangulation);
       // Create a FE system for this element
       FESystem<2>                    sub_fe(FE_Q<2>(1),1);
-      sub_dof_handler.distribute_dofs(fe);
+      sub_dof_handler.distribute_dofs(sub_fe);
 
       // Create a mapping for this new element
       const MappingQ<2>      sub_mapping (1);
@@ -329,7 +342,7 @@ void test3_triple_triangle_subelement()
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<In_fluid_or_in_solid>                     No_pts_solid(4);
+  std::vector<node_status>                     No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
@@ -373,7 +386,7 @@ void test3_triple_triangle_subelement()
       DoFHandler<2>                  sub_dof_handler(sub_triangulation);
       // Create a FE system for this element
       FESystem<2>                    sub_fe(FE_Q<2>(1),1);
-      sub_dof_handler.distribute_dofs(fe);
+      sub_dof_handler.distribute_dofs(sub_fe);
 
       // Create a mapping for this new element
       const MappingQ<2>      sub_mapping (1);

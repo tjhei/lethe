@@ -64,7 +64,7 @@ void test0_nouv_tri()
     std::vector<Point<2>> decomp_elem(9);
     std::vector<int>    corresp(9);
     std::vector<Point<2>>    num_elem(6);
-    std::vector<In_fluid_or_in_solid> No_pts_solid(4);
+    std::vector<node_status> No_pts_solid(4);
     int nb_poly;
 
     std::vector<int> cor_thq1 = {2, 0, 5, 0, 4, 5, 1, 4, 0}; // what we should get for corresp
@@ -164,7 +164,7 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
   double areaa = M_PI * radius * radius ;
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<In_fluid_or_in_solid>    No_pts_solid(4);
+  std::vector<node_status>    No_pts_solid(4);
 
   Point<2> a;
   a[0]=0;

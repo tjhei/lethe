@@ -3,15 +3,17 @@
 #include "deal.II/base/point.h"
 #include <vector>
 
-#include "enum_solid_fluid.h"
+#include "ib_node_status.h"
 #ifndef NOUVTRIANGLES_H
 #define NOUVTRIANGLES_H
 
 
 using namespace dealii;
 
+// NOTE BB : La fonction nouvtriangle devrait renvoyer le statut de l'élément : Inside, Fluid, Cut_1Tri, Cut_Quad, Cut_3Tri
 
-void nouvtriangles(std::vector<int> &corresp, std::vector<In_fluid_or_in_solid> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
+
+void nouvtriangles(std::vector<int> &corresp, std::vector<node_status> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
 {
     /* *** decomp_elem is a vector in which we shall store the coordinates of the sub_elements created with this function
 
@@ -57,6 +59,8 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<In_fluid_or_in_solid> 
 
 */
 
+    const int npt=4;
+
     std::vector<Point<2> > coor_elem(4);
     std::vector<double> val_f(4);
 
@@ -70,7 +74,14 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<In_fluid_or_in_solid> 
         //std::cout << coor_elem[jj] << std::endl;
     }
 
-    double accuracy = 0.0001;
+    // Calculate size of element to establish tolerance
+    double size=0;
+    for (int i = 1 ; i < npt ; ++i)
+    {
+      size = std::max(size,coor_elem[0].distance(coor_elem[i]));
+    }
+
+    double accuracy = 1e-3*size;
 
     // We will start by finding if there are any changes in the sign of the distance function among the the summits
 
