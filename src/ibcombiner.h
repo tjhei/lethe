@@ -102,7 +102,7 @@ template<int dim>
 void IBCombiner<dim>::velocity(const Point<dim> &p, Vector<double> &velocity_values) const
 {
   unsigned int shape_id = localize(p);
-  return functions[shape_id]->velocity(p,velocity_values);
+  functions[shape_id]->velocity(p,velocity_values);
 }
 
 

@@ -32,7 +32,7 @@ public:
 
     // Value of the distance
     virtual double distance(const Point<dim> &p) = 0;
-    virtual double scalar  (const Point<dim> /*&p*/) {return scalar_value;}
+    virtual double scalar  (const Point<dim> &/*p*/) {return scalar_value;}
     virtual void   velocity(const Point<dim> &p, Vector<double> &values)=0;
 protected:
       double   scalar_value; // will be used to make tests by solving the heat equation
@@ -85,39 +85,6 @@ public:
 protected:
 };
 
-template <int dim>
-class IBLevelSetLine: public IBLevelSetFunctions<dim>
-{ // ligne verticale ayant pour abscisse "abscisse"
-private:
-  Point<dim>    center;
-  Tensor<1,dim> linear_velocity;
-  Tensor<1,3>   angular_velocity; // rad/s
-  double abscisse;
-public:
-    IBLevelSetLine(double p_abscisse, Point<dim> p_center, Tensor<1,dim> p_linear_velocity, Tensor<1,3> p_angular_velocity, double p_scal):
-      IBLevelSetFunctions<dim>(p_scal),
-      center(p_center),
-      linear_velocity(p_linear_velocity),
-      angular_velocity(p_angular_velocity),
-      abscisse(p_abscisse){}
-
-    // Value of the distance
-    virtual double distance(const Point<dim> &p)
-    {
-      const double x = p[0];
-      return x-abscisse;
-    }
-
-    // Value of the velocity
-    virtual void   velocity(const Point<dim> /*&p*/, Vector<double> &values)
-    {
-        for (int i = 0 ; i<dim ; ++i)
-        {
-          values[i] = this->linear_velocity[i];
-        }
-    }
-};
-
 
 // Level Set function for a plane
 // center is a point lying on the plane
@@ -148,7 +115,7 @@ public:
     }
 
     // Value of the velocity
-    virtual void velocity(const Point<dim> &p, Vector<double> &values)
+    virtual void velocity(const Point<dim> &/*p*/, Vector<double> &values)
     {
         for (int i = 0 ; i<dim ; ++i)
         {
