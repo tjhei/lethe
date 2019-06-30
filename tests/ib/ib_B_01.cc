@@ -46,7 +46,6 @@
 // Distributed
 #include <deal.II/distributed/tria.h>
 
-#include "ibcomposer.h"
 #include "iblevelsetfunctions.h"
 #include "write_data.h"
 #include "../tests.h"

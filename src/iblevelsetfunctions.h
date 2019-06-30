@@ -1,3 +1,15 @@
+/* -------------------------------------------------------------------------
+ * iblevelsetfunctions.h
+ *
+ * This classes provides a mother class for ib level set functions
+ * an ib level set function must provide it's own way to calculate
+ * the distance and possibly, the velocity and the value of a scalar
+ * ------------------------------------------------------------------------
+ *
+ * Author: Bruno Blais, Polytechnique Montreal, 2019-
+ */
+
+
 #include <deal.II/base/function.h>
 
 #include <deal.II/lac/vector.h>
