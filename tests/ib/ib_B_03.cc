@@ -33,7 +33,9 @@
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
-
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/solver_gmres.h>
+#include <deal.II/lac/precondition.h>
 
 //DOFS
 #include <deal.II/dofs/dof_handler.h>
@@ -56,15 +58,8 @@
 
 using namespace dealii;
 
-double integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe)
+void integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,  FullMatrix<double> &system_matrix, Vector<double> &system_rhs)
 {
-  double area=0;
-
-//  DoFHandler<2>                  dof_handler(sub_triangulation);
-  // Create a FE system for this element
-//  FESystem<2>                    fe(FE_Q<2>(1),1);
-//  dof_handler.distribute_dofs(fe);
-
   // Create a mapping for this new element
   const MappingQ<2>      mapping (1);
   QGauss<2>              quadrature_formula(4);
@@ -77,6 +72,9 @@ double integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2
 
   const unsigned int   dofs_per_cell = fe.dofs_per_cell;
   const unsigned int   n_q_points    = quadrature_formula.size();
+
+  std::vector<Point<2> >               dofs_points(dofs_per_cell);        // Array for the DOFs points
+  std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
 
 
   FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
@@ -104,34 +102,62 @@ double integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2
           // Right Hand Side
           cell_rhs(i) += 0.;
       }
-      area +=fe_values.JxW (q_index);
     }
+    // Assemble global matrix and RHS
+    cell->get_dof_indices (local_dof_indices);
+    for (unsigned int i=0; i<dofs_per_cell; ++i)
+      {
+        for (unsigned int j=0; j<dofs_per_cell; ++j)
+          system_matrix.add (local_dof_indices[i],
+                             local_dof_indices[j],
+                             cell_matrix(i,j));
+
+        system_rhs(local_dof_indices[i]) += cell_rhs(i);
+      }
   }
-  return area;
 }
-double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> *> ib_functions, std::string output_name)
+
+void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> *> ib_functions, std::string output_name)
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
   unsigned int this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator));
 
-
   // Create triangulation and square mesh
   parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
                                                          (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
   GridGenerator::hyper_cube (triangulation,
-                             -1,1);
+                             -1,1,true);
   triangulation.refine_global(refinement_level);
-
 
   DoFHandler<2>                  dof_handler(triangulation);
   FESystem<2>                    fe(FE_Q<2>(1),1);
   dof_handler.distribute_dofs(fe);
 
+  // Set-up global system of equation
+  SparsityPattern      sparsity_pattern;
+  SparseMatrix<double> system_matrix;
+
+  Vector<double>       solution;
+  Vector<double>       system_rhs;
+
+  DynamicSparsityPattern dsp(dof_handler.n_dofs());
+  DoFTools::make_sparsity_pattern (dof_handler, dsp);
+
+  // Initialize vector and sparsity patterns
+  sparsity_pattern.copy_from(dsp);
+  system_matrix.reinit (sparsity_pattern);
+  solution.reinit (dof_handler.n_dofs());
+  system_rhs.reinit (dof_handler.n_dofs());
+
   // Quadrature formula for the element
   QGauss<2>            quadrature_formula(1);
+  const unsigned int   dofs_per_cell = fe.dofs_per_cell;
   const unsigned int   n_q_points = quadrature_formula.size();
 
+  // Matrix and RHS sides;
+  FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+  Vector<double>       cell_rhs (dofs_per_cell);
 
   // Get the position of the support points
   const MappingQ<2>      mapping (1);
@@ -139,10 +165,8 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
   FEValues<2> fe_values (mapping,
                          fe,
                          quadrature_formula,
-                         update_values |
-                         update_quadrature_points |
-                         update_JxW_values
-                         );
+                         update_values   | update_gradients |
+                         update_quadrature_points | update_JxW_values);
 
   std::map< types::global_dof_index, Point< 2 > > support_points;
   DoFTools::map_dofs_to_support_points ( mapping, dof_handler,support_points );
@@ -150,19 +174,16 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<node_status>    No_pts_solid(4);
+  std::vector<node_status>             No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
   // Set the values of the dof points position
-  const unsigned int   dofs_per_cell = fe.dofs_per_cell;       // Number of dofs per cells.
   std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
   std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
 
   IBCombiner<2>  ib_combiner(ib_functions);
-
-  double area=0;
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler.begin_active(),
@@ -170,6 +191,8 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
   for (; cell!=endc; ++cell)
   {
     fe_values.reinit(cell);
+    cell_matrix = 0;
+    cell_rhs = 0;
     cell->get_dof_indices (local_dof_indices);
 
     for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
@@ -185,14 +208,35 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
       fe_values.reinit(cell);
       for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
       {
-        area+=fe_values.JxW (q_index);
+        for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+        {
+          for (unsigned int i=0; i<dofs_per_cell; ++i)
+          {
+            for (unsigned int j=0; j<dofs_per_cell; ++j)
+              //Stiffness Matrix
+              cell_matrix(i,j) += (fe_values.shape_grad (i, q_index) *
+                                   fe_values.shape_grad (j, q_index) *
+                                   fe_values.JxW (q_index));
+
+              // Right Hand Side
+              cell_rhs(i) += 0.;
+          }
+        }
+      }
+    }
+    if(nb_poly==0 && (distance[0]<0))
+    {
+      for (unsigned int i=0; i<dofs_per_cell; ++i)
+      {
+        cell_matrix(i,i)=1.;
+        cell_rhs(i)=1;
       }
     }
     if (nb_poly==-1)
     {
       // Create triangulation points
       std::vector<Point<2> > triangulation_points(GeometryInfo<2>::vertices_per_cell);
-      // Create 4 random points:
+      // Create 4 points for triangulation:
       for (unsigned int i_pt =0 ; i_pt < 4 ; ++i_pt)
         triangulation_points[i_pt]=decomp_elem[i_pt];
 
@@ -204,12 +248,61 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
 
       Triangulation<2> sub_triangulation;
       sub_triangulation.create_triangulation (triangulation_points, cells, SubCellData());
-      // Create a FE system for this element
-      DoFHandler<2>                  dof_handler(sub_triangulation);
-      FESystem<2>                    fe(FE_Q<2>(1),1);
-      dof_handler.distribute_dofs(fe);
 
-      area+= integrate_sub_element(sub_triangulation, dof_handler, fe);
+      // Create a FE system for this element
+      DoFHandler<2>                  sub_dof_handler(sub_triangulation);
+      FESystem<2>                    sub_fe(FE_Q<2>(1),1);
+      sub_dof_handler.distribute_dofs(sub_fe);
+
+      FullMatrix<double> sub_system_matrix;
+      Vector<double>     sub_system_rhs;
+      // Initialize vector and sparsity patterns
+      sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
+      sub_system_rhs.reinit (sub_dof_handler.n_dofs());
+      integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
+
+      // Condensate
+      for (unsigned int i=0; i<4; ++i)
+      {
+        if (corresp[i]>3)
+        {
+          for (unsigned int j=0; j<4; ++j)
+            if (i!=j) sub_system_matrix(i,j)=0.;
+            else sub_system_matrix(i,i)=1.;
+          sub_system_rhs[i]=1;
+        }
+        else
+        {
+          for (unsigned int j=0; j<4; ++j)
+          {
+            if (corresp[j]>3)
+            {
+              sub_system_rhs(i) -= sub_system_matrix(i,j) * 1.;
+              sub_system_matrix(i,j)=0.;
+            }
+          }
+        }
+      }
+
+      // Copy in larger matrix
+      cell->get_dof_indices (local_dof_indices);
+      for (unsigned int i=0; i<4; ++i)
+      {
+        if(corresp[i]<3)
+        {
+          for (unsigned int j=0; j<4; ++j)
+          {
+            if(corresp[j]<3)
+            {
+              system_matrix.add (local_dof_indices[corresp[i]],
+                                 local_dof_indices[corresp[j]],
+                                 sub_system_matrix(i,j));
+            }
+          }
+          system_rhs(local_dof_indices[corresp[i]]) += sub_system_rhs(i);
+        }
+
+      }
     }
     if (nb_poly==1)
     {
@@ -223,10 +316,18 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
       Triangulation<2> sub_triangulation;
       GridGenerator::simplex(sub_triangulation,triangulation_points);
       // Create a FE system for this element
-      DoFHandler<2>                  dof_handler(sub_triangulation);
-      FESystem<2>                    fe(FE_Q<2>(1),1);
-      dof_handler.distribute_dofs(fe);
-      area+= integrate_sub_element(sub_triangulation,dof_handler,fe);
+      DoFHandler<2>                  sub_dof_handler(sub_triangulation);
+      FESystem<2>                    sub_fe(FE_Q<2>(1),1);
+      sub_dof_handler.distribute_dofs(sub_fe);
+
+      FullMatrix<double> sub_system_matrix;
+      Vector<double>     sub_system_rhs;
+
+      // Initialize vector and sparsity patterns
+      sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
+      sub_system_rhs.reinit    (sub_dof_handler.n_dofs());
+
+      integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
     }
     if (nb_poly==3)
     {
@@ -243,15 +344,85 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
         Triangulation<2> sub_triangulation;
         GridGenerator::simplex(sub_triangulation,triangulation_points);
         // Create a FE system for this element
-        DoFHandler<2>                  dof_handler(sub_triangulation);
-        FESystem<2>                    fe(FE_Q<2>(1),1);
-        dof_handler.distribute_dofs(fe);
-        area += integrate_sub_element(sub_triangulation,dof_handler,fe);
+        DoFHandler<2>                  sub_dof_handler(sub_triangulation);
+        FESystem<2>                    sub_fe(FE_Q<2>(1),1);
+        sub_dof_handler.distribute_dofs(sub_fe);
+
+        FullMatrix<double> sub_system_matrix;
+        Vector<double>     sub_system_rhs;
+
+        // Initialize vector and sparsity patterns
+        sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
+        sub_system_rhs.reinit (sub_dof_handler.n_dofs());
+
+        integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
       }
     }
 
+    // Assemble global matrix and RHS
+    cell->get_dof_indices (local_dof_indices);
+    for (unsigned int i=0; i<dofs_per_cell; ++i)
+      {
+        for (unsigned int j=0; j<dofs_per_cell; ++j)
+          system_matrix.add (local_dof_indices[i],
+                             local_dof_indices[j],
+                             cell_matrix(i,j));
+
+        system_rhs(local_dof_indices[i]) += cell_rhs(i);
+      }
   }
-  return area;
+
+  std::map<types::global_dof_index,double> boundary_values;
+
+  VectorTools::interpolate_boundary_values (dof_handler,
+                                            0,
+                                            Functions::ZeroFunction<2>(),
+                                            boundary_values);
+  VectorTools::interpolate_boundary_values (dof_handler,
+                                            1,
+                                             Functions::ConstantFunction<2>(1.),
+                                            boundary_values);
+
+  MatrixTools::apply_boundary_values (boundary_values,
+                                      system_matrix,
+                                      solution,
+                                      system_rhs);
+
+  // Solve System
+  SolverControl           solver_control (100000, 1e-10);
+  SolverGMRES<>           solver (solver_control);
+  solver.solve (system_matrix, solution, system_rhs,
+                PreconditionIdentity());
+
+
+  // Data output
+  DataOut<2> data_out;
+
+  data_out.attach_dof_handler (dof_handler);
+  data_out.add_data_vector (solution, "solution");
+  data_out.build_patches ();
+
+  std::string fname=output_name+"-Scalar"+".vtk";
+  std::ofstream output (fname.c_str());
+  data_out.write_vtk (output);
+}
+
+void square()
+{
+  // Generate the IB composer
+  Point<2> center1(1.04,0);
+  Tensor<1,2> velocity;
+  velocity[0]=1.; velocity[1]=0.;
+  Tensor<1,2> normal;
+  normal[0]=-1; normal[1]=0;
+  double T_scal=1;
+
+  // IB composer
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+  // Add a shape to it
+  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
+  ib_functions.push_back(&plane);
+  heat_integrator(2, ib_functions,"IB_B_03_square");
 }
 
 void cut_square()
@@ -269,36 +440,8 @@ void cut_square()
   // Add a shape to it
   IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
   ib_functions.push_back(&plane);
-  double area = area_integrator(2, ib_functions,"IB_B_02_square");
-  double error = area- (2*1.04) ;
-  std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
-  if (!approximatelyEqual(error,0,1e-10)) throw std::runtime_error("Test 1 - Wrong area for cut square");
-
+  heat_integrator(2, ib_functions,"IB_B_03_cut_square");
 }
-
-void cut_square_angle()
-{
-  // Generate the IB composer
-  double pt=0.03;
-  Point<2> center1(pt,1);
-  Tensor<1,2> velocity;
-  velocity[0]=1.; velocity[1]=0.;
-  Tensor<1,2> normal;
-  normal[0]=-1; normal[1]=-1;
-  double T_scal=1;
-
-  // IB composer
-  std::vector<IBLevelSetFunctions<2> *> ib_functions;
-  // Add a shape to it
-  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
-  ib_functions.push_back(&plane);
-  double area = area_integrator(2, ib_functions,"IB_B_02_angle");
-  double error = std::abs(area- (2*(1+(pt))+ (1-pt)*(0.5*(2+2-0.97))));
-  std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
-  if (error>1e-12) throw std::runtime_error("Test 2 - Wrong area for squared cut angle");
-}
-
-
 
 // Square with a hole inside
 void square_hole()
@@ -318,8 +461,7 @@ void square_hole()
   ib_functions.push_back(&circle1);
   for (int i=3 ; i<9 ; ++i)
   {
-    double area = area_integrator(i, ib_functions,"IB_B_02_circle");
-    std::cout << "Circle : " << i <<" Error : " << area- (4.-radius*radius*M_PI) << std::endl;
+    heat_integrator(i, ib_functions,"IB_B_03_circle");
   }
 }
 
@@ -330,9 +472,9 @@ main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
+    square();
     cut_square();
-    cut_square_angle();
-    square_hole();
+//    square_hole();
 
 
   }
