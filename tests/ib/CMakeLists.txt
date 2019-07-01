@@ -55,3 +55,9 @@ ADD_EXECUTABLE(ib_B_02 ib_B_02.cc)
 DEAL_II_SETUP_TARGET(ib_B_02)
 TARGET_LINK_LIBRARIES(ib_B_02 lethe)
 add_test( "IB_B_02" ib_B_02)
+
+ADD_EXECUTABLE(ib_B_03 ib_B_03.cc)
+DEAL_II_SETUP_TARGET(ib_B_03)
+TARGET_LINK_LIBRARIES(ib_B_03 lethe)
+add_test( "IB_B_03" ib_B_03)
+
