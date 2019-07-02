@@ -33,7 +33,7 @@ void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<
     else if (b==1)
     {
         x1 = -1;
-        y1 = (val_f[2]+val_f[1])/(val_f[1]-val_f[2]);
+        y1 = (val_f[2]+val_f[1])/(val_f[2]-val_f[1]);
         x2 = (val_f[0]+val_f[1])/(val_f[1]-val_f[0]);
         y2 = 1;
     }

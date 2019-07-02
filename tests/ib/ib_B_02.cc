@@ -168,7 +168,9 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
     {
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
       distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+//      std::cout << "Point : " << dofs_points[dof_index] << ", distance : " << distance[dof_index] << std::endl;
     }
+//    std::cout << "\n" << std::endl;
     // Decompose the geometry
     nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
@@ -250,12 +252,12 @@ void cut_square()
   ib_functions.push_back(&plane);
   double area = area_integrator(2, ib_functions,"IB_B_02_square");
   double error = area- (2*1.04) ;
-  std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
+  std::cout << "Plane : " << 1 <<" Error : " << error << std::endl;
   if (!approximatelyEqual(error,0,1e-10)) throw std::runtime_error("Test 1 - Wrong area for cut square");
 
 }
 
-void cut_square_angle()
+void cut_square_angle1()
 {
   // Generate the IB composer
   double pt=0.03;
@@ -274,28 +276,93 @@ void cut_square_angle()
   double area = area_integrator(2, ib_functions,"IB_B_02_angle");
   double error = std::abs(area- (2*(1+(pt))+ (1-pt)*(0.5*(2+2-0.97))));
   std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
-  if (error>1e-12) throw std::runtime_error("Test 2 - Wrong area for squared cut angle");
+  if (error>1e-12) throw std::runtime_error("Test 2.1 - Wrong area for squared cut angle");
 }
 
+void cut_square_angle2()
+{
+  // Generate the IB composer
+  double pt=0.03;
+  Point<2> center1(pt,-1);
+  Tensor<1,2> velocity;
+  velocity[0]=1.; velocity[1]=0.;
+  Tensor<1,2> normal;
+  normal[0]=-1; normal[1]=1;
+  double T_scal=1;
+
+  // IB composer
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+  // Add a shape to it
+  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
+  ib_functions.push_back(&plane);
+  double area = area_integrator(2, ib_functions,"IB_B_02_angle");
+  double error = std::abs(4-(0.97*0.97/2+area));
+  std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
+  if (error>1e-12) throw std::runtime_error("Test 2.2 - Wrong area for squared cut angle");
+}
+
+void cut_square_angle3()
+{
+  // Generate the IB composer
+  double pt=-0.03;
+  Point<2> center1(pt,1);
+  Tensor<1,2> velocity;
+  velocity[0]=1.; velocity[1]=0.;
+  Tensor<1,2> normal;
+  normal[0]=1; normal[1]=-1;
+  double T_scal=1;
+
+  // IB composer
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+  // Add a shape to it
+  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
+  ib_functions.push_back(&plane);
+  double area = area_integrator(2, ib_functions,"IB_B_02_angle");
+  double error = std::abs(4-(0.97*0.97/2+area));
+  std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
+  if (error>1e-12) throw std::runtime_error("Test 2.3 - Wrong area for squared cut angle");
+}
+
+void cut_square_angle4()
+{
+  // Generate the IB composer
+  double pt=-0.03;
+  Point<2> center1(pt,-1);
+  Tensor<1,2> velocity;
+  velocity[0]=1.; velocity[1]=0.;
+  Tensor<1,2> normal;
+  normal[0]=1; normal[1]=1;
+  double T_scal=1;
+
+  // IB composer
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+  // Add a shape to it
+  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
+  ib_functions.push_back(&plane);
+  double area = area_integrator(2, ib_functions,"IB_B_02_angle");
+  double error = std::abs(4-(0.97*0.97/2+area));
+  std::cout << "Plane : " << 2 <<" Error : " << error << std::endl;
+  if (error>1e-12) throw std::runtime_error("Test 2.3 - Wrong area for squared cut angle");
+}
 
 
 // Square with a hole inside
 void square_hole()
 {
   // Generate the IB composer
-  Point<2> center1(0,0);
+  Point<2> center1(0.0111,0.002547);
   Tensor<1,2> velocity;
   velocity[0]=1.; velocity[1]=0.;
   Tensor<1,3> angular;
   angular[0]=0; angular[1]=0; angular[2]=0;
-  double radius =0.47; double T_scal=1; bool inside=0;
+  double radius =0.4711; double T_scal=1; bool inside=0;
 
   // IB composer
   std::vector<IBLevelSetFunctions<2> *> ib_functions;
   // Add a shape to it
   IBLevelSetCircle<2> circle1(center1,velocity,angular, T_scal, inside, radius);
   ib_functions.push_back(&circle1);
-  for (int i=3 ; i<9 ; ++i)
+  for (int i=3 ; i<11 ; ++i)
   {
     double area = area_integrator(i, ib_functions,"IB_B_02_circle");
     std::cout << "Circle : " << i <<" Error : " << area- (4.-radius*radius*M_PI) << std::endl;
@@ -310,7 +377,10 @@ main(int argc, char* argv[])
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
     cut_square();
-    cut_square_angle();
+    cut_square_angle1();
+    cut_square_angle2();
+    cut_square_angle3();
+    cut_square_angle4();
     square_hole();
 
 

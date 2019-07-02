@@ -153,6 +153,16 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
             decomp_elem[1]=boundary_pts[0];
             decomp_elem[2]=boundary_pts[1];
 
+
+//            for (int i = 0; i < 3; ++i) {
+//                if (i%3==0) std::cout << "\n" << std::endl;
+//                std::cout << decomp_elem[i] << std::endl;
+
+//            }
+//            std::cout << "\n" << std::endl;
+
+
+
             num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[0], boundary_pts[1]};
             corresp = {vec_change_coor[b], 4, 5, -1,-1,-1,-1,-1};
 
@@ -187,6 +197,15 @@ void nouvtriangles(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
                 decomp_elem [6] = coor_elem[(b+3)%4];
                 decomp_elem [7] = boundary_pts[1];
                 decomp_elem [8] = coor_elem[(b+2)%4];
+
+
+//                for (int i = 0; i < 9; ++i) {
+//                    if (i%3==0) std::cout << "\n" << std::endl;
+//                    std::cout << decomp_elem[i] << std::endl;
+
+//                }
+//                std::cout << "\n" << std::endl;
+
 
                 corresp = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], 5, vec_change_coor[(b+2)%4], 4, 5, vec_change_coor[(b+3)%4],4 , vec_change_coor[(b+2)%4] };
                 num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[1], boundary_pts[0]}; // boundary points are sorte differently because of the way the function trgboundary works

@@ -91,6 +91,69 @@ void test0_nouv_tri()
     if ((areaa>0.0001) || (areaa<-0.0001)) throw std::runtime_error("Failed to evaluate the area of the fluid domain");
 }
 
+void test_decomp()
+{
+    // First test //
+
+    std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+    int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
+    double                               fluid_area = 0;
+    double                               area_temp;
+    std::vector<Point<2> >               num_elem(6);
+    std::vector<int>                     corresp(9);
+    std::vector<node_status>             No_pts_solid(4);
+
+    double                               len = std::pow(2,-8); // length of the side of the square
+    Point<2>                             pt1 (0,0);
+    Point<2>                             pt2 (pt1(0)+len, pt1(1));
+    Point<2>                             pt3 (pt1(0), pt1(1)+len);
+    Point<2>                             pt4 (pt1(0)+len, pt1(1)+len);
+
+    std::vector<Point<2>>                coor = {pt1, pt2, pt3, pt4};
+    std::vector<double>                  dist1 = {0.001, 0.0005, 0.0005, -0.0005};
+
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist1);
+    Point<2> p1 (pt1(0)+len/2., pt1(1)+len);
+    Point<2> p2 (pt1(0)+len, pt1(1)+len/2.);
+    std::vector<Point<2>>                decomp_theo1 = {pt3, pt1, p1, pt1, p2, p1, pt2, p2, pt1};
+
+    for (int i = 0; i < 9; ++i) {
+        if (decomp_elem[i] != decomp_theo1[i])  throw std::runtime_error("Failed to create the sub-elements for the first case");
+    }
+
+
+    // Second test //
+
+    double size=0;
+    for (int i = 1 ; i < 4 ; ++i)
+    {
+      size = std::max(size,coor[0].distance(coor[i]));
+    }
+    double acc = size*1e-3;
+
+    std::vector<double>                  dist2 = {size*1e-2, size*1e-4, size*1e-4, -size*1e-2};
+
+    double x = (-acc + dist2[0])/(acc + dist2[0]);
+
+    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist2);
+
+    Point<2> p3 ((x+1)*len/2., 0);
+    Point<2> p4 (0, (x+1)*len/2.);
+    std::vector<Point<2>>                decomp_theo2 = {pt1, p3, p4};
+
+//    for (int i = 0; i < 3; ++i) {
+//        std::cout << "decomp : " << decomp_elem[0] << ", " << decomp_elem[1] << ", " << decomp_elem[2] << "\n" << std::endl;
+//    }
+
+//    for (int i = 0; i < 3; ++i) {
+//      std::cout << "decomp theo : " << decomp_theo2[0] << ", " << decomp_theo2[1] << ", " << decomp_theo2[2] << "\n" << std::endl;
+//    }
+
+    for (int i = 0; i < 3; ++i) {
+        if (decomp_elem[i] != decomp_theo2[i])  throw std::runtime_error("Failed to create the sub-elements for the second case");
+    }
+
+}
 
 void test1_loop_composed_distance() // Gives the error between the calculated fluid area and the theoretical area of the fluid part
 {
@@ -203,7 +266,8 @@ int main(int argc, char* argv[])
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
     test0_nouv_tri();
-    test1_loop_composed_distance();
+    //test1_loop_composed_distance();
+    test_decomp();
   }
   catch (std::exception &exc)
   {
