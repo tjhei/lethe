@@ -1,5 +1,6 @@
 #ifndef TRGBOUNDARY_H
 #define TRGBOUNDARY_H
+
 void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<2> > coor_elem, std::vector<double> val_f)
 {
     double x1, x2, y1, y2;
