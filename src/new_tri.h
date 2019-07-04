@@ -12,6 +12,79 @@
 #include "ib_node_status.h"
 using namespace dealii;
 
+void condensate_trg(unsigned int dofs_per_cell, int nb_trg, std::vector<node_status> status, std::vector<int> corresp, FullMatrix<double> mat6, FullMatrix<double> &mat4, std::vector<double> rhs6, std::vector<double> &rhs4)
+{
+    // The point of this function is to change the order of the lines in order to put the lines corresponding to the points in the fluid at the top of the matrix, which will make the condensation much easier
+
+    std::vector<int> a(nb_trg);
+
+    int c =0;
+    for (int i = 0; i < 4; ++i) {
+        if (status[i])
+        {
+            a[c]=i;
+            c++;
+        }
+    }
+
+    int num_loc[6]; // new numerotation with shows the vertices in the fluid first
+
+    if (nb_trg==1){
+        num_loc[0]=corresp[0];
+        num_loc[1]=a[0];
+        num_loc[2]=a[1];
+        num_loc[3]=a[2];
+        num_loc[4]=corresp[1];
+        num_loc[5]=corresp[2];
+    }
+
+    else {
+        num_loc[0]=corresp[0];
+        num_loc[1]=corresp[1];
+        num_loc[2]=corresp[6];
+        num_loc[3]=a[0];
+        num_loc[4]=corresp[4];
+        num_loc[5]=corresp[5];
+    }
+
+    FullMatrix<double> M6_renum(dofs_per_cell+2, dofs_per_cell+2);
+    std::vector<double> rhs6_renum(dofs_per_cell+2);
+
+    double acc = 1e-8;
+
+    for (unsigned int i = 0; i < dofs_per_cell+2; ++i) {
+        for (unsigned int j = 0; j < dofs_per_cell+2; ++j) {
+            M6_renum[i][j] = mat6[num_loc[i]][num_loc[j]];
+        }
+        rhs6_renum[i] = rhs6[num_loc[i]];
+        if (std::abs(M6_renum[i][i])<acc) throw std::runtime_error("One of the diagonal terms of the 6x6 matrix is too close to 0");
+    }
+
+    int count =0;
+    for (int k = dofs_per_cell /* dofs_per_cell starts at one, not 0 !! */ ; k >-1 ; --k) {
+        for (int i = 0; i < count+1; ++i) {
+            for (unsigned int j = 0; j < dofs_per_cell+1-i; ++j) {
+                M6_renum[k][j]=M6_renum[k][j]-M6_renum[dofs_per_cell+1-i][j] *
+                        M6_renum[k][dofs_per_cell+1-i] / M6_renum[dofs_per_cell+1-i][dofs_per_cell+1-i];
+
+                // for example, if we have 4 dofs, we will have a 6x6 matrix
+                //let's take the fifth line : M6_renum[4][0] += -M6_renum[5][0]*M6_renum[4][5]/M6_renum[5][5]
+            }
+
+            rhs6_renum[k]+=-rhs6_renum[dofs_per_cell+1-i] *
+                    M6_renum[k][dofs_per_cell+1-i]/M6_renum[dofs_per_cell+1-i][dofs_per_cell+1-i];
+        }
+        count ++;
+    }
+
+    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+        for (unsigned int j = 0; j < i+1; ++j) {
+            mat4[num_loc[i]][num_loc[j]]=M6_renum[i][j];
+        }
+        rhs4[num_loc[i]]=rhs6_renum[i];
+    }
+}
+
 void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<node_status> pts_statut, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
 {
     // For a given element and the values of the distance function at its vertices, gives back the elementary matrix in the finite elements method
@@ -31,7 +104,8 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
 
     // for more information check the documentation of nouv_triangles.h
 
-    double M[6][6] = {{0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0},{0, 0, 0, 0, 0, 0}};
+        FullMatrix<double> M(6,6);
+        M=0;
 
         Point<2> pt1, pt2, pt3;
         std::vector<int>           corresp_loc(3);
@@ -82,23 +156,34 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
 
         }
 
-        for (unsigned int j = 0; j < 4; ++j) {
-            for (unsigned int var = 0; var < 4; ++var) {
-                cell_mat[j][var] = M[j][var];
-            }
-            cell_rhs[j] += -Tdirichlet * (M[j][4] + M[j][5]);
+        unsigned int dofs_per_cell =4;
+        std::vector<double> rhs6(6);
+
+        for (int i = 0; i < 4; ++i) {
+            rhs6[i]=cell_rhs[i];
         }
+        rhs6[4]=Tdirichlet;
+        rhs6[5]=Tdirichlet;
 
-        int i =0;
-        while (No_pts_solid[i]>=0) {
-
-            // The coefficient associated to the vertices in the solid are set to 0 except for the one on the diagonal
-
-                cell_mat[No_pts_solid[i]][No_pts_solid[i]]=1;
-                cell_rhs[No_pts_solid[i]] = Tdirichlet;
-                i++;
+        for (int i = 0; i < 4; ++i) {
+            if (pts_statut[i])
+            {
+                for (int ii = 0; ii < 6; ++ii) {
+                    M[i][ii]=0;
+                    M[ii][i]=0;
+                }
+                M[i][i]=1;
+                rhs6[i]=Tdirichlet;
             }
+        }
+        for (int i = 0; i <6; ++i) {
+            M[4][i] = 0;
+            M[5][i] = 0;
+        }
+        M[4][4]=1;
+        M[5][5]=1;
 
+        condensate_trg(dofs_per_cell, nbtrg, pts_statut, corresp, M, cell_mat, rhs6, cell_rhs);
 }
 
 double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<node_status> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
