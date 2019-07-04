@@ -66,7 +66,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(2);
+  triangulation.refine_global(4);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -173,12 +173,12 @@ void test1_loop_composed_distance()
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        distance[dof_index] = dofs_points[dof_index][0]-abscisse;
+        distance[dof_index] = -(dofs_points[dof_index][0]-abscisse);
       }
 
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
-        std::cout << nb_poly << std::endl;
+      //  std::cout << nb_poly << std::endl;
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -211,11 +211,11 @@ void test1_loop_composed_distance()
       }
 
 
-         for (int i = 0; i < 4; ++i) {
-             std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
-       }
-         std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
-         std::cout << "\n" << std::endl;
+//         for (int i = 0; i < 4; ++i) {
+//             std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
+//       }
+//         std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
+//         std::cout << "\n" << std::endl;
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -232,7 +232,7 @@ void test1_loop_composed_distance()
 
   std::map<types::global_dof_index,double> boundary_values;
   VectorTools::interpolate_boundary_values (*dof_handler,
-                                            1,
+                                            0,
                                             Functions::ZeroFunction<2>(),
                                             boundary_values);
   MatrixTools::apply_boundary_values (boundary_values,
@@ -255,6 +255,36 @@ void test1_loop_composed_distance()
 
 }
 
+void test_condensate()
+{
+FullMatrix<double> m4(4,4);
+std::vector<double> rhs4(4);
+std::vector<double> rhs6(6);
+
+std::fill(rhs4.begin(), rhs4.end(),0);
+m4=0;
+std::fill(rhs6.begin(), rhs6.end(),0);
+FullMatrix<double> m6(6,6);
+m6=0;
+for (int i = 0; i < 6; ++i) {
+    for (int j = 0; j < 6; ++j) {
+        m6(i,j)=0.1*(i+j);
+        m6(i,i)=1;
+    }
+}
+for (int i = 0; i < 6; ++i) {
+    m6(0,i)=0;
+    m6(1,i)=0;
+    m6(i,0)=0;
+    m6(i,1)=0;
+}
+m6(0,0)=1;
+m6(1,1)=1;
+std::vector<int> corresp = {5,4,2,3,-1,-1,-1,-1,-1};
+std::vector<node_status> status = {solid, solid, fluid, fluid};
+condensate_quad(4, status, corresp, m6, m4, rhs6, rhs4);
+
+}
 int
 main(int argc, char* argv[])
 {
@@ -263,7 +293,9 @@ main(int argc, char* argv[])
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
     test1_loop_composed_distance();
+    //test_condensate();
   }
+
   catch (std::exception &exc)
   {
     std::cerr << std::endl << std::endl
