@@ -168,10 +168,10 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
                              -2,2);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(6);
+  triangulation.refine_global(9);
 
   // Set-up the center, velocity and angular velocity of circle
-  Point<2> center1(0.1254,0);
+  Point<2> center1(0.1254,0.111);
   Tensor<1,2> velocity;
   velocity[0]=1.;
   velocity[1]=0.;
@@ -181,7 +181,7 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
   angular[2]=0;
   double T_scal;
   T_scal=1;
-  double radius =1.014;
+  double radius =1.0141;
   bool inside=0;
 
   // IB composer
@@ -256,7 +256,7 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
     areaa += area_temp;
         }
     }
-  std::cout << "Error on the area of the fluid zone = " << areaa - 16 << std::endl;
+  std::cout << " Error on the area of the fluid zone = " << areaa - 16 << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -266,7 +266,7 @@ int main(int argc, char* argv[])
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
     test0_nouv_tri();
-    //test1_loop_composed_distance();
+    test1_loop_composed_distance();
     test_decomp();
   }
   catch (std::exception &exc)

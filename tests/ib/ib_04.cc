@@ -45,25 +45,11 @@ using namespace dealii;
 
 void test1_loop_composed_distance()
 
-// IT IS NOT RELEVANT ANYMORE SINCE IT USES QUAD_ELEM WHICH IS NO MORE ADAPTED FOR THIS CODE
-// !!!!!!!!!!
-// !!!!!!!!!!!
 {
 
 
 
-
-
-
-
-
-
     //This one is to check if we can do the same as step-3 by calculating the elementary matrices in each element by ourselves
-
-    // Doesn't work though, I still can't explain why it doesn't since the values in the elementary matrices are supposed
-    // to be always the same from one element to another and are equal
-    // to what I've calculated on the paper
-
 
 
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
@@ -112,12 +98,13 @@ void test1_loop_composed_distance()
 
   // Loop over all elements and extract the distances into a local array
   FESystem<2> *fe(ib_composer.getFESystem());
-  QGauss<2>              quadrature_formula(1);
+  QGauss<2>              quadrature_formula(8);
   const MappingQ<2>      mapping (1);
   std::map< types::global_dof_index, Point< 2 > > support_points;
   DoFTools::map_dofs_to_support_points ( mapping, *dof_handler,support_points );
   FEValues<2> fe_values (*fe, quadrature_formula,
-                                  update_values | update_gradients | update_JxW_values); /*(mapping,
+                                  update_values | update_gradients | update_JxW_values|
+                         update_quadrature_points ); /*(mapping,
                          *fe,
                          quadrature_formula,
                          update_values |
@@ -151,7 +138,7 @@ void test1_loop_composed_distance()
 
 //  double matelem[4][4];
 
-  std::vector<double> sec_membre_elem(dofs_per_cell);
+  Vector<double> cell_rhs(dofs_per_cell);
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
@@ -162,8 +149,8 @@ void test1_loop_composed_distance()
 
     if (cell->is_locally_owned())
     {
-      std::fill(sec_membre_elem.begin(), sec_membre_elem.end(), 0.0);
-
+      cell_rhs=0;
+      cell_mat=0;
 
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
@@ -172,20 +159,30 @@ void test1_loop_composed_distance()
       {
         distance[dof_index] = 1; //levelSet_distance[local_dof_indices[dof_index]];
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        sec_membre_elem[dof_index] = 0 ;
-         // We thus resolve Laplacian(u) = 1 in the domain, u = 0 on the boundary of the domain
+         // We thus resolve -Laplacian(u) = f in the domain, u = 0 on the boundary of the domain
+         // where f is determined so that the solution is u = cos(pi*x/4)cos(pi*y/4)
        }
 
-      for (int i = 0; i < 4; ++i) {
-          for (int j = 0; j < 4; ++j) {
-              for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
-              {
-                  cell_mat[i][j] += fe_values.shape_grad(i, q_index) * fe_values.shape_grad (j, q_index) * fe_values.JxW (q_index);
-              }
-          }
-      }
-    // Assembling and solving further
+      for (unsigned int q_index = 0; q_index < n_q_points; ++q_index)
+        {
+          for (unsigned int i = 0; i < dofs_per_cell; ++i){
 
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
+              cell_mat(i, j) +=
+                (fe_values.shape_grad(i, q_index) * // grad phi_i(x_q)
+                 fe_values.shape_grad(j, q_index) * // grad phi_j(x_q)
+                 fe_values.JxW(q_index));           // dx
+
+            cell_rhs(i) += (fe_values.shape_value(i, q_index) * // phi_i(x_q)
+                            2*M_PI_4*M_PI_4*cos(M_PI_4*fe_values.quadrature_point (q_index)(0))*cos(M_PI_4*fe_values.quadrature_point(q_index)(1)) * // f(x_q)
+                            fe_values.JxW(q_index)); }           // dx
+        }
+    // Assembling and solving further
+      std::cout << " \n \n  " << std::endl;
+      for (int i = 0; i < 4; ++i) {
+          std::cout << " cell mat : " << cell_mat[i][0] << " " << cell_mat[i][1] << " " << cell_mat[i][2] << " " << cell_mat[i][3] << std::endl;
+      }
+      std::cout << "\n RHS : " << cell_rhs[0] << " " << cell_rhs[1] << " " << cell_rhs[2] << " " << cell_rhs[3] << std::endl;
   }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -196,7 +193,7 @@ void test1_loop_composed_distance()
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
-      system_rhs(local_dof_indices[i]) += sec_membre_elem[i];
+      system_rhs(local_dof_indices[i]) += cell_rhs[i];
     }
 
 
