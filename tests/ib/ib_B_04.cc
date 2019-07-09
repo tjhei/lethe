@@ -50,20 +50,45 @@ using namespace dealii;
 
 void test_condensate()
 {
-    FullMatrix<double>      M(3,3);
-    FullMatrix<double>      new_m(1,1);
-    std::vector<double>     rhs(3);
-    std::vector<double>     new_rhs(1);
+    FullMatrix<double>      M(4,4);
+    FullMatrix<double>      new_m(2,2);
+    std::vector<double>     rhs(4);
+    std::vector<double>     new_rhs(2);
 
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
             M(i,j)=i+j+1;
         }
         rhs[i]=1+i;
     }
-    condensate(3,1,M,new_m,rhs,new_rhs);
-    if (std::abs(new_rhs[0])>1e-10) throw std::runtime_error("Failed to build the condensated RHS");
-    if (std::abs(new_m(0,0))>1e-10) throw std::runtime_error("Failed to build the condensated matrix");
+
+    M(0,1)=0;
+    M(2,0)=0;
+    M(3,2)=0;
+
+
+
+//    std::cout << "\n \n \n test mat : " << std::endl;
+//    for (int i = 0; i < 4; ++i) {
+//        std::cout << M[i][0] << " " << M[i][1] << " " << M[i][2] << " " << M[i][3] << std::endl;
+//    }
+
+    condensate(4,2,M,new_m,rhs,new_rhs);
+
+//    std::cout << "\n new mat : " << std::endl;
+//    for (int i = 0; i < 2; ++i) {
+//        std::cout << new_m[i][0] << " " << new_m[i][1] << std::endl;
+//    }
+//    std::cout << "\n new rhs : " << std::endl;
+//    std::cout << new_rhs[0] << " " << new_rhs[1] - 18./35.<< std::endl;
+
+    if (std::abs(new_rhs[0]-(1.-16./7.+9./35.))>1e-10) throw std::runtime_error("Failed to build the condensated RHS 0");
+    if (std::abs(new_rhs[1]+18./35.)>1e-10) throw std::runtime_error("Failed to build the condensated RHS 1");
+    if (std::abs(new_m(0,0)-(1.+3.*24./7./5.-4.*4./7.))>1e-10) throw std::runtime_error("Failed to build the condensated matrix (0,0)");
+    if (std::abs(new_m(0,1)-(6./35.-4.*5./7.))>1e-10) throw std::runtime_error("Failed to build the condensated matrix (0,1)");
+    if (std::abs(new_m(1,0)-66./35.)>1e-10) throw std::runtime_error("Failed to build the condensated matrix (1,0)");
+    if (std::abs(new_m(1,1)+12./35.)>1e-10) throw std::runtime_error("Failed to build the condensated matrix (1,1)");
+
 }
 
 void integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,  FullMatrix<double> &system_matrix, Vector<double> &system_rhs)
@@ -211,6 +236,8 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
     {
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
       distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+//      if ((dofs_points[dof_index](0)==1)&&(dofs_points[dof_index](1)==-1))
+//          std::cout << local_dof_indices[dof_index] << std::endl;
     }
 
     // Decompose the geometry
@@ -318,8 +345,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
     if (nb_poly==1)
     {
 
-//      std::cout << "\n \n \n pts trg : " << decomp_elem[0] << ", " << decomp_elem[1] << ", " << decomp_elem[2] << std::endl;
-
       // Create triangulation points
       std::vector<Point<2> > triangulation_points(3);
       // Create 4 random points:
@@ -342,23 +367,41 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       sub_system_rhs.reinit    (sub_dof_handler.n_dofs());
 
       integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
-      std::cout << "\n \n \n mat trg : " << std::endl;
-      for (int i = 0; i < 7; ++i) {
-          std::cout << sub_system_matrix[i][0] << " " << sub_system_matrix[i][1] << " " << sub_system_matrix[i][2] << " " << sub_system_matrix[i][3] << " " << sub_system_matrix[i][4] << " " << sub_system_matrix[i][5] << " " << sub_system_matrix[i][6] << std::endl;
-      }
 
       FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
       std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
       std::vector<int>                  change_coor = {0, 4, 6, 1, 2, 3, 5};
-      for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-          for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+      for (unsigned int i = 0; i < sub_dof_handler.n_dofs(); ++i) {
+          for (unsigned int j = 0; j < sub_dof_handler.n_dofs(); ++j) {
               Mat_sorted(i,j) = sub_system_matrix(change_coor[i], change_coor[j]);
           }
           rhs_sorted[i] = sub_system_rhs[change_coor[i]];
       }
+      for (int i = 0; i < 7; ++i) {
+          Mat_sorted(2,i)=0;
+          Mat_sorted(1,i)=0;
+          Mat_sorted(6,i)=0;
+      }
+
+      Mat_sorted(2,2)=1;
+      Mat_sorted(1,1)=1;
+      Mat_sorted(6,6)=1;
+
+      rhs_sorted[1]=1;
+      rhs_sorted[2]=1;
+      rhs_sorted[6]=1;
 
       FullMatrix<double>                mat(1,1);
       std::vector<double>               rhs(1);
+
+      //
+//        std::cout << "\n cell mat :" << std::endl;
+//        for (unsigned int iu = 0; iu < sub_dof_handler.n_dofs(); ++iu) {
+//        std::cout << Mat_sorted(iu,0) << " " << Mat_sorted(iu,1) << " " << Mat_sorted(iu,2) << " " << Mat_sorted(iu,3) << " " << Mat_sorted(iu,4)  << " " << Mat_sorted(iu,5) << " " << Mat_sorted(iu,6) << std::endl;
+//        }
+//        std::cout << "\n cell rhs :" << std::endl;
+//        std::cout << rhs_sorted[0] << " " << rhs_sorted[1] << " " << rhs_sorted[2] << " " << rhs_sorted[3] << " " << rhs_sorted[4] << " " << rhs_sorted[5] << " " << rhs_sorted[6] << std::endl;
+      //
 
       condensate(sub_dof_handler.n_dofs(), 1, Mat_sorted, mat, rhs_sorted, rhs);
 
@@ -374,17 +417,21 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       }
 
     }
+
     if (nb_poly==3)
     {
       //Create new triangulation and integrate
 
       FullMatrix<double>        mat6(6,6);
       std::vector<double>            rhs6(6);
+      cell_matrix=0;
+      cell_rhs=0;
+      mat6=0;
+      std::fill(rhs6.begin(),rhs6.end(),0.0);
 
       for (int sub_element = 0 ; sub_element<nb_poly ; ++sub_element)
       {
-          cell_matrix=0;
-          cell_rhs=0;
+
         // Create triangulation points
         std::vector<Point<2> > triangulation_points(3);
         // Create 4 random points:
@@ -406,16 +453,17 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
         sub_system_rhs.reinit (sub_dof_handler.n_dofs());
 
+        sub_system_matrix=0;
+        sub_system_rhs=0;
+
         integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
-//        std::cout << "\n \n \n mat trg : " << sub_element << std::endl;
-//        for (int i = 0; i < 4; ++i) {
-//            std::cout << sub_system_matrix[i][0] << " " << sub_system_matrix[i][1] << " " << sub_system_matrix[i][2] << " " << sub_system_matrix[i][3] << std::endl;
-//        }
+
         FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
         std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
         std::vector<int>                  change_coor = {0, 4, 6, 1, 2, 3, 5};
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+
+        for (unsigned int i = 0; i < sub_dof_handler.n_dofs(); ++i) {
+            for (unsigned int j = 0; j < sub_dof_handler.n_dofs(); ++j) {
                 Mat_sorted(i,j) = sub_system_matrix(change_coor[i], change_coor[j]);
             }
             rhs_sorted[i] = sub_system_rhs[change_coor[i]];
@@ -423,6 +471,8 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
 
         FullMatrix<double>                mat3(3,3);
         std::vector<double>               rhs3(3);
+        mat3=0;
+        std::fill(rhs3.begin(),rhs3.end(),0.0);
 
         condensate(sub_dof_handler.n_dofs(), 3, Mat_sorted, mat3, rhs_sorted, rhs3);
 
@@ -434,28 +484,49 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         }
       }
 
+      for (int i = 0; i < 6; ++i) {
+          mat6(4,i)=0;
+          mat6(5,i)=0;
+      }
+      mat6(4,4)=1;
+      mat6(5,5)=1;
+      rhs6[4]=1;
+      rhs6[5]=1;
+
+      //
+        std::cout << "\n mat6 :" << std::endl;
+        for (unsigned int iu = 0; iu < dofs_per_cell+2; ++iu) {
+        std::cout << mat6(iu,0) << " " << mat6(iu,1) << " " << mat6(iu,2) << " " << mat6(iu,3) << " " << mat6(iu,4) << " " << mat6(iu,5) << std::endl;
+        }
+        std::cout << "\n rhs6 :" << std::endl;
+        std::cout << rhs6[(0)] << " " << rhs6[(1)] << " " << rhs6[(2)] << " " << rhs6[(3)] << " " << rhs6[(4)] << " " << rhs6[(5)]<< std::endl;
+      //
+
       std::vector<double>       copy_cell_rhs(4);
 
       condensate(6,4,mat6,cell_matrix,rhs6,copy_cell_rhs);
-      for (int i; i<4 ; ++i) {
-          cell_rhs(i) = copy_cell_rhs[i];
+
+      for (unsigned int i = 0; i<dofs_per_cell ; ++i) {
+          cell_rhs[i] = copy_cell_rhs[i];
       }
     }
 
-    if (nb_poly > 0)
-    {
-        std::cout << "\n \n \n cell mat :" << std::endl;
-
-        for (int iu = 0; iu < 4; ++iu) {
-            std::cout << cell_matrix(iu,0) << " " << cell_matrix(iu,1) << " " << cell_matrix(iu,2) << " " << cell_matrix(iu,3) << std::endl;
+    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+        if (No_pts_solid[i])
+        {
+            cell_matrix(i,i)=1;
+            cell_rhs(i)=1;
         }
-
-        std::cout << "\n cell rhs :" << std::endl;
-        std::cout << cell_rhs(0) << " " << cell_rhs(1) << " " << cell_rhs(2) << " " << cell_rhs(3) << std::endl;
     }
 
-
-
+    //
+      std::cout << "\n cell mat :" << std::endl;
+      for (unsigned int iu = 0; iu < dofs_per_cell; ++iu) {
+      std::cout << cell_matrix(iu,0) << " " << cell_matrix(iu,1) << " " << cell_matrix(iu,2) << " " << cell_matrix(iu,3) << std::endl;
+      }
+      std::cout << "\n cell rhs :" << std::endl;
+      std::cout << cell_rhs(0) << " " << cell_rhs(1) << " " << cell_rhs(2) << " " << cell_rhs(3) << std::endl;
+    //
 
     // Assemble global matrix and RHS
     cell->get_dof_indices (local_dof_indices);
@@ -470,16 +541,13 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       }
   }
 
+
+
+
+
   std::map<types::global_dof_index,double> boundary_values;
 
-  VectorTools::interpolate_boundary_values (dof_handler,
-                                            0,
-                                            Functions::ZeroFunction<2>(),
-                                            boundary_values);
-  VectorTools::interpolate_boundary_values (dof_handler,
-                                            1,
-                                             Functions::ConstantFunction<2>(1.),
-                                            boundary_values);
+  boundary_values[11]=0.;
 
   MatrixTools::apply_boundary_values (boundary_values,
                                       system_matrix,
@@ -534,7 +602,7 @@ void cut_square()
   Tensor<1,2> velocity;
   velocity[0]=1.; velocity[1]=0.;
   Tensor<1,2> normal;
-  normal[0]=-1; normal[1]=1;
+  normal[0]=1; normal[1]=-1;
   double T_scal=1;
 
   // IB composer
@@ -574,8 +642,7 @@ main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    square();
-    std::cout << " \n \n \n \n cc \n \n \n \n " << std::endl;
+    //square();
     cut_square();
     //square_hole();
     test_condensate();
