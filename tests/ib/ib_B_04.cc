@@ -124,7 +124,7 @@ void integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> 
     cell_matrix = 0;
     cell_rhs = 0;
 
-//    std::cout << "\n pts : " << support_points[0] << ", " << support_points[1] << ", " << support_points[2] << ", " << support_points[3] << ", " << support_points[4] << ", " << support_points[5] << ", " << support_points[6] << std::endl;
+    std::cout << "\n pts : " << support_points[0] << ", " << support_points[1] << ", " << support_points[2] << ", " << support_points[3] << ", " << support_points[4] << ", " << support_points[5] << ", " << support_points[6] << std::endl;
 
     for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
     {
@@ -232,10 +232,13 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
     cell_rhs = 0;
     cell->get_dof_indices (local_dof_indices);
 
+    std::cout << "\n \n \n points " << std::endl;
     for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
     {
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
       distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+      std::cout << dofs_points[dof_index] << std::endl;
+
 //      if ((dofs_points[dof_index](0)==1)&&(dofs_points[dof_index](1)==-1))
 //          std::cout << local_dof_indices[dof_index] << std::endl;
     }
@@ -359,6 +362,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       FESystem<2>                    sub_fe(FE_Q<2>(1),1);
       sub_dof_handler.distribute_dofs(sub_fe);
 
+
       FullMatrix<double> sub_system_matrix;
       Vector<double>     sub_system_rhs;
 
@@ -367,6 +371,33 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       sub_system_rhs.reinit    (sub_dof_handler.n_dofs());
 
       integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
+
+      for (int i = 0; i < 7; ++i) {
+          sub_system_matrix(2,i)=0.;
+          sub_system_matrix(1,i)=0.;
+          sub_system_matrix(6,i)=0.;
+          sub_system_matrix(5,i)=0.;
+          sub_system_matrix(4,i)=0.;
+      }
+
+      sub_system_matrix(5,5)=1.;
+      sub_system_matrix(4,4)=1.;
+      sub_system_matrix(6,6)=1.;
+
+      sub_system_matrix(1,1)=1.;
+      sub_system_matrix(2,2)=1.;
+
+      sub_system_matrix(2,0)=-0.5;
+      sub_system_matrix(2,6)=-0.5;
+      sub_system_matrix(1,0)=-0.5;
+      sub_system_matrix(1,4)=-0.5;
+
+      sub_system_rhs[1]=0.;
+      sub_system_rhs[2]=0.;
+
+      sub_system_rhs[6]=1.;
+      sub_system_rhs[5]=1.;
+      sub_system_rhs[4]=1.;
 
       FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
       std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
@@ -377,19 +408,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
           }
           rhs_sorted[i] = sub_system_rhs[change_coor[i]];
       }
-      for (int i = 0; i < 7; ++i) {
-          Mat_sorted(2,i)=0;
-          Mat_sorted(1,i)=0;
-          Mat_sorted(6,i)=0;
-      }
-
-      Mat_sorted(2,2)=1;
-      Mat_sorted(1,1)=1;
-      Mat_sorted(6,6)=1;
-
-      rhs_sorted[1]=1;
-      rhs_sorted[2]=1;
-      rhs_sorted[6]=1;
 
       FullMatrix<double>                mat(1,1);
       std::vector<double>               rhs(1);
@@ -457,6 +475,36 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         sub_system_rhs=0;
 
         integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
+
+            for (int i = 0; i < 7; ++i) {
+                sub_system_matrix(2,i)=0.;
+                sub_system_matrix(1,i)=0.;
+                sub_system_matrix(5,i)=0.;
+            }
+
+            sub_system_matrix(1,1)=1.;
+            sub_system_matrix(2,2)=1.;
+            sub_system_matrix(5,5)=1.;
+
+            sub_system_matrix(2,0)=-0.5;
+            sub_system_matrix(2,6)=-0.5;
+            sub_system_matrix(1,0)=-0.5;
+            sub_system_matrix(1,4)=-0.5;
+            sub_system_matrix(5,6)=-0.5;
+            sub_system_matrix(5,4)=-0.5;
+
+            sub_system_rhs[1]=0.;
+            sub_system_rhs[2]=0.;
+            sub_system_rhs[5]=0.;
+
+            //
+              std::cout << "\n 7x7 :" << std::endl;
+              for (unsigned int iu = 0; iu < dofs_per_cell+2; ++iu) {
+              std::cout << sub_system_matrix(iu,0) << " " << sub_system_matrix(iu,1) << " " << sub_system_matrix(iu,2) << " " << sub_system_matrix(iu,3) << " " << sub_system_matrix(iu,4) << " " << sub_system_matrix(iu,5) << " " << sub_system_matrix(iu,6) << std::endl;
+              }
+              std::cout << "\n rhs 7 :" << std::endl;
+              std::cout << sub_system_rhs[(0)] << " " << sub_system_rhs[(1)] << " " << sub_system_rhs[(2)] << " " << sub_system_rhs[(3)] << " " << sub_system_rhs[(4)] << " " << sub_system_rhs[(5)]<< " " << sub_system_rhs[(6)]<< std::endl;
+            //
 
         FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
         std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
