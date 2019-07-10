@@ -87,7 +87,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(5);
+  triangulation.refine_global(8);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -284,7 +284,7 @@ void test1_loop_composed_distance()
                                       system_rhs);
 
 
-  SolverControl           solver_control (1000, 1e-12);
+  SolverControl           solver_control (10000, 1e-12);
   SolverCG<>              solver (solver_control);
   solver.solve (system_matrix, solution, system_rhs,
                 PreconditionIdentity());

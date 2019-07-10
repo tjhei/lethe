@@ -90,7 +90,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(8);
+  triangulation.refine_global(9);
 
   // Set-up the center, velocity and angular velocity of circle
 
