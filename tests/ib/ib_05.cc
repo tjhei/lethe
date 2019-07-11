@@ -178,7 +178,6 @@ void test1_loop_composed_distance()
 
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
-      //  std::cout << nb_poly << std::endl;
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -255,36 +254,6 @@ void test1_loop_composed_distance()
 
 }
 
-void test_condensate()
-{
-FullMatrix<double> m4(4,4);
-std::vector<double> rhs4(4);
-std::vector<double> rhs6(6);
-
-std::fill(rhs4.begin(), rhs4.end(),0);
-m4=0;
-std::fill(rhs6.begin(), rhs6.end(),0);
-FullMatrix<double> m6(6,6);
-m6=0;
-for (int i = 0; i < 6; ++i) {
-    for (int j = 0; j < 6; ++j) {
-        m6(i,j)=0.1*(i+j);
-        m6(i,i)=1;
-    }
-}
-for (int i = 0; i < 6; ++i) {
-    m6(0,i)=0;
-    m6(1,i)=0;
-    m6(i,0)=0;
-    m6(i,1)=0;
-}
-m6(0,0)=1;
-m6(1,1)=1;
-std::vector<int> corresp = {5,4,2,3,-1,-1,-1,-1,-1};
-std::vector<node_status> status = {solid, solid, fluid, fluid};
-condensate_quad(4, status, corresp, m6, m4, rhs6, rhs4);
-
-}
 int
 main(int argc, char* argv[])
 {
@@ -293,7 +262,6 @@ main(int argc, char* argv[])
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
     test1_loop_composed_distance();
-    //test_condensate();
   }
 
   catch (std::exception &exc)

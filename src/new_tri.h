@@ -12,76 +12,40 @@
 #include "ib_node_status.h"
 using namespace dealii;
 
-void condensate_trg(unsigned int dofs_per_cell, int nb_trg, std::vector<node_status> status, std::vector<int> corresp, FullMatrix<double> mat6, FullMatrix<double> &mat4, std::vector<double> rhs6, std::vector<double> &rhs4)
+void condensate_trg(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, std::vector<double> &rhs, std::vector<double> &new_rhs)
 {
-    // The point of this function is to change the order of the lines in order to put the lines corresponding to the points in the fluid at the top of the matrix, which will make the condensation much easier
+    int a;
 
-    std::vector<int> a(nb_trg);
+    for (unsigned int i = nb_of_line-2; i >new_nb-1; --i) { // We begin at the second to last line, i is the number associated to line we're modifying
 
-    int c =0;
-    for (int i = 0; i < 4; ++i) {
-        if (status[i])
-        {
-            a[c]=i;
-            c++;
-        }
-    }
+        for (unsigned int k = 0; k < nb_of_line-1-i ; ++k) { // How many times we modify the line
+            a = nb_of_line-1-k;
 
-    int num_loc[6]; // new numerotation with shows the vertices in the fluid first
-
-    if (nb_trg==1){
-        num_loc[0]=corresp[0];
-        num_loc[1]=a[0];
-        num_loc[2]=a[1];
-        num_loc[3]=a[2];
-        num_loc[4]=corresp[1];
-        num_loc[5]=corresp[2];
-    }
-
-    else {
-        num_loc[0]=corresp[0];
-        num_loc[1]=corresp[1];
-        num_loc[2]=corresp[6];
-        num_loc[3]=a[0];
-        num_loc[4]=corresp[4];
-        num_loc[5]=corresp[5];
-    }
-
-    FullMatrix<double> M6_renum(dofs_per_cell+2, dofs_per_cell+2);
-    std::vector<double> rhs6_renum(dofs_per_cell+2);
-
-    double acc = 1e-8;
-
-    for (unsigned int i = 0; i < dofs_per_cell+2; ++i) {
-        for (unsigned int j = 0; j < dofs_per_cell+2; ++j) {
-            M6_renum[i][j] = mat6[num_loc[i]][num_loc[j]];
-        }
-        rhs6_renum[i] = rhs6[num_loc[i]];
-        if (std::abs(M6_renum[i][i])<acc) throw std::runtime_error("One of the diagonal terms of the 6x6 matrix is too close to 0");
-    }
-
-    int count =0;
-    for (int k = dofs_per_cell /* dofs_per_cell starts at one, not 0 !! */ ; k >-1 ; --k) {
-        for (int i = 0; i < count+1; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell+1-i; ++j) {
-                M6_renum[k][j]=M6_renum[k][j]-M6_renum[dofs_per_cell+1-i][j] *
-                        M6_renum[k][dofs_per_cell+1-i] / M6_renum[dofs_per_cell+1-i][dofs_per_cell+1-i];
-
-                // for example, if we have 4 dofs, we will have a 6x6 matrix
-                //let's take the fifth line : M6_renum[4][0] += -M6_renum[5][0]*M6_renum[4][5]/M6_renum[5][5]
+            for (unsigned int j = 0; j < i+1; ++j) { // number associated to the column
+                M(i,j) -= M(i,a)*M(a,j)/M(a,a);
             }
 
-            rhs6_renum[k]+=-rhs6_renum[dofs_per_cell+1-i] *
-                    M6_renum[k][dofs_per_cell+1-i]/M6_renum[dofs_per_cell+1-i][dofs_per_cell+1-i];
+            rhs[i] -= rhs[a]*M(i,a)/M(a,a);
         }
-        count ++;
     }
 
-    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-        for (unsigned int j = 0; j < i+1; ++j) {
-            mat4[num_loc[i]][num_loc[j]]=M6_renum[i][j];
+    // We modified the bottom of the matrix, now we have to reinject the coefficients
+    // into the part of the matrix we want to return
+
+    for (unsigned int i = 0; i < new_nb; ++i) {
+        for (unsigned int k = nb_of_line-1; k > new_nb-1 ; --k) {
+            for (unsigned int j = 0; j < k; ++j) {
+                M(i,j)-=M(i,k)*M(k,j)/M(k,k);
+            }
+            rhs[i]-=rhs[k]*M(i,k)/M(k,k);
         }
-        rhs4[num_loc[i]]=rhs6_renum[i];
+    }
+
+    for (unsigned int i = 0; i < new_nb; ++i) {
+        for (unsigned int j = 0; j < new_nb; ++j) {
+            new_mat[i][j]=M[i][j];
+        }
+        new_rhs[i]=rhs[i];
     }
 }
 
@@ -183,7 +147,7 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
         M[4][4]=1;
         M[5][5]=1;
 
-        condensate_trg(dofs_per_cell, nbtrg, pts_statut, corresp, M, cell_mat, rhs6, cell_rhs);
+        condensate_trg(6, dofs_per_cell, M, cell_mat, rhs6, cell_rhs);
 }
 
 double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<node_status> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
