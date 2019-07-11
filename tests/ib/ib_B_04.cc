@@ -62,26 +62,11 @@ void test_condensate()
         rhs[i]=0;
     }
 
-//    M(0,1)=0;
     M(2,0)=-1;
     M(3,2)=1;
     rhs[3]=1;
 
-
-//    std::cout << "\n \n \n test mat : " << std::endl;
-//    for (int i = 0; i < 4; ++i) {
-//        std::cout << M[i][0] << " " << M[i][1] << " " << M[i][2] << " " << M[i][3] << std::endl;
-//    }
-//    std::cout << " rhs : " << "0 0 0 1"<< std::endl;
-
     condensate(4,2,M,new_m,rhs,new_rhs);
-
-//    std::cout << "\n new mat : " << std::endl;
-//    for (int i = 0; i < 2; ++i) {
-//        std::cout << new_m[i][0] << " " << new_m[i][1] << std::endl;
-//    }
-//    std::cout << "\n new rhs : " << std::endl;
-//    std::cout << new_rhs[0] << " " << new_rhs[1]<< std::endl;
 
     if (std::abs(new_rhs[0])>1e-10) throw std::runtime_error("Failed to build the condensated RHS 0");
     if (std::abs(new_rhs[1])>1e-10) throw std::runtime_error("Failed to build the condensated RHS 1");
@@ -233,15 +218,10 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
     cell_rhs = 0;
     cell->get_dof_indices (local_dof_indices);
 
-//    std::cout << "\n \n \n points " << std::endl;
     for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
     {
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
       distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
-//      std::cout << dofs_points[dof_index] << std::endl;
-
-//      if ((dofs_points[dof_index](0)==1)&&(dofs_points[dof_index](1)==-1))
-//          std::cout << local_dof_indices[dof_index] << std::endl;
     }
 
     // Decompose the geometry
@@ -413,15 +393,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       FullMatrix<double>                mat(1,1);
       std::vector<double>               rhs(1);
 
-      //
-//        std::cout << "\n cell mat :" << std::endl;
-//        for (unsigned int iu = 0; iu < sub_dof_handler.n_dofs(); ++iu) {
-//        std::cout << Mat_sorted(iu,0) << " " << Mat_sorted(iu,1) << " " << Mat_sorted(iu,2) << " " << Mat_sorted(iu,3) << " " << Mat_sorted(iu,4)  << " " << Mat_sorted(iu,5) << " " << Mat_sorted(iu,6) << std::endl;
-//        }
-//        std::cout << "\n cell rhs :" << std::endl;
-//        std::cout << rhs_sorted[0] << " " << rhs_sorted[1] << " " << rhs_sorted[2] << " " << rhs_sorted[3] << " " << rhs_sorted[4] << " " << rhs_sorted[5] << " " << rhs_sorted[6] << std::endl;
-      //
-
       condensate(sub_dof_handler.n_dofs(), 1, Mat_sorted, mat, rhs_sorted, rhs);
 
       cell_matrix(corresp[0],corresp[0]) = mat(0,0);
@@ -498,15 +469,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
             sub_system_rhs[2]=0.;
             sub_system_rhs[5]=0.;
 
-            //
-//              std::cout << "\n 7x7 :" << std::endl;
-//              for (unsigned int iu = 0; iu < dofs_per_cell+2; ++iu) {
-//              std::cout << sub_system_matrix(iu,0) << " " << sub_system_matrix(iu,1) << " " << sub_system_matrix(iu,2) << " " << sub_system_matrix(iu,3) << " " << sub_system_matrix(iu,4) << " " << sub_system_matrix(iu,5) << " " << sub_system_matrix(iu,6) << std::endl;
-//              }
-//              std::cout << "\n rhs 7 :" << std::endl;
-//              std::cout << sub_system_rhs[(0)] << " " << sub_system_rhs[(1)] << " " << sub_system_rhs[(2)] << " " << sub_system_rhs[(3)] << " " << sub_system_rhs[(4)] << " " << sub_system_rhs[(5)]<< " " << sub_system_rhs[(6)]<< std::endl;
-            //
-
         FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
         std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
         std::vector<int>                  change_coor = {0, 4, 6, 1, 2, 3, 5};
@@ -542,15 +504,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       rhs6[4]=1;
       rhs6[5]=1;
 
-      //
-//        std::cout << "\n mat6 :" << std::endl;
-//        for (unsigned int iu = 0; iu < dofs_per_cell+2; ++iu) {
-//        std::cout << mat6(iu,0) << " " << mat6(iu,1) << " " << mat6(iu,2) << " " << mat6(iu,3) << " " << mat6(iu,4) << " " << mat6(iu,5) << std::endl;
-//        }
-//        std::cout << "\n rhs6 :" << std::endl;
-//        std::cout << rhs6[(0)] << " " << rhs6[(1)] << " " << rhs6[(2)] << " " << rhs6[(3)] << " " << rhs6[(4)] << " " << rhs6[(5)]<< std::endl;
-      //
-
       std::vector<double>       copy_cell_rhs(4);
 
       condensate(6,4,mat6,cell_matrix,rhs6,copy_cell_rhs);
@@ -568,15 +521,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         }
     }
 
-    //
-//      std::cout << "\n cell mat :" << std::endl;
-//      for (unsigned int iu = 0; iu < dofs_per_cell; ++iu) {
-//      std::cout << cell_matrix(iu,0) << " " << cell_matrix(iu,1) << " " << cell_matrix(iu,2) << " " << cell_matrix(iu,3) << std::endl;
-//      }
-//      std::cout << "\n cell rhs :" << std::endl;
-//      std::cout << cell_rhs(0) << " " << cell_rhs(1) << " " << cell_rhs(2) << " " << cell_rhs(3) << std::endl;
-    //
-
     // Assemble global matrix and RHS
     cell->get_dof_indices (local_dof_indices);
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -589,10 +533,6 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         system_rhs(local_dof_indices[i]) += cell_rhs(i);
       }
   }
-
-
-
-
 
   std::map<types::global_dof_index,double> boundary_values;
 

@@ -49,34 +49,10 @@
 
 using namespace dealii;
 
-template <int dim>
-class BoundaryValues : public Function<dim>
-{
-public:
-  BoundaryValues () : Function<dim>() {}
-  virtual double value (const Point<dim>   &p,
-                        const unsigned int  component = 0) const;
-};
-
-template <int dim>
-double BoundaryValues<dim>::value (const Point<dim> &p,
-                                   const unsigned int /*component*/) const
-{
-   return 2;
-  //return p(1)/7.0 + 2.0/7.0;
-}
-
-
-void test1_loop_composed_distance()
+double calculate_L2_error(int refinement)
 
 // solves the heat equation between 2 circles, T set to 2 on the ext circle and to 1 on the int circles
 // calculates the L2 norm of (T_analytical - T_calculated)
-
-
-
-
-
-
 
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
@@ -90,7 +66,7 @@ void test1_loop_composed_distance()
                              -2,2,true);
 
   // Refine it to get an interesting number of elements
-  triangulation.refine_global(9);
+  triangulation.refine_global(refinement);
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -280,8 +256,8 @@ void test1_loop_composed_distance()
   std::map<types::global_dof_index,double> boundary_values;
 
   VectorTools::interpolate_boundary_values (*dof_handler,
-                                            0,
-                                            BoundaryValues<2>(),
+                                            1,
+                                             Functions::ConstantFunction<2>(1.),
                                             boundary_values);
 
   MatrixTools::apply_boundary_values (boundary_values,
@@ -339,7 +315,34 @@ void test1_loop_composed_distance()
 
   }
   std::cout << err << std::endl;
+  return err;
 }
+
+void test_L2()
+{
+    Vector<double>      Error;
+    Vector<double>      Error_theo;
+    Error.reinit(5);
+    Error_theo.reinit(5);
+
+    for (int i = 4; i < 9; ++i) {
+        Error(i-4)=calculate_L2_error(i);
+    }
+
+    Error_theo(0)=0.499282;
+    Error_theo(1)=0.166939;
+    Error_theo(2)=0.0475147;
+    Error_theo(3)=0.012687;
+    Error_theo(4)=0.00325879;
+
+    double acc = 1e-5;
+
+    for (int i = 0; i < 5; ++i) {
+        if (std::abs(Error(i)-Error_theo(i))>acc*std::pow(0.25,i)) throw std::runtime_error("Failed to calculate the L2 error");
+    }
+    std::cout << " Tests passed successfully" << std::endl;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -347,7 +350,7 @@ int main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    test1_loop_composed_distance();
+    test_L2();
   }
   catch (std::exception &exc)
   {
