@@ -21,14 +21,37 @@
 //Addings
 
 #include "iblevelsetfunctions.h"
-#include "t_calc_interp.h"
-#include "T_analytical.h"
-
 #include <thread>
 #include <chrono>
 #include "ib_node_status.h"
 
 using namespace dealii;
+
+double T_calc_interp(std::vector<double> T, Point<2> pt_calc)
+{
+    // we use this to make the linear interpolation of the solution in order to dertermine the L2 error
+    // T is the value of the solution on each vertex
+    // pt_calc is the point at which you wish to calculate the value of the interpolated solution
+    double x = pt_calc(0);
+    double y = pt_calc(1);
+
+    return T[0]*(1.0-x)*(1.-y)+T[1]*x*(1.-y)+T[2]*(1.-x)*y+T[3]*x*y;
+}
+
+double T_analytical_q(Point<2> pt, Point<2> center, double T1, double T2, double r1, double r2)
+{
+    double r_eff;
+    Point<2> pt_eff;
+    pt_eff(0) = pt(0)-center(0);
+    pt_eff(1) = pt(1)-center(1);
+
+    r_eff = sqrt(pt_eff.square());
+
+    double A,B;
+    A = (T2-T1)/log(r1/r2);
+    B = A*log(r1) + T1;
+    return -A*log(r_eff)+B;
+}
 
 void condensate(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, std::vector<double> &rhs, std::vector<double> &new_rhs)
 {
@@ -251,7 +274,7 @@ double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2,
       fe_values.reinit (cell);
       for (unsigned int q=0; q<n_q_points; ++q)
       {
-          err+=std::pow(T_analytical(fe_values.quadrature_point (q), center, 1, 2, r1, r2)-T_calc_interp(T_quad, fe_values.quadrature_point (q)), 2)
+          err+=std::pow(T_analytical_q(fe_values.quadrature_point (q), center, 1, 2, r1, r2)-T_calc_interp(T_quad, fe_values.quadrature_point (q)), 2)
                   *fe_values.JxW(q);
       }
     }

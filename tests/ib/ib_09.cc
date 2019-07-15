@@ -44,8 +44,6 @@
 //#include "integlocal.h"
 #include "quad_elem.h"
 #include "new_tri.h"
-#include "T_analytical.h"
-#include "t_calc_interp.h"
 
 using namespace dealii;
 

@@ -6,8 +6,6 @@
 #include <deal.II/base/index_set.h>
 #include <deal.II/lac/full_matrix.h>
 
-#include "T_analytical.h"
-#include "interpolationtrg.h"
 #include "jacobian.h"
 #include "ib_node_status.h"
 using namespace dealii;
@@ -150,6 +148,30 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
         condensate_trg(6, dofs_per_cell, M, cell_mat, rhs6, cell_rhs);
 }
 
+double T_analytical(Point<2> pt, Point<2> center, double T1, double T2, double r1, double r2)
+{
+    double r_eff;
+    Point<2> pt_eff;
+    pt_eff(0) = pt(0)-center(0);
+    pt_eff(1) = pt(1)-center(1);
+
+    r_eff = sqrt(pt_eff.square());
+
+    double A,B;
+    A = (T2-T1)/log(r1/r2);
+    B = A*log(r1) + T1;
+    return -A*log(r_eff)+B;
+}
+
+double interpolationtrg(int i, double x, double y)
+{
+    if (i==0){return 1-x-y;}
+    else if (i==1){return x;}
+    else {
+        return y;
+    }
+}
+
 double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<node_status> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
 {
     // evaluates the L2 norm of (T_analytical - T_calculated) where T_calculated is the solution found with finite elements and interpolated on the triangles
@@ -193,3 +215,5 @@ double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int>
     }
     return err;
 }
+
+
