@@ -51,23 +51,23 @@ void test0_nouv_tri()
     Point<2> pt2 (1,0);
     Point<2> pt3 (0,1);
     Point<2> pt4 (1,1);
-    std::vector<Point<2>> coor(4);
+    Vector<Point<2>> coor(4);
     coor[0] = pt1;
     coor[1] = pt2;
     coor[2] = pt3;
     coor[3] = pt4;
 
-    std::vector<double> distance1 = {1,1,1,-1};
-    std::vector<double> distance2 = {1,-1,-1,-1};
-    std::vector<double> distance3 = {1,1,-1,-1};
+    Vector<double> distance1  {1,1,1,-1};
+    Vector<double> distance2  {1,-1,-1,-1};
+    Vector<double> distance3  {1,1,-1,-1};
 
-    std::vector<Point<2>> decomp_elem(9);
+    Vector<Point<2>> decomp_elem(9);
     std::vector<int>    corresp(9);
     std::vector<Point<2>>    num_elem(6);
-    std::vector<node_status> No_pts_solid(4);
+    Vector<node_status> No_pts_solid(4);
     int nb_poly;
 
-    std::vector<int> cor_thq1 = {2, 0, 5, 0, 4, 5, 1, 4, 0}; // what we should get for corresp
+    Vector<int> cor_thq1  {2, 0, 5, 0, 4, 5, 1, 4, 0}; // what we should get for corresp
     nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance1);
     for (int i = 0; i < 9; ++i) {
         if (cor_thq1[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the first case");
@@ -95,13 +95,13 @@ void test_decomp()
 {
     // First test //
 
-    std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+    Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
     int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
     double                               fluid_area = 0;
     double                               area_temp;
     std::vector<Point<2> >               num_elem(6);
     std::vector<int>                     corresp(9);
-    std::vector<node_status>             No_pts_solid(4);
+    Vector<node_status>             No_pts_solid(4);
 
     double                               len = std::pow(2,-8); // length of the side of the square
     Point<2>                             pt1 (0,0);
@@ -109,8 +109,13 @@ void test_decomp()
     Point<2>                             pt3 (pt1(0), pt1(1)+len);
     Point<2>                             pt4 (pt1(0)+len, pt1(1)+len);
 
-    std::vector<Point<2>>                coor = {pt1, pt2, pt3, pt4};
-    std::vector<double>                  dist1 = {0.001, 0.0005, 0.0005, -0.0005};
+    Vector<Point<2>>                coor;
+    coor(0)=pt1;
+    coor(1)=pt2;
+    coor(2)=pt3;
+    coor(3)=pt4;
+
+    Vector<double>                  dist1  {0.001, 0.0005, 0.0005, -0.0005};
 
     nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist1);
     Point<2> p1 (pt1(0)+len/2., pt1(1)+len);
@@ -131,7 +136,7 @@ void test_decomp()
     }
     double acc = size*1e-3;
 
-    std::vector<double>                  dist2 = {size*1e-2, size*1e-4, size*1e-4, -size*1e-2};
+    Vector<double>                  dist2  {size*1e-2, size*1e-4, size*1e-4, -size*1e-2};
 
     double x = (-acc + dist2[0])/(acc + dist2[0]);
 
@@ -217,17 +222,17 @@ void test1_loop_composed_distance() // Gives the error between the calculated fl
   const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
   const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
-  std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   double                               fluid_area = 0;
   double                               area_temp;
   double areaa = M_PI * radius * radius ;
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<node_status>    No_pts_solid(4);
+  Vector<node_status>    No_pts_solid(4);
 
   Point<2> a;
   a[0]=0;

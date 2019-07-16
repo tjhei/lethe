@@ -196,14 +196,14 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
 
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<node_status>             No_pts_solid(4);
+  Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  Vector<node_status>             No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
   // Set the values of the dof points position
-  std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
 
   IBCombiner<2>  ib_combiner(ib_functions);

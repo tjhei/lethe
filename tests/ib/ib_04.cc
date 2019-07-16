@@ -46,10 +46,7 @@ using namespace dealii;
 void test1_loop_composed_distance()
 
 {
-
-
-
-    //This one is to check if we can do the same as step-3 by calculating the elementary matrices in each element by ourselves
+//This one is to check if we can do the same as step-3 by calculating the elementary matrices in each element by ourselves
 
 
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
@@ -114,8 +111,8 @@ void test1_loop_composed_distance()
   const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
   const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
-  std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
   double                               Tdirichlet = 1.0;
 

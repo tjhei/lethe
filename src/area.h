@@ -1,5 +1,5 @@
 #include "jacobian.h"
-double area(int nb, std::vector<Point<2> > decomp_elem, std::vector<double> dist, std::vector<Point<2> > coor)
+double area(int nb, Vector<Point<2> > decomp_elem, Vector<double> dist, Vector<Point<2> > coor)
 {
     //evaluates the area of the fluid domain in the decomposed element considered
     //the vertices of the element have coor as coordinates, dist gives their distance to the boundary
@@ -9,7 +9,7 @@ double area(int nb, std::vector<Point<2> > decomp_elem, std::vector<double> dist
     double area_t= 0.0;
     if (nb > 0)
     {
-        std::vector<Point<2> > trg(3);
+        Vector<Point<2>> trg(3);
         for (int i = 0 ; i < nb ; i++)
         {
             trg[0]= decomp_elem[3*i];
@@ -30,7 +30,7 @@ double area(int nb, std::vector<Point<2> > decomp_elem, std::vector<double> dist
 
     else //if (nb == -1)
     {
-        std::vector<Point<2> >  quad(4);
+        Vector<Point<2> >  quad(4);
         quad[0] = decomp_elem[0];
         quad[1] = decomp_elem[1];
         quad[2] = decomp_elem[2];

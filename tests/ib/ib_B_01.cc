@@ -88,7 +88,7 @@ void test1_square_subelement()
 
   // Create a distance array
   const unsigned int   dofs_per_cell = fe.dofs_per_cell;         // Number of dofs per cells.
-  std::vector<double>  distance       (dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<double>  distance       (dofs_per_cell); // Array for the distances associated with the DOFS
   distance[0]=0.75;
   distance[1]=-0.25;
   distance[2]=0.5;
@@ -97,13 +97,13 @@ void test1_square_subelement()
 
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<node_status>    No_pts_solid(4);
+  Vector<Point<2> >                    decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  Vector<node_status>                  No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
   // Set the values of the dof points position
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
   double area=0;
 
@@ -213,7 +213,7 @@ void test2_single_triangle_subelement()
 
   // Create a distance array
   const unsigned int   dofs_per_cell = fe.dofs_per_cell;         // Number of dofs per cells.
-  std::vector<double>  distance       (dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<double>  distance       (dofs_per_cell); // Array for the distances associated with the DOFS
   distance[0]=0.5;
   distance[1]=-0.5;
   distance[2]=-0.5;
@@ -222,13 +222,13 @@ void test2_single_triangle_subelement()
 
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<node_status>    No_pts_solid(4);
+  Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  Vector<node_status>    No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
   // Set the values of the dof points position
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
   double area=0;
 
@@ -330,7 +330,7 @@ void test3_triple_triangle_subelement()
 
   // Create a distance array
   const unsigned int   dofs_per_cell = fe.dofs_per_cell;         // Number of dofs per cells.
-  std::vector<double>  distance       (dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<double>  distance       (dofs_per_cell); // Array for the distances associated with the DOFS
   distance[0]=sqrt(0.5*0.5+0.5*0.5);
   distance[1]=0.5;
   distance[2]=0.5;
@@ -340,13 +340,13 @@ void test3_triple_triangle_subelement()
 
   // Instantiations for the decomposition of the elements
   std::vector<int>                     corresp(9);
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  std::vector<node_status>                     No_pts_solid(4);
+  Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  Vector<node_status>                     No_pts_solid(4);
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
 
   // Set the values of the dof points position
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
   double area=0;
 

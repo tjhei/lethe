@@ -1,6 +1,12 @@
+#include "deal.II/lac/vector.h"
+#include "deal.II/base/point.h"
+
+using namespace dealii;
+
 #ifndef JACOBIAN_H
 #define JACOBIAN_H
-double jacobian(int trg_or_quad, double x, double y, std::vector<Point<2> > coor)
+
+double jacobian(int trg_or_quad, double x, double y, Vector<Point<2>> coor)
 {
     /* calculates the jacobian of the polygon of coordinates given by coor
     at the point of coordinates (x, y), depending on if it's a triangle or a qudrilateral */

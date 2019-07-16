@@ -47,7 +47,7 @@ void condensate_trg(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<dou
     }
 }
 
-void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<node_status> pts_statut, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
+void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, Vector<Point<2>> decomp_elem, Vector<node_status> pts_statut, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
 {
     // For a given element and the values of the distance function at its vertices, gives back the elementary matrix in the finite elements method
     // for the heat equation
@@ -172,7 +172,7 @@ double interpolationtrg(int i, double x, double y)
     }
 }
 
-double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int> corresp, std::vector<node_status> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
+double new_tri_L2(int nbtrg, Vector<Point<2>> decomp_elem, std::vector<int> corresp, Vector<node_status> No_pts_solid, Point<2> center, double T1, double T2, double r1, double r2, std::vector<double> T)
 {
     // evaluates the L2 norm of (T_analytical - T_calculated) where T_calculated is the solution found with finite elements and interpolated on the triangles
 
@@ -184,7 +184,7 @@ double new_tri_L2(int nbtrg, std::vector<Point<2>> decomp_elem, std::vector<int>
     double Tinterp;
 
     double Tloc[3];
-    std::vector<Point<2>> trg(3);
+    Vector<Point<2>> trg(3);
     double jk;
     Point<2> pt;
 

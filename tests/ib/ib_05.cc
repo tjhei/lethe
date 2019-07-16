@@ -119,8 +119,8 @@ void test1_loop_composed_distance()
   const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
   const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
-  std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
+  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  Vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
   SparsityPattern                      sparsity_pattern;
   SparseMatrix<double>                 system_matrix;   // créer la matrice entière, ainsi que le vecteur de second membre
@@ -130,11 +130,11 @@ void test1_loop_composed_distance()
   Vector<double>                       system_rhs;
 
 
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<node_status>    No_pts_solid(4);
+  Vector<node_status>    No_pts_solid(4);
   double                               Tdirichlet = 1.0;
 
 
