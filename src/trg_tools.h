@@ -147,4 +147,85 @@ double size_el(Vector<Point<dim>> coor_elem)
 }
 
 
+template <int dim>
+void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, Vector<Point<dim>> coor_elem)
+{
+    // returns the corresponding coordinates in the reference element of the point "pt_elem"
+    // works in 2D or in 3D
 
+    double size = size_el(coor_elem);
+
+    double x,y,x1,y1,x2,y2,x0,y0;
+
+    x0=coor_elem(0,0);
+    y0=coor_elem(0,1);
+
+    x = pt_elem(0)-x0;
+    y = pt_elem(1)-y0;
+
+    x1=coor_elem(1,0)-x0;
+    y1=coor_elem(1,1)-y0;
+
+    x2=coor_elem(2,0)-x0;
+    y2=coor_elem(2,1)-y0;
+
+    if (dim==2)
+    {
+        if (std::abs(x1)>size*1e-4)
+        {
+            pt_ref(1) = (y1/x1*x-y)/(x2/x1*y1-y2);
+            // x2/x1*y1-y2 != 0,
+            // else we would have y1/x1 = y2/x2 which is not possible for a triangle
+            //(a bit of geometry allows you to see it easily)
+
+            pt_ref(0) = (x-x2*pt_ref(1))/x1;
+        }
+
+        else { // if x1 = 0 then x2 != 0 since we have a triangle
+            pt_ref(1) = x/x2;
+            pt_ref(0) = (y-pt_ref(1)*y2)/y1;
+        }
+    }
+
+    else {
+        double z0,z1,z2,x3,y3,z3,z;
+
+
+        z0 = coor_elem(0,2);
+
+        z = pt_elem(2)-z0;
+
+        z1 = coor_elem(1,2)-z0;
+        z2 = coor_elem(2,2)-z0;
+
+        x3 = coor_elem(3,0)-x0;
+        y3 = coor_elem(3,1)-y0;
+        z3 = coor_elem(3,2)-z0;
+
+        FullMatrix<double> A(3,3);
+        A(0,0) = y2*z3 - z2*y3;
+        A(1,0) = (y3)*(z1) - (z3)*(y1);
+        A(2,0) = (y1)*z2 - (z1)*(y2);
+
+        double det = (x1)*A(0,0) + (x2)*A(1,0) + (x3)*A(2,0);
+
+        A(0,1) = (x3)*(z2) - (z3)*(x2);
+        A(1,1) = (x1)*(z3) - (z1)*(x3);
+        A(2,1) = (x2)*(z1) - (z2)*(x1);
+
+        A(0,2) = (x2)*(y3) - (y2)*(x3);
+        A(1,2) = (x3)*(y1) - (y3)*(z1);
+        A(2,2) = (x1)*(y2) - (y1)*(x2);
+
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                A(i,j) = A(i,j)/det;
+            }
+        }
+
+        pt_ref(0) = (x)*A(0,0) + (y)*A(0,1) + (z)*A(0,2);
+        pt_ref(1) = (x)*A(1,0) + (y)*A(1,1) + (z)*A(1,2);
+        pt_ref(2) = (x)*A(2,0) + (y)*A(2,1) + (z)*A(2,2);
+
+    }
+}
