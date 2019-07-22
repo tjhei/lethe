@@ -10,7 +10,7 @@ using namespace dealii;
 
 
 template <int dim>
-double interptrg1D(int num_vertex, Point<dim> pt_eval)
+double interp_pressure(int num_vertex, Point<dim> pt_eval)
 {
     //evaluates the value of the 1D shape function linked to the vertex "num_vertex", at the point "pt_eval"
 
@@ -31,7 +31,7 @@ double interptrg1D(int num_vertex, Point<dim> pt_eval)
 }
 
 
-void grad_interptrg1D(int num_vertex, Vector<double> &grad_return, int dim)
+void grad_interp_pressure(int num_vertex, Vector<double> &grad_return, int dim)
 {
     // returns in grad_return the value of the gradient of the shape function associated to the vertex num_elem
 
@@ -51,13 +51,13 @@ void grad_interptrg1D(int num_vertex, Vector<double> &grad_return, int dim)
 
 
 template<int dim>
-void interp_trg_multidim(int num_vertex, Point<dim> pt_eval, Vector<double> &return_vec)
+void interp_trg_velocity(int num_vertex, Point<dim> pt_eval, Vector<double> &return_vec)
 {
     // function for a triangle or a tetraedron
     // evaluates the value of the interpolation function associated to the vertex number "num_vertex"
     // at the point "pt_eval", which must be calculated to be in the elementary triangle/tetraedron
-    // this means : let Tk be the transformation leading from the elementary triangle/tetraedron,
-    // we have pt_eval = Tk^(-1) (actual_pt_in_real_element)
+    // this means : let Tk be the transformation leading from the elementary triangle/tetraedron to the considered element,
+    // we have pt_eval = Tk^(-1) (actual_pt_in_real_element) (just apply the function change coor to get the corresponding coordinates in the reference element)
 
 
     //depending on the dimension of the problem
@@ -85,7 +85,7 @@ void interp_trg_multidim(int num_vertex, Point<dim> pt_eval, Vector<double> &ret
 
 
 template<int dim>
-void grad_interp_trg(int num_vertex, FullMatrix<double> &return_grad)
+void grad_interp_velocity(int num_vertex, FullMatrix<double> &return_grad)
 {
     // function for a triangle or a tetraedron
     // evaluates the gradient of the interpolation function associated to the vertex number "num_vertex"
@@ -93,22 +93,19 @@ void grad_interp_trg(int num_vertex, FullMatrix<double> &return_grad)
 
     // depending on the dimension of the problem
 
-    // -> returns it in "return_grad", which is a matrix of dimension (dim+1)x(dim+1)
-    //dim+1 because to solve NS, we have dim+1 degrees of freedom (speed and pressure).
-
-    //
+    // -> returns it in "return_grad", which is a matrix of dimension (dim)x(dim)
 
     if (num_vertex==0)
     {
-        for (int i = 0; i < dim+1; ++i) {
-            for (int j = 0; j < dim+1; ++j) {
+        for (int i = 0; i < dim; ++i) {
+            for (int j = 0; j < dim; ++j) {
                 return_grad(i,j)=-1;
             }
         }
     }
 
     else {
-        for (int i = 0; i < dim+1; ++i) {
+        for (int i = 0; i < dim; ++i) {
             return_grad(num_vertex-1,i)=1;
         }
     }
@@ -116,23 +113,27 @@ void grad_interp_trg(int num_vertex, FullMatrix<double> &return_grad)
 
 
 
-template<int dim, int dimension> // dimension here is the number of lines of the vector we want to interpolate in the triangle,
+template<int dim> // dimension here is the number of lines of the vector we want to interpolate in the triangle,
 //for each line, you have to provide the valueon the vertices of the function to interpolate
 //the values must be sorted as you sorted the vertices of the element
 
-void interpolate_in_trg(Point<dim> pt_eval, Tensor<dimension, dim+1> values, Vector<double> &values_return)
+void interpolate_velocity_pressure(Point<dim> pt_eval, FullMatrix<double> values, Vector<double> &values_return)
 {
-    values_return.reinit(dimension);
+    // interpolates the vector (velocity(x), velocity(y) (, velocity(z)), pressure)
+    // depending on the values on each vertex of the triangle.
+    // the FullMatrix is of dimension (dim+1) x dim
+
+    values_return.reinit(dim+1);
 
     // we will suppose that the coordinates of pt_eval are given for the reference element
 
     double val;
-    for (int i = 0; i < dimension; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
+    for (int i = 0; i < dim+1 ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
 
         val = 0;
 
         for (int j = 0; j < dim+1; ++j) {
-            val += interptrg1D(j,pt_eval)*values(i,j);
+            val += interp_pressure(j,pt_eval)*values(i,j);
         }
 
         values_return(i) = val;
