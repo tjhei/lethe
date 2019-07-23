@@ -112,6 +112,37 @@ void grad_interp_velocity(int num_vertex, FullMatrix<double> &return_grad)
     }
 }
 
+double div_phi_u(int num_vertex, int u_v_w)
+{
+    // returns the value d(phi_u_{num_vertex})/d(x_{u_v_w})
+
+    if (num_vertex==0)
+    {
+        return -1.;
+    }
+    else if (num_vertex==1) {
+        if (u_v_w==0)
+            return 1.;
+        else {
+            return 0.;
+        }
+    }
+    else if (num_vertex==2) {
+        if (u_v_w==1)
+            return 1.;
+        else {
+            return 0.;
+        }
+    }
+    else {
+        if (u_v_w==2)
+            return 1.;
+        else {
+            return 0.;
+        }
+    }
+}
+
 // end of the shape functions //
 
 

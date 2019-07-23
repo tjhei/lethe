@@ -102,11 +102,11 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         h = size_el(decomp_trg) ;
 
-        std::vector<double>           div_phi_u                 (dofs_per_trg);
-        std::vector<Tensor<1, dim> >  phi_u                     (dofs_per_trg);
-        std::vector<Tensor<2, dim> >  grad_phi_u                (dofs_per_trg);
-        std::vector<double>           phi_p                     (dofs_per_trg);
-        std::vector<Tensor<1, dim> >  grad_phi_p                (dofs_per_trg);
+        Vector<double>           div_phi_u_;
+        Vector<double>           phi_u;
+        Vector<Tensor<1, dim> >  grad_phi_u;
+        Vector<double>           phi_p;
+        Vector<Tensor<1, dim> >  grad_phi_p;
 
         // we suppose the force vector equals zero
 
@@ -120,6 +120,7 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
         quad_pt.reinit(n_pt_quad);
         weight.reinit(n_pt_quad);
 
+        // Building the vector of quadrature points and vector associated weights //
         Point<dim> pt0(1./3., 1./3.);
         quad_pt(0) = pt0;
         weight(0) = -0.28125;
@@ -143,27 +144,65 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
         Vector<Tensor<1,dim>>   interpolated_grad_v;
         Vector<double>          interpolated_grad_p;
 
-        interpolated_v.reinit(dim);
-        interpolated_grad_v.reinit(dim);
-        interpolated_grad_p.reinit(dim);
-
         // jacobian is a constant in a triangle
         double jac = jacobian(0, 0,0, decomp_trg);
 
         for (unsigned int q=0; q<n_pt_quad; ++q)
         {
+            interpolated_v.reinit(dim);
+            interpolated_grad_v.reinit(dim);
+            interpolated_grad_p.reinit(dim);
+
             double JxW = weight(q)*jac ;
+
+            // Get the values of the variables at the quadrature point //
+
+            interpolate_velocity(quad_pt(q), veloc_trg, interpolated_v);
+            interpolated_p = interpolate_pressure(quad_pt(q), press_trg);
+
+            interpolate_grad_velocity(quad_pt(q), grad_veloc_trg, interpolated_grad_v);
+            interpolate_grad_pressure(quad_pt(q), grad_press_trg, interpolated_grad_p);
+
+
+            // Get the values of the shape functions and their gradients at the quadrature points //
+
+            div_phi_u_.reinit(dofs_per_trg);
+            phi_p.reinit(dofs_per_trg);
+            phi_u.reinit(dofs_per_trg); // still not sure about why I would put tensors in this vector, we'll see later, for now it is a vector of double
+            grad_phi_p.reinit(dofs_per_trg);
+            grad_phi_u.reinit(dofs_per_trg);
+
+            // phi_u is such as [phi_u_0, phi_v_0 (, phi_w_0), 0, phi_u_1, ...]
+            // phi_p is such as [0, 0 (,0 in 3D), phi_p_0, 0, ...]
+            // div_phi_u is such as [d(phi_u_0)/dx, d(phi_v_0)/dy (, d(phi_w_0)/dz), 0, d(phi_u_1)/dx, ...]
+            // grad_phi_u is such as [[grad_phi_u_0], [grad_phi_v_0] (, [grad_phi_w_0]), [0, 0, ..], [grad_phi_u_1], ...]
+            // grad_phi_p is such as [[0, 0, ..], [0, 0, ..] (,[0, 0, ..] in 3D), [grad_phi_p_0], [0, 0, ..], ...]
+
+            for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
+                for (int j = 0; j < dim; ++j) { // j stands for u_j
+                    phi_u(3*i+j) = interp_pressure(quad_pt(q), i);
+                    div_phi_u_(3*i+j) = div_phi_u(i, j);
+                    grad_interp_pressure(i, grad_phi_u(3*i+j), dim);
+                }
+                phi_p(3*(i+1)-1) = interp_pressure(quad_pt(q), i);
+                grad_interp_pressure(i, grad_phi_p(3*(i+1)-1), dim);
+            }
+
+
+            // Calculate and put in a local matrix and local rhs which will be returned
 
             for (unsigned int i=0; i<dofs_per_trg; ++i)
             {
                 for (unsigned int j=0; j<dofs_per_trg; ++j)
                 {
-                    local_mat(i, j) += (  viscosity_*scalar_product(grad_interp_velocity(euhhhhhhh???), grad_phi_u[i])
+                    local_mat(i, j) += (  viscosity_*scalar_product(grad_phi_u[j], grad_phi_u[i])
                                              + present_velocity_gradients[q]*phi_u[j]*phi_u[i]
                                              + grad_phi_u[j]*present_velocity_values[q]*phi_u[i]
-                                             - div_phi_u[i]*phi_p[j]
-                                             + phi_p[i]*div_phi_u[j]
+                                             - div_phi_u_[i]*phi_p[j]
+                                             + phi_p[i]*div_phi_u_[j]
                                              ) * JxW ;
+                }
+            }
 
         }
 
