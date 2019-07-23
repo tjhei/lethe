@@ -137,28 +137,20 @@ template<int dim> // dimension here is the number of lines of the vector we want
 //for each line, you have to provide the valueon the vertices of the function to interpolate
 //the values must be sorted as you sorted the vertices of the element
 
-void interpolate_velocity(Point<dim> pt_eval, FullMatrix<double> values, Vector<double> &values_return)
+void interpolate_velocity(Point<dim> pt_eval, Vector<Tensor<1,dim>> values, Vector<double> &values_return)
 {
     // interpolates the vector (velocity_x, velocity_y (, velocity_z) )
     // depending on the values on each vertex of the triangle.
-    // the FullMatrix is of dimension dim x dim
-
-    // for instance, values(0,1) is the value of u ( = velocity_x ) on the second vertex, and values(1,0) the value of v ( = velocity_y ) on the first vertex
+    // the tensor of index i in values is the velocity on the vertex of index i
 
     values_return.reinit(dim);
 
     // we will suppose that the coordinates of pt_eval are given for the reference element
 
-    double val;
-    for (int i = 0; i < dim ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
-
-        val = 0;
-
-        for (int j = 0; j < dim; ++j) {
-            val += interp_pressure(j,pt_eval)*values(i,j);
+    for (int i = 0; i < dim+1 ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
+        for (int j = 0; j < dim; ++j) { // j stands for the component of the speed we interpolate
+            values_return(j) += interp_pressure(i,pt_eval)*values(i,j);
         }
-
-        values_return(i) = val;
     }
 }
 
