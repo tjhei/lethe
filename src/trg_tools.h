@@ -8,6 +8,7 @@ using namespace dealii;
 //Tools for integration and finite elements in triangles, in order to solve the NS equation.
 
 
+// Shape functions //
 
 template <int dim>
 double interp_pressure(int num_vertex, Point<dim> pt_eval)
@@ -111,28 +112,49 @@ void grad_interp_velocity(int num_vertex, FullMatrix<double> &return_grad)
     }
 }
 
+// end of the shape functions //
+
+
+// Functions to interpolate velocity, pressure and their gradients //
+
+template<int dim>
+double interpolate_pressure(Point<dim> pt_eval, Vector<double> pressure_node)
+{
+    // given the value of the pressure on each vertex of the element, and given a point "pt_eval" in the reference element
+    // (if you don't have the corresponding coordinates in the ref element, just apply "change_coor" to the coordinates of the point in the element)
+    // returns the interpolated value of the pressure at the point "pt_eval"
+
+    double value = 0;
+    for (int i = 0; i < dim+1; ++i) {
+        value += pressure_node(i)*interp_pressure(i, pt_eval);
+    }
+    return value;
+
+}
 
 
 template<int dim> // dimension here is the number of lines of the vector we want to interpolate in the triangle,
 //for each line, you have to provide the valueon the vertices of the function to interpolate
 //the values must be sorted as you sorted the vertices of the element
 
-void interpolate_velocity_pressure(Point<dim> pt_eval, FullMatrix<double> values, Vector<double> &values_return)
+void interpolate_velocity(Point<dim> pt_eval, FullMatrix<double> values, Vector<double> &values_return)
 {
-    // interpolates the vector (velocity(x), velocity(y) (, velocity(z)), pressure)
+    // interpolates the vector (velocity_x, velocity_y (, velocity_z) )
     // depending on the values on each vertex of the triangle.
-    // the FullMatrix is of dimension (dim+1) x dim
+    // the FullMatrix is of dimension dim x dim
 
-    values_return.reinit(dim+1);
+    // for instance, values(0,1) is the value of u ( = velocity_x ) on the second vertex, and values(1,0) the value of v ( = velocity_y ) on the first vertex
+
+    values_return.reinit(dim);
 
     // we will suppose that the coordinates of pt_eval are given for the reference element
 
     double val;
-    for (int i = 0; i < dim+1 ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
+    for (int i = 0; i < dim ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
 
         val = 0;
 
-        for (int j = 0; j < dim+1; ++j) {
+        for (int j = 0; j < dim; ++j) {
             val += interp_pressure(j,pt_eval)*values(i,j);
         }
 
@@ -140,6 +162,60 @@ void interpolate_velocity_pressure(Point<dim> pt_eval, FullMatrix<double> values
     }
 }
 
+
+template <int dim>
+void interpolate_grad_pressure(Point<dim>  pt_eval, Vector<Tensor<1,dim>>  values_grad, Tensor<1,dim>  &grad_return)
+{
+    // each tensor in values_grad is the pressure gradient given for one of the vertices
+    // this function returns in "grad_return" the value of the interpolated pressure gradient at "pt_eval"
+
+    Vector<double>      vec_grad_p;
+
+
+    for (int i = 0; i < dim; ++i) {
+
+        // i here allows us to know which coordinate of the gradient we are interpolating
+
+        vec_grad_p.reinit(dim+1);
+        for (int j = 0; j < dim+1 ; ++j) {
+            vec_grad_p(j) = values_grad(j,i);
+        }
+
+        grad_return(i) = interpolate_pressure(pt_eval, vec_grad_p);
+    }
+}
+
+
+template <int dim>
+void interpolate_grad_velocity(Point<dim>  pt_eval, Vector<Tensor<2,dim>>  values_grad, Tensor<2,dim>  &grad_return)
+{
+    // each tensor in values_grad is the velocity gradient given for one of the vertices
+    // this function returns in "grad_return" the value of the interpolated velocity gradient at "pt_eval"
+
+    Vector<Tensor<1,dim>>   grad_u_i; /* we will store in this vector the value of the gradients associated to one component of the
+                                      velocity, on each vertex of the element */
+    grad_u_i.reinit(dim+1);
+
+
+    Tensor<1,dim> temp;
+
+    for (int j = 0; j < dim; ++j) { // j stands for the component of the velocity we interpolate, grad(u_j)
+
+        for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex considered
+            grad_u_i(i) = values_grad(i,j);
+        }
+
+        temp =0;
+        interpolate_grad_pressure(pt_eval, grad_u_i, temp);
+
+        grad_return(j) = temp;
+    }
+}
+
+// end of interpolating functions //
+
+
+// Other tools //
 
 template <int dim>
 double size_el(Vector<Point<dim>> coor_elem)
