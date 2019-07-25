@@ -116,7 +116,7 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         Vector<double>           div_phi_u_;
         Vector<Tensor<1,dim>>    phi_u;
-        Vector<Tensor<1, dim> >  grad_phi_u;
+        Vector<Tensor<2, dim> >  grad_phi_u;
         Vector<double>           phi_p;
         Vector<Tensor<1, dim> >  grad_phi_p;
 
@@ -140,11 +140,12 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         // Values and gradients interpolated at the quadrature points shall be stored in the following vectors
 
-        Tensor<1,dim>           interpolated_v;
+        Tensor<1,dim+1>         interpolated_v;
+        Tensor<1,dim>           interpolated_v_temp;
         double                  interpolated_p = 0;
 
         Vector<Tensor<1,dim>>   temp_interpolated_grad_v;
-        Vector<double>          interpolated_grad_p;
+        Tensor<1, dim>          interpolated_grad_p; // ????????
         Tensor<2,dim>           interpolated_grad_v;
 
         // jacobian is a constant in a triangle
@@ -152,16 +153,18 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         for (unsigned int q=0; q<n_pt_quad; ++q)
         {
-            interpolated_v.reinit(dim);
+
             temp_interpolated_grad_v.reinit(dim);
-            interpolated_grad_p.reinit(dim);
-            interpolated_grad_v.reinit(dim);
+            interpolated_v =0;
 
             double JxW = weight(q)*jac ;
 
             // Get the values of the variables at the quadrature point //
 
-            interpolate_velocity(quad_pt(q), veloc_trg, interpolated_v);
+            interpolate_velocity(quad_pt(q), veloc_trg, interpolated_v_temp);
+            interpolated_v(0) = interpolated_v_temp(0);
+            interpolated_v(1) = interpolated_v_temp(1);
+
             interpolated_p = interpolate_pressure(quad_pt(q), press_trg);
 
             interpolate_grad_velocity(quad_pt(q), grad_veloc_trg, temp_interpolated_grad_v);
@@ -169,6 +172,8 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
             interpolated_grad_v(0,0) = temp_interpolated_grad_v(0,0);
             interpolated_grad_v(1,1) = temp_interpolated_grad_v(1,1);
+            interpolated_grad_v(0,1) = 0;
+            interpolated_grad_v(1,0) = 0;
 
             // Get the values of the shape functions and their gradients at the quadrature points //
 
@@ -184,14 +189,24 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
             // grad_phi_u is such as [[grad_phi_u_0], [grad_phi_v_0], [0, 0, ..], [grad_phi_u_1], ...]
             // grad_phi_p is such as [[0, 0, ..], [0, 0, ..], [grad_phi_p_0], [0, 0, ..], ...]
 
+            Tensor<2, dim> e1_x_e1;
+            e1_x_e1=0;
+            e1_x_e1(0,0) =1;
+
+            Tensor<2, dim> e2_x_e2;
+            e2_x_e2=0;
+            e2_x_e2(1,1) =1;
+
             for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
                 for (int j = 0; j < dim; ++j) { // j stands for u_j
 
                     div_phi_u_(3*i+j) = divergence(i, j, pass_mat) // We apply the passage matrix
                                                         // in order to change of coordinates
                     ;
-                    grad_interp_pressure(i, grad_phi_u(3*i+j), pass_mat);
+
                 }
+                grad_phi_u(3*i) = div_phi_u_(3*i) * e1_x_e1;
+                grad_phi_u(3*i+1) = div_phi_u_(3*i+1) * e2_x_e2;
 
                 phi_u(3*i)(0) = interp_pressure(quad_pt(q), i);
                 phi_u(3*i)(0) = 0;
@@ -199,10 +214,12 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
                 phi_u(3*i+1)(1) = interp_pressure(quad_pt(q), i);
 
                 phi_p(3*(i+1)-1) = interp_pressure(quad_pt(q), i);
+
                 grad_interp_pressure(i, grad_phi_p(3*(i+1)-1), pass_mat);
 
                 // we applied the change of coordinates to div_phi_u_, grad_phi_u, and to grad_phi_p
             }
+
 
             // Calculate and put in a local matrix and local rhs which will be returned
             for (unsigned int i=0; i<dofs_per_trg; ++i)
@@ -214,7 +231,7 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
                                              + phi_u[j] * interpolated_grad_v * phi_u[i]                                // ok + ok changement de coor
 
-                                             + div_phi_u_(j) * interpolated_v * phi_u[i]                                // ok + ok changement de coor
+                                             + div_phi_u_(j) * interpolated_v[i%3] * phi_u[i](j)                        // ok + ok changement de coor
 
                                              - (divergence(i/3, 0, pass_mat) + divergence(i/3, 1, pass_mat))
                                                                                                 *phi_p[j]               // ok + ok changement de coor
@@ -225,17 +242,25 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
                                              ) * JxW ;
 
                     // PSPG GLS term
-                    // manque les dérivées partielles pour passage dans l'élément de ref !!!!!!!
-                    local_mat(i, j) += tau* (  phi_u[j] * interpolated_grad_v * grad_phi_p[i]               // ok
-                                               + div_phi_u_(j) * interpolated_v * grad_phi_p[i]             // ok
-                                               + grad_phi_p[j]*grad_phi_p[i]                                // ok
+
+                    local_mat(i, j) += tau* (  phi_u[j] * interpolated_grad_v * grad_phi_p[i]                           // ok + ok changement de coor
+                                               + div_phi_u_(j) * interpolated_v * grad_phi_p[i]   //????????            // ok + ok changement de coor
+                                               + grad_phi_p[j]*grad_phi_p[i]                                            // ok + ok changement de coor
                                                )  * JxW;
 
                     // SUPG term
-                    // manque les dérivées partielles pour passage dans l'élément de ref !!!!!!!
-                    local_mat(i, j) += 0;
 
+                    local_mat(i, j) += tau*
+                                    (  phi_u[j] * interpolated_grad_v * grad_phi_u[i] * interpolated_v                  // ok + ok changement de coor
+                                    +  grad_phi_u[j]*present_velocity_values[q]*(present_velocity_values[q]* grad_phi_u[i])
+                                    +  grad_phi_p[j]*(present_velocity_values[q]* grad_phi_u[i])
+                                    )* JxW
 
+                                    +  tau*
+                                    (  present_velocity_gradients[q]*present_velocity_values[q]*(phi_u[j]*grad_phi_u[i])
+                                    +  present_pressure_gradients[q]*(phi_u[j]*grad_phi_u[i])
+                                 // -  force * (phi_u[j]*grad_phi_u[i])
+                                    )* JxW;
                 }
 
             }
