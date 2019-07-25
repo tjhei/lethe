@@ -31,22 +31,27 @@ double interp_pressure(int num_vertex, Point<dim> pt_eval)
     return value;
 }
 
-
-void grad_interp_pressure(int num_vertex, Vector<double> &grad_return, int dim)
+template <int dim>
+void grad_interp_pressure(int num_vertex, Tensor<1, dim> &grad_return, Tensor<2, dim> pass_matrix)
 {
     // returns in grad_return the value of the gradient of the shape function associated to the vertex num_elem
+    // pass_mat is the passage matrix, we apply it to change the coordinates
 
-    grad_return.reinit(dim);
+    grad_return =0;
+    Tensor<1, dim> temp;
+    temp=0;
+
     if (num_vertex==0) // scalar fct interp equals 1-x-y(-z if dim =3)
     {
         for (int i = 0; i < dim; ++i) {
-            grad_return(i)=-1;
+            temp(i)=-1;
         }
     }
 
     else { // num_vertex > 0
-       grad_return(num_vertex-1)=1;
+       temp(num_vertex-1)=1;
     }
+    grad_return = pass_matrix * temp;
 }
 
 
@@ -112,11 +117,14 @@ void grad_interp_velocity(int num_vertex, FullMatrix<double> &return_grad)
     }
 }
 
-double div_phi_u(int num_vertex, int u_v_w)
+double div_phi_u_ref(int num_vertex, int u_v_w, int dim)
 {
     // returns the value d(phi_u_{num_vertex})/d(x_{u_v_w})
 
-    if (num_vertex==0)
+    if (u_v_w == dim)
+        return 0; // we put 0 if u_v_w is associated to a pressure dof
+
+    else if (num_vertex==0)
     {
         return -1.;
     }
@@ -141,6 +149,20 @@ double div_phi_u(int num_vertex, int u_v_w)
             return 0.;
         }
     }
+}
+
+template <int dim>
+double divergence(int num_vertex, int component, Tensor<2, dim> pass_matrix)
+{
+    // returns the d(phi_{num_vertex})/dx_{component} in the ref element
+
+    Tensor<1, dim>      div;
+    for (int i = 0; i < dim; ++i) {
+        div(i) = div_phi_u_ref(num_vertex, i, dim);
+    }
+    Tensor<1, dim>      temp;
+    temp = pass_matrix*div; // changing the coordinates, from the actual element to the ref element
+    return temp(component);
 }
 
 // end of the shape functions //
@@ -168,7 +190,7 @@ template<int dim> // dimension here is the number of lines of the vector we want
 //for each line, you have to provide the valueon the vertices of the function to interpolate
 //the values must be sorted as you sorted the vertices of the element
 
-void interpolate_velocity(Point<dim> pt_eval, Vector<Tensor<1,dim>> values, Vector<double> &values_return)
+void interpolate_velocity(Point<dim> pt_eval, Vector<Tensor<1,dim>> values, Tensor<1,dim> &values_return)
 {
     // interpolates the vector (velocity_x, velocity_y (, velocity_z) )
     // depending on the values on each vertex of the triangle.
@@ -329,3 +351,55 @@ void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, Vector<Point<dim>> coor
 
     }
 }
+
+
+double partial_coor_ref_2D(int component, int j, Vector<Point<2>> coor_trg)
+{
+    // calculates d(x_ref_component)/d(x_j) in order to change of coordinates
+
+    if (component == 0)
+    {
+        double jac = jacobian(0, 0. , 0., coor_trg);
+        if (j==component)
+            return (coor_trg(2)(1)-coor_trg(0)(1))/jac;
+        else {
+            return (coor_trg(0)(0)-coor_trg(2)(0))/jac;
+        }
+    }
+
+    else if (component == 1)
+    {
+        double jac = jacobian(0, 0. , 0., coor_trg);
+        if (j == component)
+            return (coor_trg(1)(0)-coor_trg(0)(0))/jac;
+        else {
+            return (coor_trg(0)(1)-coor_trg(1)(1))/jac;
+        }
+    }
+    else {
+        return 0;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
