@@ -117,7 +117,7 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         // Vectors for the shapes functions //
 
-        Vector<Tensor<1,dim>>    div_phi_u_;
+        Vector<double>           div_phi_u_;
         Vector<Tensor<1,dim>>    phi_u;
         Vector<Tensor<2,dim>>    grad_phi_u;
         Vector<double>           phi_p;
@@ -139,17 +139,14 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         Point<dim> pt0(1./3., 1./3.);   Point<dim> pt1(1./5., 1./5.);   Point<dim> pt2(1./5., 3./5.);   Point<dim> pt3(3./5., 1./5.);
         quad_pt(0) = pt0;               quad_pt(1) = pt1;               quad_pt(2) = pt2;               quad_pt(3) = pt3;
-        weight(0) = -0.28125;           weight(1) = 0.264167;           weight(2) = 0.264167;           weight(3) = 0.264167;
+        weight(0) = -0.281250;          weight(1) = 0.264167;           weight(2) = 0.264167;           weight(3) = 0.264167;
 
         // Values and gradients interpolated at the quadrature points shall be stored in the following vectors
 
         Tensor<1,dim>           interpolated_v;
         double                  interpolated_p = 0;
-
-//        Vector<Tensor<1,dim>>   temp_interpolated_grad_v;
         Tensor<1,dim>           interpolated_grad_p;
         Tensor<2,dim>           interpolated_grad_v;
-//        Tensor<2,dim>           transp_interpolated_grad_v;
 
         // jacobian is a constant in a triangle
         double jac = jacobian(0, 0,0, decomp_trg);
@@ -205,16 +202,13 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
             for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
 
-                div_phi_u_(dofs_per_node*i)(0) = divergence(i, 0, pass_mat) // We apply the passage matrix
+                div_phi_u_(dofs_per_node*i) = divergence(i, 0, pass_mat) // We apply the passage matrix
                                                                 // in order to change of coordinates
                 ;
-                div_phi_u_(dofs_per_node*i)(1) = divergence(i, 1, pass_mat);
+                div_phi_u_(dofs_per_node*i +1) = divergence(i, 1, pass_mat);
 
-                div_phi_u_(dofs_per_node*i+1)(0) = divergence(i, 0, pass_mat);
-                div_phi_u_(dofs_per_node*i+1)(1) = divergence(i, 1, pass_mat);
-
-                grad_phi_u(dofs_per_node*i) = div_phi_u_(dofs_per_node*i)(0) * e1_x_e1 + div_phi_u_(dofs_per_node*i)(1) * e1_x_e2;
-                grad_phi_u(dofs_per_node*i+1) = div_phi_u_(dofs_per_node*i)(0) * e2_x_e1 + div_phi_u_(dofs_per_node*i)(1) * e2_x_e2;
+                grad_phi_u(dofs_per_node*i) = div_phi_u_(dofs_per_node*i) * e1_x_e1 + div_phi_u_(dofs_per_node*i+1) * e1_x_e2;
+                grad_phi_u(dofs_per_node*i+1) = div_phi_u_(dofs_per_node*i) * e2_x_e1 + div_phi_u_(dofs_per_node*i+1) * e2_x_e2;
 
                 phi_u(dofs_per_node*i)(0) = interp_pressure(quad_pt(q), i);
                 phi_u(dofs_per_node*i)(0) = 0;
@@ -227,9 +221,6 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
                 // we applied the change of coordinates to div_phi_u_, grad_phi_u, and to grad_phi_p
             }
-
-            double          phi_u_scal;
-
 
             // Calculate and put in a local matrix and local rhs which will be returned
             for (unsigned int i=0; i<dofs_per_trg; ++i)
@@ -279,7 +270,7 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
                 local_rhs(i) += ( - viscosity_*scalar_product(interpolated_grad_v,grad_phi_u[i])
                                   - interpolated_grad_v * interpolated_v * phi_u[i]
-                                  + present_pressure_values[q]*div_phi_u_[i]
+                                  + interpolated_p * div_phi_u_[i]
                                   - present_velocity_divergence*phi_p[i]
 //                                  + force * phi_u[i]
                                 ) * JxW;
