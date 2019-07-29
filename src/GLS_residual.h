@@ -143,8 +143,7 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         // Values and gradients interpolated at the quadrature points shall be stored in the following vectors
 
-        Tensor<1,dim+1>         interpolated_v_3;
-        Tensor<1,dim>           interpolated_v_2;
+        Tensor<1,dim>           interpolated_v;
         double                  interpolated_p = 0;
 
 //        Vector<Tensor<1,dim>>   temp_interpolated_grad_v;
@@ -173,16 +172,13 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         for (unsigned int q=0; q<n_pt_quad; ++q)
         {
-            interpolated_v_3 =0;
-            interpolated_v_2 =0;
+            interpolated_v =0;
 
             double JxW = weight(q)*jac ;
 
             // Get the values of the variables at the quadrature point //
 
-            interpolate_velocity(quad_pt(q), veloc_trg, interpolated_v_2);
-            interpolated_v_3(0) = interpolated_v_2(0);
-            interpolated_v_3(1) = interpolated_v_2(1);
+            interpolate_velocity(quad_pt(q), veloc_trg, interpolated_v);
 
             interpolated_p = interpolate_pressure(quad_pt(q), press_trg);
 
@@ -238,45 +234,41 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
             // Calculate and put in a local matrix and local rhs which will be returned
             for (unsigned int i=0; i<dofs_per_trg; ++i)
             {
-                phi_u_scal = phi_u[i/dofs_per_node](0);
 
                 // matrix terms
 
                 for (unsigned int j=0; j<dofs_per_trg; ++j)
                 {
-                    local_mat(i, j) += (     viscosity_ *divergence(i/dofs_per_node, j%dofs_per_node, pass_mat) // divergence returns d(phi_{vertex i/3}) / d(x_{j%3}), equals zero if (j%3 == 2)
-                                                        *divergence(j/dofs_per_node, i%dofs_per_node, pass_mat)                                 // ok + ok changement de coor
+                    local_mat(i, j) += (     viscosity_ * scalar_product(grad_phi_u(j), grad_phi_u(i))          // ok + ok changement de coor
 
-                                             + phi_u[j] * interpolated_grad_v * phi_u[i]                                                        // ok + ok changement de coor
+                                             + phi_u[j] * interpolated_grad_v * phi_u[i]                        // ok + ok changement de coor
 
-                                             + div_phi_u_(j) * interpolated_v_3  * phi_u_scal * (i%dofs_per_node==j%dofs_per_node)              // ok + ok changement de coor
+                                             + (grad_phi_u(j) * interpolated_v) * phi_u(i)                      // ok + ok changement de coor
 
-                                             - (divergence(i/dofs_per_node, 0, pass_mat) + divergence(i/dofs_per_node, 1, pass_mat))
-                                                                                                *phi_p[j]                                       // ok + ok changement de coor
+                                             - (div_phi_u_(i))*phi_p[j]                                         // ok + ok changement de coor
 
-                                             + phi_p[i]*
-                                               (divergence(j/dofs_per_node, 0, pass_mat)+ divergence(j/dofs_per_node, 1, pass_mat))             // ok + ok changement de coor
+                                             + phi_p[i]*(div_phi_u_(j))                                         // ok + ok changement de coor
 
                                              ) * JxW ;
 
                     // PSPG GLS term //
 
-                    local_mat(i, j) += tau* (  grad_phi_p[i] * interpolated_grad_v * phi_u[j]                                                   // ok + ok changement de coor
-                                               + grad_phi_u(j) * interpolated_v_2 * grad_phi_p[i]                                               // ok + ok changement de coor
-                                               + grad_phi_p[j]*grad_phi_p[i]                                                                    // ok + ok changement de coor
+                    local_mat(i, j) += tau* (  grad_phi_p[i] * interpolated_grad_v * phi_u[j]                   // ok + ok changement de coor
+                                               + grad_phi_u(j) * interpolated_v * grad_phi_p[i]                 // ok + ok changement de coor
+                                               + grad_phi_p[j]*grad_phi_p[i]                                    // ok + ok changement de coor
                                                )  * JxW;
 
                     // SUPG term //
 
                     local_mat(i, j) += tau* // convection and velocity terms
-                                    (  (tool(i)*(interpolated_grad_v * phi_u[j])) * (ones* interpolated_v_2 * grad_phi_u(i) )                                   // ok + ok changement de coor
-                                    +  (interpolated_v_2 * grad_phi_u(i)) * (interpolated_v_2 * grad_phi_u(j)) * (i%dofs_per_node==j%dofs_per_node)             // ok + ok changement de coor
-                                    +  (tool(j)*phi_u(j)) * (interpolated_grad_v * interpolated_v_2) * (grad_phi_u(i/dofs_per_node+j%dofs_per_node)*tool(i))    // ok + ok changement de coor
+                                    (  (interpolated_grad_v * phi_u(j)) * (grad_phi_u(i) * interpolated_v)      // ok + ok changement de coor
+                                    +  (grad_phi_u(i) * interpolated_v) * (grad_phi_u(j) * interpolated_v)      // ok + ok changement de coor
+                                    +  phi_u(j) * ((interpolated_grad_v * interpolated_v) * grad_phi_u(i))      // ok + ok changement de coor
                                     )* JxW
 
                                     +  tau* // pressure terms
-                                    (  grad_phi_p(j) * (grad_phi_u(i) * interpolated_v_2)                                                       // ok + ok changement de coor
-                                    +  phi_u[j]*(interpolated_grad_p *grad_phi_u[i])                                                            // ok + ok changement de coor
+                                    (  grad_phi_p(j) * (grad_phi_u(i) * interpolated_v)                         // ok + ok changement de coor
+                                    +  phi_u[j]*(interpolated_grad_p *grad_phi_u[i])                            // ok + ok changement de coor
 //                                    -  force * (phi_u[j]*grad_phi_u[i])
                                     )* JxW;
                 }
@@ -285,9 +277,9 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
                 double present_velocity_divergence =  trace(interpolated_grad_v);
 
-                local_rhs(i) += ( - viscosity_*scalar_product(present_velocity_gradients[q],grad_phi_u[i])
-                                  - present_velocity_gradients[q]*present_velocity_values[q]*phi_u[i]
-                                  + present_pressure_values[q]*div_phi_u[i]
+                local_rhs(i) += ( - viscosity_*scalar_product(interpolated_grad_v,grad_phi_u[i])
+                                  - interpolated_grad_v * interpolated_v * phi_u[i]
+                                  + present_pressure_values[q]*div_phi_u_[i]
                                   - present_velocity_divergence*phi_p[i]
 //                                  + force * phi_u[i]
                                 ) * JxW;
