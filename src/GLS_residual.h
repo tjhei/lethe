@@ -264,6 +264,8 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
                                     )* JxW;
                 }
 
+
+
                 // Evaluate the rhs, with corrective terms
 
                 double present_velocity_divergence =  trace(interpolated_grad_v);
@@ -276,8 +278,19 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
                                 ) * JxW;
 
 
-            }
+                // PSPG GLS term for the rhs //
+                local_rhs(i) +=  tau*(  - interpolated_grad_v * interpolated_v* grad_phi_p[i]
+                                        - interpolated_grad_p * grad_phi_p[i]
+//                                        + force * grad_phi_p[i]
+                                     )  * JxW;
 
+                // SUPG term for the rhs //
+                local_rhs(i) += tau*(   - interpolated_grad_v * interpolated_v * (grad_phi_u[i] * interpolated_v )
+                                        - interpolated_grad_p * (grad_phi_u[i] * interpolated_v)
+//                                        + force *(interpolated_v* grad_phi_u[i])
+                                    )   * JxW;
+
+            }
         }
 
     }
