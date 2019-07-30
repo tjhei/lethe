@@ -40,6 +40,8 @@
 
 // Mes ajouts so far
 #include "nouvtriangles.h"
+#include "ib_node_status.h"
+
 //#include "area.h"
 //#include "integlocal.h"
 #include "quad_elem.h"
