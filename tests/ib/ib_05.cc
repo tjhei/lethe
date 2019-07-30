@@ -41,9 +41,6 @@
 // Mes ajouts so far
 #include "nouvtriangles.h"
 #include "ib_node_status.h"
-
-//#include "area.h"
-//#include "integlocal.h"
 #include "quad_elem.h"
 
 using namespace dealii;
@@ -210,14 +207,6 @@ void Temperature_field_decomp_quad()
       else {
           quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
       }
-
-
-//         for (int i = 0; i < 4; ++i) {
-//             std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
-//       }
-//         std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
-//         std::cout << "\n" << std::endl;
-
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
