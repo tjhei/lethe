@@ -19,7 +19,7 @@ double interpolationquad(int i, double x, double y)
     else{return 1.0/4*(1+x)*(1-y);}
 }
 
-void trgboundary(int b, Vector<Point<2> > &boundary_pts, Vector<Point<2> > coor_elem, Vector<double> val_f)
+void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<2> > coor_elem, std::vector<double> val_f)
 {
     double x1, x2, y1, y2;
     x1=0;
@@ -85,7 +85,7 @@ void trgboundary(int b, Vector<Point<2> > &boundary_pts, Vector<Point<2> > coor_
     // if there are 3 summits in the fluid, you have to change the order so that the triangles that will be created can be described in the trigonometrical order
 }
 
-void quadboundary(int i, Vector<Point<2> > &decomp_elem, Vector<Point<2> > coor_elem, Vector<double> val_f)
+void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<2> > coor_elem, std::vector<double> val_f)
 {
     double x1, x2, y1, y2;
     x1=0;
@@ -171,7 +171,7 @@ void quadboundary(int i, Vector<Point<2> > &decomp_elem, Vector<Point<2> > coor_
     */
 }
 
-void nouvtriangles(std::vector<int> &corresp, Vector<node_status> &No_pts_solid, std::vector<Point<2> > &num_elem, Vector<Point<2> > &decomp_elem, int* nb_poly, Vector<Point<2> > coor_elem1, Vector<double> val_f1)
+void nouvtriangles(std::vector<int> &corresp, std::vector<node_status> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
 {
     /* *** decomp_elem is a vector in which we shall store the coordinates of the sub_elements created with this function
 
@@ -219,8 +219,8 @@ void nouvtriangles(std::vector<int> &corresp, Vector<node_status> &No_pts_solid,
 
     const int npt=4;
 
-    Vector<Point<2> > coor_elem(4);
-    Vector<double> val_f(4);
+    std::vector<Point<2> > coor_elem(4);
+    std::vector<double> val_f(4);
 
     //////int inv_vec_change_coor[4] {2, 3, 1, 0}; // to change coor from ref coor to deal.II coor
     const int vec_change_coor[4] {3, 2, 0, 1}; // to change coor from deal.II coor to ref coor
@@ -304,7 +304,7 @@ void nouvtriangles(std::vector<int> &corresp, Vector<node_status> &No_pts_solid,
                 if (a[i]==1){b=i; break;}
             }
 
-            Vector<Point<2> >      boundary_pts(2);
+            std::vector<Point<2> >      boundary_pts(2);
             trgboundary(b, boundary_pts, coor_elem, val_f);
 
             decomp_elem[0]=coor_elem[b];
@@ -342,7 +342,7 @@ void nouvtriangles(std::vector<int> &corresp, Vector<node_status> &No_pts_solid,
         if (sum_a==2)
         {
 
-                Vector<Point<2> >      boundary_pts(2);
+                std::vector<Point<2> >      boundary_pts(2);
                 trgboundary(b, boundary_pts, coor_elem, val_f);
                 decomp_elem [0] = coor_elem[(b+1)%4];
                 decomp_elem [1] = coor_elem[(b+2)%4];

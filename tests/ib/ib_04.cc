@@ -43,7 +43,7 @@
 
 using namespace dealii;
 
-void test1_loop_composed_distance()
+void Temperature_field_full_fluid()
 
 {
 //This one is to check if we can do the same as step-3 by calculating the elementary matrices in each element by ourselves
@@ -111,8 +111,8 @@ void test1_loop_composed_distance()
   const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
   const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
-  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
-  Vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
+  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
   double                               Tdirichlet = 1.0;
 
@@ -172,15 +172,9 @@ void test1_loop_composed_distance()
 
             cell_rhs(i) += (fe_values.shape_value(i, q_index) * // phi_i(x_q)
                             2*M_PI_4*M_PI_4*cos(M_PI_4*fe_values.quadrature_point (q_index)(0))*cos(M_PI_4*fe_values.quadrature_point(q_index)(1)) * // f(x_q)
-                            fe_values.JxW(q_index)); }           // dx
+                            fe_values.JxW(q_index)); } }          // dx
         }
     // Assembling and solving further
-      std::cout << " \n \n  " << std::endl;
-      for (int i = 0; i < 4; ++i) {
-          std::cout << " cell mat : " << cell_mat[i][0] << " " << cell_mat[i][1] << " " << cell_mat[i][2] << " " << cell_mat[i][3] << std::endl;
-      }
-      std::cout << "\n RHS : " << cell_rhs[0] << " " << cell_rhs[1] << " " << cell_rhs[2] << " " << cell_rhs[3] << std::endl;
-  }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
@@ -225,19 +219,7 @@ main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    test1_loop_composed_distance();
-//    Point<2> a (0,0);
-//    Point<2> b (2,0);
-//    Point<2> c (0,2);
-//    Point<2> d (2,2);
-//    std::vector<Point<2>> coor = {a,b,c,d};
-
-//    std::vector<std::vector<double> > cell_mat(4); // elementary matrix
-//    for ( unsigned int i = 0 ; i < 4 ; i++ )
-//       cell_mat[i].resize(4);
-//    std::vector<double>       cell_rhs (4);
-
-//    quad_elem(coor, cell_mat, cell_rhs);
+    Temperature_field_full_fluid();
 
   }
   catch (std::exception &exc)

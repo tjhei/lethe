@@ -91,7 +91,7 @@ void condensate(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double>
 }
 
 
-void quad_elem_mix(double Tdirichlet, Vector<node_status> No_pts_solid, std::vector<int> corresp, Vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
+void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
 {
 
     // Create a dummy empty triangulation
@@ -208,7 +208,7 @@ void quad_elem_mix(double Tdirichlet, Vector<node_status> No_pts_solid, std::vec
       }
 }
 
-double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2, std::vector<int> corresp, Vector<node_status> pts_statut, Vector<Point<2>> decomp_elem, std::vector<double> sol_loc)
+double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2, std::vector<int> corresp, std::vector<node_status> pts_statut, std::vector<Point<2>> decomp_elem, std::vector<double> sol_loc)
 {
 
     // Create a dummy empty triangulation

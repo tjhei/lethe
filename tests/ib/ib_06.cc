@@ -46,26 +46,7 @@
 using namespace dealii;
 
 
-
-template <int dim>
-class BoundaryValues : public Function<dim>
-{
-public:
-  BoundaryValues () : Function<dim>() {}
-  virtual double value (const Point<dim>   &p,
-                        const unsigned int  component = 0) const;
-};
-
-template <int dim>
-double BoundaryValues<dim>::value (const Point<dim> &p,
-                                   const unsigned int /*component*/) const
-{
-   return 1;
-  //return p(1)/7.0 + 2.0/7.0;
-}
-
-
-void test1_loop_composed_distance()
+void Temperature_field_decomp_trg()
 
 // on teste pour voir si une frontière droite nous fait obtenir qqch d'aberrant
 {
@@ -134,8 +115,8 @@ void test1_loop_composed_distance()
   const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
   const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
   std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
-  Vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
-  Vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
+  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+  std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
   SparsityPattern                      sparsity_pattern;
   SparseMatrix<double>                 system_matrix;   // créer la matrice entière, ainsi que le vecteur de second membre
@@ -144,11 +125,11 @@ void test1_loop_composed_distance()
   Vector<double>                       solution;
   Vector<double>                       system_rhs;
 
-  Vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  Vector<node_status>   No_pts_solid(4);
+  std::vector<node_status>             No_pts_solid(4);
   double                               Tdirichlet = 1;
 
 
@@ -166,6 +147,8 @@ void test1_loop_composed_distance()
   Point<2> a;
   a[0]=0;
   a[1]=0;
+
+  int index_boundary_point_set = 0;
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
@@ -185,20 +168,13 @@ void test1_loop_composed_distance()
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         distance[dof_index]=-dofs_points[dof_index](1)+dofs_points[dof_index](0)+1.51;
+        if ((dofs_points[dof_index](0)==2)&&(dofs_points[dof_index](1)==-2))
+            index_boundary_point_set = local_dof_indices[dof_index];
 
-//        if (dofs_points[dof_index][0]==-2 && dofs_points[dof_index][1]==2)
-//            distance[dof_index]=-1;
-//        else {distance[dof_index] = 1;}
-//        if (dofs_points[dof_index][0]==2 && dofs_points[dof_index][1]==-2)
-//            std::cout << local_dof_indices[dof_index] << std::endl;
       }
 
-    std::cout << distance[0] << ", " << distance[1] << ", " << distance[2] << ", " << distance[3] << "\n" << std::endl;
-
-    //integlocal(T, matelem, sec_membre_elem, dofs_points, distance);
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
-      //  std::cout << nb_poly << std::endl;
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -234,14 +210,6 @@ void test1_loop_composed_distance()
           new_tri(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
       }
 
-
-         for (int i = 0; i < 4; ++i) {
-             std::cout << "Ligne " << i << " de la matrice : " << cell_mat[i][0] << ", " << cell_mat[i][1] << ", " << cell_mat[i][2] << ", " << cell_mat[i][3] << std::endl;
-       }
-         std::cout << "RHS : " << elem_rhs[0] << ", " << elem_rhs[1] << ", " << elem_rhs[2] << ", " << elem_rhs[3] << std::endl;
-         std::cout << "\n" << std::endl;
-
-
     for (unsigned int i=0; i<dofs_per_cell; ++i)
       for (unsigned int j=0; j<dofs_per_cell; ++j)
         system_matrix.add (local_dof_indices[i],
@@ -255,17 +223,12 @@ void test1_loop_composed_distance()
   }
 
   std::map<types::global_dof_index,double> boundary_values;
-//  VectorTools::interpolate_boundary_values (*dof_handler,
-//                                            2,
-//                                            BoundaryValues<2>(),
-//                                            boundary_values);
 
-  boundary_values[109] = 0.;
+  boundary_values[index_boundary_point_set] = 0.;
   MatrixTools::apply_boundary_values (boundary_values,
                                       system_matrix,
                                       solution,
                                       system_rhs);
-  //{std::cout << "erreur sur l'aire de la zone fluide : "<< areaa -16.0 << "\n \n" <<std::endl;}
 
   SolverControl           solver_control (1000, 1e-12);
   SolverCG<>              solver (solver_control);
@@ -288,7 +251,7 @@ int main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    test1_loop_composed_distance();
+    Temperature_field_decomp_trg();
   }
   catch (std::exception &exc)
   {

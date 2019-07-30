@@ -295,3 +295,8 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
     }
 }
+
+void condensate_NS_trg(FullMatrix<double> cell_mat, Vector<double> cell_rhs)
+{
+
+}
