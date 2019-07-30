@@ -296,7 +296,49 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
     }
 }
 
-void condensate_NS_trg(FullMatrix<double> cell_mat, Vector<double> cell_rhs)
+void condensate_NS_trg(FullMatrix<double> cell_mat, Vector<double> cell_rhs, FullMatrix<double> new_mat, Vector<double> new_rhs)
 {
+    // for a decomposition in triangles IN 2D with the function nouvtriangles, we create 2 more points, so 2*3 dofs
+    // we then have a [(4 + 2)*3]x[(4 + 2)*3] cell matrix, but we only want a [4*3]x[4*3]
+    // Thus we have to condensate this matrix
 
+    // this algorithm is similar to the "condensate.h" one.
+
+
+    int a, nb_of_line, new_nb;
+
+    nb_of_line = 18;
+    new_nb = 12;
+
+    for (unsigned int i = nb_of_line-2; i >new_nb-1; --i) { // We begin at the second to last line, i is the number associated to line we're modifying
+
+        for (unsigned int k = 0; k < nb_of_line-1-i ; ++k) { // How many times we modify the line
+            a = nb_of_line-1-k;
+
+            for (unsigned int j = 0; j < i+1; ++j) { // number associated to the column
+                cell_mat(i,j) -= cell_mat(i,a)*cell_mat(a,j)/cell_mat(a,a);
+            }
+
+            cell_rhs[i] -= cell_rhs[a]*cell_mat(i,a)/cell_mat(a,a);
+        }
+    }
+
+    // We modified the bottom of the matrix, now we have to reinject the coefficients
+    // into the part of the matrix we want to return
+
+    for (unsigned int i = 0; i < new_nb; ++i) {
+        for (unsigned int k = nb_of_line-1; k > new_nb-1 ; --k) {
+            for (unsigned int j = 0; j < k; ++j) {
+                cell_mat(i,j)-=cell_mat(i,k)*cell_mat(k,j)/cell_mat(k,k);
+            }
+            cell_rhs[i]-=cell_rhs[k]*cell_mat(i,k)/cell_mat(k,k);
+        }
+    }
+
+    for (unsigned int i = 0; i < new_nb; ++i) {
+        for (unsigned int j = 0; j < new_nb; ++j) {
+            new_mat[i][j]=cell_mat[i][j];
+        }
+        new_rhs[i]=cell_rhs[i];
+    }
 }

@@ -47,33 +47,9 @@
 
 using namespace dealii;
 
-template <int dim>
-class BoundaryValues : public Function<dim>
-{
-public:
-  BoundaryValues () : Function<dim>() {}
-  virtual double value (const Point<dim>   &p,
-                        const unsigned int  component = 0) const;
-};
-
-template <int dim>
-double BoundaryValues<dim>::value (const Point<dim> &p,
-                                   const unsigned int /*component*/) const
-{
-   return 2;
-  //return p(1)/7.0 + 2.0/7.0;
-}
-
-
 void Temperature_field_in_2_circles()
 
 // solves the heat equation between 2 circles, T set to 2 on the ext circle and to 1 on the int circles
-
-
-
-
-
-
 
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
@@ -161,7 +137,7 @@ void Temperature_field_in_2_circles()
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
 
-  std::vector<node_status>    No_pts_solid(4);
+  std::vector<node_status>             No_pts_solid(4);
   double                               Tdirichlet = 1;
 
 
