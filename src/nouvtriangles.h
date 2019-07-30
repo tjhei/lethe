@@ -1,6 +1,8 @@
 #include "deal.II/base/point.h"
 #include "deal.II/lac/vector.h"
 
+#include <vector>
+
 #include "ib_node_status.h"
 #ifndef NOUVTRIANGLES_H
 #define NOUVTRIANGLES_H
