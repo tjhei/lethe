@@ -69,6 +69,12 @@
 #include <fstream>
 #include <iostream>
 
+#include "GLS_residual.h"
+#include "iblevelsetfunctions.h"
+#include "ibcombiner.h"
+#include "ib_node_status.h"
+#include "nouvtriangles.h"
+
 // Finally, this is as in previous programs:
 using namespace dealii;
 
@@ -250,84 +256,171 @@ template <int dim>
 void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                                            const bool assemble_matrix)
 {
-  if (assemble_matrix) system_matrix    = 0;
-  system_rhs       = 0;
-  QGauss<dim>   quadrature_formula(degreeIntegration_+2);
-  FEValues<dim> fe_values (fe,
-                           quadrature_formula,
-                           update_values |
-                           update_quadrature_points |
-                           update_JxW_values |
-                           update_gradients );
-  const unsigned int   dofs_per_cell = fe.dofs_per_cell;
-  const unsigned int   n_q_points    = quadrature_formula.size();
-  const FEValuesExtractors::Vector velocities (0);
-  const FEValuesExtractors::Scalar pressure (dim);
-  FullMatrix<double>   local_matrix (dofs_per_cell, dofs_per_cell);
-  Vector<double>       local_rhs    (dofs_per_cell);
-  std::vector<Vector<double> >      rhs_force (n_q_points, Vector<double>(dim+1));
-  std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
-  std::vector<Tensor<1, dim> >  present_velocity_values    (n_q_points);
-  std::vector<Tensor<2, dim> >  present_velocity_gradients (n_q_points);
-  std::vector<double>           present_pressure_values    (n_q_points);
-  std::vector<double>           div_phi_u                 (dofs_per_cell);
-  std::vector<Tensor<1, dim> >  phi_u                     (dofs_per_cell);
-  std::vector<Tensor<2, dim> >  grad_phi_u                (dofs_per_cell);
-  std::vector<double>           phi_p                     (dofs_per_cell);
-  typename DoFHandler<dim>::active_cell_iterator
-  cell = dof_handler.begin_active(),
-  endc = dof_handler.end();
+    // Set-up the center, velocity and angular velocity of circle
+    Point<2> center(0.2356,-0.0125);
+    Tensor<1,2> velocity;
+    velocity[0]=1.;
+    velocity[1]=0.;
+    Tensor<1,3> angular;
+    angular[0]=0;
+    angular[1]=0;
+    angular[2]=0;
+    double T_scal;
+    T_scal=1;
+    double radius1 =0.76891/2.;
+    double radius2 =1.56841/2.;
+    bool inside=0;
+    // IB composer
+    std::vector<IBLevelSetFunctions<2> *> ib_functions;
+    // Add a shape to it
+    IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal, inside, radius1);
+    IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal, !inside, radius2);
+
+    ib_functions.push_back(&circle1);
+    ib_functions.push_back(&circle2);
+
+    IBCombiner<dim> ib_combiner(ib_functions);
 
 
-  for (; cell!=endc; ++cell)
-    {
-      fe_values.reinit(cell);
-      local_matrix = 0;
-      local_rhs    = 0;
-      fe_values[velocities].get_function_values(evaluation_point,
-                                                present_velocity_values);
-      fe_values[velocities].get_function_gradients(evaluation_point,
-                                                   present_velocity_gradients);
-      fe_values[pressure].get_function_values(evaluation_point,
-                                              present_pressure_values);
-      forcing_function->vector_value_list(fe_values.get_quadrature_points(),
-                                                 rhs_force);
+    if (assemble_matrix) system_matrix    = 0;
+    system_rhs       = 0;
+    QGauss<dim>   quadrature_formula(degreeIntegration_+2);
+    FEValues<dim> fe_values (fe,
+                             quadrature_formula,
+                             update_values |
+                             update_quadrature_points |
+                             update_JxW_values |
+                             update_gradients );
+    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int   n_q_points    = quadrature_formula.size();
+    const FEValuesExtractors::Vector velocities (0);
+    const FEValuesExtractors::Scalar pressure (dim);
+    FullMatrix<double>   local_matrix (dofs_per_cell, dofs_per_cell);
+    Vector<double>       local_rhs    (dofs_per_cell);
+    std::vector<Vector<double> >      rhs_force (n_q_points, Vector<double>(dim+1));
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+    std::vector<Tensor<1, dim> >  present_velocity_values    (n_q_points);
+    std::vector<Tensor<2, dim> >  present_velocity_gradients (n_q_points);
+    std::vector<double>           present_pressure_values    (n_q_points);
+    std::vector<double>           div_phi_u                 (dofs_per_cell);
+    std::vector<Tensor<1, dim> >  phi_u                     (dofs_per_cell);
+    std::vector<Tensor<2, dim> >  grad_phi_u                (dofs_per_cell);
+    std::vector<double>           phi_p                     (dofs_per_cell);
 
-      for (unsigned int q=0; q<n_q_points; ++q)
+    std::map< types::global_dof_index, Point< 2 > > support_points;
+    std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
+    std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+
+    // Instantiations for the decomposition of the elements
+    std::vector<int>                     corresp(9);
+    std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+    std::vector<node_status>             No_pts_solid(4);
+    int                                  nb_poly=0;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
+    std::vector<Point<2> >               num_elem(6);
+
+    std::vector<Point<2> >               coor(4);
+    std::vector<double>                  dist(4);
+    // The previous part is only implemented for 2D NS, and the function nouvtriangles as well
+
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+
+
+    for (; cell!=endc; ++cell)
+      {
+        fe_values.reinit(cell);
+
+        cell->get_dof_indices (local_dof_indices);
+
+        for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
         {
-          for (unsigned int k=0; k<dofs_per_cell; ++k)
-            {
-              div_phi_u[k]  =  fe_values[velocities].divergence (k, q);
-              grad_phi_u[k] =  fe_values[velocities].gradient(k, q);
-              phi_u[k]      =  fe_values[velocities].value(k, q);
-              phi_p[k]      =  fe_values[pressure]  .value(k, q);
-            }
-          for (unsigned int i=0; i<dofs_per_cell; ++i)
-            {
-              if (assemble_matrix)
-                {
-                  for (unsigned int j=0; j<dofs_per_cell; ++j)
-                    {
-                      local_matrix(i, j) += (  viscosity_*scalar_product(grad_phi_u[j], grad_phi_u[i])
-                                               + present_velocity_gradients[q]*phi_u[j]*phi_u[i]
-                                               + grad_phi_u[j]*present_velocity_values[q]*phi_u[i]
-                                               - div_phi_u[i]*phi_p[j]
-                                               - phi_p[i]*div_phi_u[j]
-                                               )
-                                            * fe_values.JxW(q);
-                    }
-                }
-              const unsigned int component_i = fe.system_to_component_index(i).first;
-              double present_velocity_divergence =  trace(present_velocity_gradients[q]);
-              local_rhs(i) += ( - viscosity_*scalar_product(present_velocity_gradients[q],grad_phi_u[i])
-                                - present_velocity_gradients[q]*present_velocity_values[q]*phi_u[i]
-                                + present_pressure_values[q]*div_phi_u[i]
-                                + present_velocity_divergence*phi_p[i])
-                              * fe_values.JxW(q);
+          dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
+          distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+        }
 
-              local_rhs(i) += fe_values.shape_value(i,q) *
-                                rhs_force[q](component_i) *
-                                fe_values.JxW(q);
+        // We get the coordinates and the distance associated to the vertices of the element
+        for (unsigned int i = 0; i < dofs_per_cell/(dim+1); ++i) {
+          coor[i] = dofs_points[(dim+1)*i];
+          dist[i] = distance[(dim+1)*i];
+        }
+
+        nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
+
+        local_matrix = 0;
+        local_rhs    = 0;
+
+        if (nb_poly == 0)
+        {
+            fe_values[velocities].get_function_values(evaluation_point,
+                                                      present_velocity_values);
+            fe_values[velocities].get_function_gradients(evaluation_point,
+                                                         present_velocity_gradients);
+            fe_values[pressure].get_function_values(evaluation_point,
+                                                    present_pressure_values);
+            forcing_function->vector_value_list(fe_values.get_quadrature_points(),
+                                                       rhs_force);
+
+            for (unsigned int q=0; q<n_q_points; ++q)
+              {
+                for (unsigned int k=0; k<dofs_per_cell; ++k)
+                  {
+                    div_phi_u[k]  =  fe_values[velocities].divergence (k, q);
+                    grad_phi_u[k] =  fe_values[velocities].gradient(k, q);
+                    phi_u[k]      =  fe_values[velocities].value(k, q);
+                    phi_p[k]      =  fe_values[pressure]  .value(k, q);
+                  }
+                for (unsigned int i=0; i<dofs_per_cell; ++i)
+                  {
+                    if (assemble_matrix)
+                      {
+                        for (unsigned int j=0; j<dofs_per_cell; ++j)
+                          {
+                            local_matrix(i, j) += (  viscosity_*scalar_product(grad_phi_u[j], grad_phi_u[i])
+                                                     + present_velocity_gradients[q]*phi_u[j]*phi_u[i]
+                                                     + grad_phi_u[j]*present_velocity_values[q]*phi_u[i]
+                                                     - div_phi_u[i]*phi_p[j]
+                                                     - phi_p[i]*div_phi_u[j]
+                                                     )
+                                                  * fe_values.JxW(q);
+                          }
+                      }
+                    const unsigned int component_i = fe.system_to_component_index(i).first;
+                    double present_velocity_divergence =  trace(present_velocity_gradients[q]);
+                    local_rhs(i) += ( - viscosity_*scalar_product(present_velocity_gradients[q],grad_phi_u[i])
+                                      - present_velocity_gradients[q]*present_velocity_values[q]*phi_u[i]
+                                      + present_pressure_values[q]*div_phi_u[i]
+                                      + present_velocity_divergence*phi_p[i])
+                                    * fe_values.JxW(q);
+
+                    local_rhs(i) += fe_values.shape_value(i,q) *
+                                      rhs_force[q](component_i) *
+                                      fe_values.JxW(q);
+                  }
+              }
+        }
+
+        else if (nb_poly>0) {
+
+            std::vector<Point<dim> >      coor_trg(3);
+
+            FullMatrix<double>            cell_mat(18, 18);
+            Vector<double>                cell_rhs(18);
+
+            cell_mat = 0;
+            cell_rhs = 0;
+
+            // these are the cell matrix and rhs before we condensate them
+            // we store the contributions created by the boundary points in it as well as the other contributions
+
+            for (int n = 0; n < nb_poly; ++n) {
+                coor_trg[0] = decomp_elem[(3*n)];
+                coor_trg[(1)] = decomp_elem[(3*n+1)];
+                coor_trg[2] = decomp_elem[(3*n)+2];
+
+                // récuperer vitesse pression et grad, ensuite on appelle glsres
+
+                //condenser ensuite
             }
         }
 

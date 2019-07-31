@@ -11,7 +11,7 @@ using namespace dealii;
 // Shape functions //
 
 template <int dim>
-double interp_pressure(int num_vertex, Point<dim> pt_eval)
+double shape_function(int num_vertex, Point<dim> pt_eval)
 {
     //evaluates the value of the 1D shape function linked to the vertex "num_vertex", at the point "pt_eval"
 
@@ -32,7 +32,7 @@ double interp_pressure(int num_vertex, Point<dim> pt_eval)
 }
 
 template <int dim>
-void grad_interp_pressure(int num_vertex, Tensor<1, dim> &grad_return, Tensor<2, dim> pass_matrix)
+void grad_shape_function(int num_vertex, Tensor<1, dim> &grad_return, Tensor<2, dim> pass_matrix)
 {
     // returns in grad_return the value of the gradient of the shape function associated to the vertex num_elem
     // pass_mat is the passage matrix, we apply it to change the coordinates
@@ -52,69 +52,6 @@ void grad_interp_pressure(int num_vertex, Tensor<1, dim> &grad_return, Tensor<2,
        temp(num_vertex-1)=1;
     }
     grad_return = pass_matrix * temp;
-}
-
-
-
-template<int dim>
-void interp_trg_velocity(int num_vertex, Point<dim> pt_eval, Vector<double> &return_vec)
-{
-    // function for a triangle or a tetraedron
-    // evaluates the value of the interpolation function associated to the vertex number "num_vertex"
-    // at the point "pt_eval", which must be calculated to be in the elementary triangle/tetraedron
-    // this means : let Tk be the transformation leading from the elementary triangle/tetraedron to the considered element,
-    // we have pt_eval = Tk^(-1) (actual_pt_in_real_element) (just apply the function change coor to get the corresponding coordinates in the reference element)
-
-
-    //depending on the dimension of the problem
-
-    // -> returns it in "return_vec"
-    double value;
-
-    if (num_vertex==0) // scalar fct interp equals 1-x-y(-z if dim =3)
-    {
-        value=1;
-        for (int j=0;j<dim;j++) {
-            value-=pt_eval(j);
-        }
-    }
-
-    else { // num_vertex > 0
-        value = pt_eval(num_vertex-1);
-    }
-
-    for (int j = 0; j < dim+1; ++j) {
-        return_vec(j)=value;
-    }
-}
-
-
-
-template<int dim>
-void grad_interp_velocity(int num_vertex, FullMatrix<double> &return_grad)
-{
-    // function for a triangle or a tetraedron
-    // evaluates the gradient of the interpolation function associated to the vertex number "num_vertex"
-    // it is a constant so it does not depend on the point of evaluation
-
-    // depending on the dimension of the problem
-
-    // -> returns it in "return_grad", which is a matrix of dimension (dim)x(dim)
-
-    if (num_vertex==0)
-    {
-        for (int i = 0; i < dim; ++i) {
-            for (int j = 0; j < dim; ++j) {
-                return_grad(i,j)=-1;
-            }
-        }
-    }
-
-    else {
-        for (int i = 0; i < dim; ++i) {
-            return_grad(num_vertex-1,i)=1;
-        }
-    }
 }
 
 double div_phi_u_ref(int num_vertex, int u_v_w, int dim)
@@ -171,7 +108,7 @@ double divergence(int num_vertex, int component, Tensor<2, dim> pass_matrix)
 // Functions to interpolate velocity, pressure and their gradients //
 
 template<int dim>
-double interpolate_pressure(Point<dim> pt_eval, Vector<double> pressure_node)
+double interpolate_pressure(Point<dim> pt_eval, std::vector<double> pressure_node)
 {
     // given the value of the pressure on each vertex of the element, and given a point "pt_eval" in the reference element
     // (if you don't have the corresponding coordinates in the ref element, just apply "change_coor" to the coordinates of the point in the element)
@@ -179,7 +116,7 @@ double interpolate_pressure(Point<dim> pt_eval, Vector<double> pressure_node)
 
     double value = 0;
     for (int i = 0; i < dim+1; ++i) {
-        value += pressure_node(i)*interp_pressure(i, pt_eval);
+        value += pressure_node[i]*shape_function(i, pt_eval);
     }
     return value;
 
@@ -190,71 +127,69 @@ template<int dim> // dimension here is the number of lines of the vector we want
 //for each line, you have to provide the valueon the vertices of the function to interpolate
 //the values must be sorted as you sorted the vertices of the element
 
-void interpolate_velocity(Point<dim> pt_eval, Vector<Tensor<1,dim>> values, Tensor<1,dim> &values_return)
+void interpolate_velocity(Point<dim> pt_eval, std::vector<Tensor<1,dim>> values, Tensor<1,dim> &values_return)
 {
     // interpolates the vector (velocity_x, velocity_y (, velocity_z) )
     // depending on the values on each vertex of the triangle.
     // the tensor of index i in values is the velocity on the vertex of index i
 
-    values_return.reinit(dim);
-
     // we will suppose that the coordinates of pt_eval are given for the reference element
 
     for (int i = 0; i < dim+1 ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
         for (int j = 0; j < dim; ++j) { // j stands for the component of the speed we interpolate
-            values_return(j) += interp_pressure(i,pt_eval)*values(i,j);
+            values_return[j] += shape_function(i,pt_eval)*values(i,j);
         }
     }
 }
 
 
 template <int dim>
-void interpolate_grad_pressure(Point<dim>  pt_eval, Vector<Tensor<1,dim>>  values_grad, Tensor<1,dim>  &grad_return)
+void interpolate_grad_pressure(Point<dim>  pt_eval, std::vector<double>  p_on_vertices, Tensor<1,dim>  &grad_return)
 {
-    // each tensor in values_grad is the pressure gradient given for one of the vertices
+    // we interpolate like this : p = p_i * Phi_i => grad(p) = p_i * grad(Phi_i) (a_i * b_i is a sum on i here)
     // this function returns in "grad_return" the value of the interpolated pressure gradient at "pt_eval"
+    Tensor<1, dim>  grad_phi_i;
+    Tensor<2, dim>  pass_mat;
 
-    Vector<double>      vec_grad_p;
+    pass_mat=0;
+    pass_mat(0,0)=1;
+    pass_mat(1,1)=1;
 
+    grad_return =0;
 
     for (int i = 0; i < dim; ++i) {
-
-        // i here allows us to know which coordinate of the gradient we are interpolating
-
-        vec_grad_p.reinit(dim+1);
-        for (int j = 0; j < dim+1 ; ++j) {
-            vec_grad_p(j) = values_grad(j,i);
-        }
-
-        grad_return(i) = interpolate_pressure(pt_eval, vec_grad_p);
+        grad_shape_function(i, grad_phi_i, pass_mat);
+        // i is the index of the vertex
+        grad_return(0) += grad_phi_i[0]*p_on_vertices[i];
+        grad_return(1) += grad_phi_i[1]*p_on_vertices[i];
     }
 }
 
 
 template <int dim>
-void interpolate_grad_velocity(Point<dim>  pt_eval, Vector<Tensor<2,dim>>  values_grad, Tensor<2,dim>  &grad_return)
+void interpolate_grad_velocity(Point<dim>  pt_eval, std::vector<Tensor<1,dim>>  v_on_vertices, Tensor<2,dim>  &grad_return)
 {
     // each tensor in values_grad is the velocity gradient given for one of the vertices
     // this function returns in "grad_return" the value of the interpolated velocity gradient at "pt_eval"
 
-    Vector<Tensor<1,dim>>   grad_u_i; /* we will store in this vector the value of the gradients associated to one component of the
+    std::vector<double>   v_i(dim+1); /* we will store in this vector the value of one component of the
                                       velocity, on each vertex of the element */
-    grad_u_i.reinit(dim+1);
 
-
-    Tensor<1,dim> temp;
+    Tensor<1, dim>        temp;
 
     for (int j = 0; j < dim; ++j) { // j stands for the component of the velocity we interpolate, grad(u_j)
 
         for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex considered
-            grad_u_i(i) = values_grad(i,j);
+            v_i[i] = v_on_vertices[i](j);
         }
+        temp=0;
+        interpolate_grad_pressure(pt_eval, v_i, temp);
 
-        temp =0;
-        interpolate_grad_pressure(pt_eval, grad_u_i, temp);
-
-        grad_return(j) = temp;
+        for (int i = 0; i < dim+1; ++i) {
+        grad_return(i,j) = temp(i);
+        }
     }
+
 }
 
 // end of interpolating functions //
@@ -263,14 +198,14 @@ void interpolate_grad_velocity(Point<dim>  pt_eval, Vector<Tensor<2,dim>>  value
 // Other tools //
 
 template <int dim>
-double size_el(Vector<Point<dim>> coor_elem)
+double size_el(std::vector<Point<dim>> coor_elem)
 {
     return std::sqrt(jacobian(0,0.,0.,coor_elem));
 }
 
 
 template <int dim>
-void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, Vector<Point<dim>> coor_elem)
+void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, std::vector<Point<dim>> coor_elem)
 {
     // returns the corresponding coordinates in the reference element of the point "pt_elem"
     // works in 2D or in 3D
@@ -279,17 +214,17 @@ void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, Vector<Point<dim>> coor
 
     double x,y,x1,y1,x2,y2,x0,y0;
 
-    x0=coor_elem(0,0);
-    y0=coor_elem(0,1);
+    x0=coor_elem[0][0];
+    y0=coor_elem[0][1];
 
     x = pt_elem(0)-x0;
     y = pt_elem(1)-y0;
 
-    x1=coor_elem(1,0)-x0;
-    y1=coor_elem(1,1)-y0;
+    x1=coor_elem[1][0]-x0;
+    y1=coor_elem[1][1]-y0;
 
-    x2=coor_elem(2,0)-x0;
-    y2=coor_elem(2,1)-y0;
+    x2=coor_elem[2][0]-x0;
+    y2=coor_elem[2][1]-y0;
 
     if (dim==2)
     {
@@ -313,16 +248,16 @@ void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, Vector<Point<dim>> coor
         double z0,z1,z2,x3,y3,z3,z;
 
 
-        z0 = coor_elem(0,2);
+        z0 = coor_elem[0][2];
 
         z = pt_elem(2)-z0;
 
-        z1 = coor_elem(1,2)-z0;
-        z2 = coor_elem(2,2)-z0;
+        z1 = coor_elem[1][2]-z0;
+        z2 = coor_elem[2][2]-z0;
 
-        x3 = coor_elem(3,0)-x0;
-        y3 = coor_elem(3,1)-y0;
-        z3 = coor_elem(3,2)-z0;
+        x3 = coor_elem[3][0]-x0;
+        y3 = coor_elem[3][1]-y0;
+        z3 = coor_elem[3][2]-z0;
 
         FullMatrix<double> A(3,3);
         A(0,0) = y2*z3 - z2*y3;
@@ -353,7 +288,7 @@ void change_coor(Point<dim> pt_elem, Point<dim> &pt_ref, Vector<Point<dim>> coor
 }
 
 
-double partial_coor_ref_2D(int component, int j, Vector<Point<2>> coor_trg)
+double partial_coor_ref_2D(int component, int j, std::vector<Point<2>> coor_trg)
 {
     // calculates d(x_ref_component)/d(x_j) in order to change of coordinates
 
@@ -361,9 +296,9 @@ double partial_coor_ref_2D(int component, int j, Vector<Point<2>> coor_trg)
     {
         double jac = jacobian(0, 0. , 0., coor_trg);
         if (j==component)
-            return (coor_trg(2)(1)-coor_trg(0)(1))/jac;
+            return (coor_trg[2][1]-coor_trg[0][1])/jac;
         else {
-            return (coor_trg(0)(0)-coor_trg(2)(0))/jac;
+            return (coor_trg[0][0]-coor_trg[2][0])/jac;
         }
     }
 
@@ -371,9 +306,9 @@ double partial_coor_ref_2D(int component, int j, Vector<Point<2>> coor_trg)
     {
         double jac = jacobian(0, 0. , 0., coor_trg);
         if (j == component)
-            return (coor_trg(1)(0)-coor_trg(0)(0))/jac;
+            return (coor_trg[(1)][(0)]-coor_trg[(0)][(0)])/jac;
         else {
-            return (coor_trg(0)(1)-coor_trg(1)(1))/jac;
+            return (coor_trg[(0)][(1)]-coor_trg[(1)][(1)])/jac;
         }
     }
     else {

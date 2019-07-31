@@ -70,12 +70,11 @@ using namespace dealii;
 
 
 template<int dim>
-void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
+void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
-                        Vector<Tensor<1,dim>>       veloc_trg,
-                        Vector<double>              press_trg,
-                        Vector<Tensor<2,dim>>       grad_veloc_trg,
-                        Vector<Tensor<1,dim>>       grad_press_trg,
+                        std::vector<Tensor<1,dim>>       veloc_trg,
+                        std::vector<double>              press_trg,
+
                         Tensor<1, dim>  force,
 
                         FullMatrix<double> &local_mat,
@@ -117,29 +116,25 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
         // Vectors for the shapes functions //
 
-        Vector<double>           div_phi_u_;
-        Vector<Tensor<1,dim>>    phi_u;
-        Vector<Tensor<2,dim>>    grad_phi_u;
-        Vector<double>           phi_p;
-        Vector<Tensor<1,dim>>    grad_phi_p;
+        std::vector<double>           div_phi_u_(dofs_per_trg);
+        std::vector<Tensor<1,dim>>    phi_u(dofs_per_trg);
+        std::vector<Tensor<2,dim>>    grad_phi_u(dofs_per_trg);
+        std::vector<double>           phi_p(dofs_per_trg);
+        std::vector<Tensor<1,dim>>    grad_phi_p(dofs_per_trg);
 
-        // we suppose the force vector equals zero ?
+        // the part for the force vector is not implemented yet
 
         // quadrature points + weight for a triangle : Hammer quadrature
 
-        Vector<Point<dim>>             quad_pt;
-        Vector<double>                 weight;
-
         unsigned int n_pt_quad = 4;
-
-        quad_pt.reinit(n_pt_quad);
-        weight.reinit(n_pt_quad);
+        std::vector<Point<dim>>             quad_pt(n_pt_quad);
+        std::vector<double>                 weight(n_pt_quad);
 
         // Building the vector of quadrature points and vector associated weights //
 
         Point<dim> pt0(1./3., 1./3.);   Point<dim> pt1(1./5., 1./5.);   Point<dim> pt2(1./5., 3./5.);   Point<dim> pt3(3./5., 1./5.);
-        quad_pt(0) = pt0;               quad_pt(1) = pt1;               quad_pt(2) = pt2;               quad_pt(3) = pt3;
-        weight(0) = -0.281250;          weight(1) = 0.264167;           weight(2) = 0.264167;           weight(3) = 0.264167;
+        quad_pt[0] = pt0;               quad_pt[1] = pt1;               quad_pt[2] = pt2;               quad_pt[3] = pt3;
+        weight[0] = -0.281250;          weight[1] = 0.264167;           weight[2] = 0.264167;           weight[3] = 0.264167;
 
         // Values and gradients interpolated at the quadrature points shall be stored in the following vectors
 
@@ -151,44 +146,23 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
         // jacobian is a constant in a triangle
         double jac = jacobian(0, 0,0, decomp_trg);
 
-        Vector<Tensor<1, dim>>      tool;
-        tool.reinit(dofs_per_trg);
-
-        for (int i = 0; i < dim+1; ++i) {
-            tool(dofs_per_node*i)(0) = 1;
-            tool(dofs_per_node*i)(1) = 0;
-
-            tool(dofs_per_node*i+1)(0) = 0;
-            tool(dofs_per_node*i+1)(1) = 1;
-        }
-
-        Tensor<1,dim>               ones;
-        for (int i = 0; i < dim; ++i) {
-            ones(i) = 1;
-        }
 
         for (unsigned int q=0; q<n_pt_quad; ++q)
         {
             interpolated_v =0;
 
-            double JxW = weight(q)*jac ;
+            double JxW = weight[q]*jac ;
 
             // Get the values of the variables at the quadrature point //
 
-            interpolate_velocity(quad_pt(q), veloc_trg, interpolated_v);
+            interpolate_velocity(quad_pt[q], veloc_trg, interpolated_v);
 
-            interpolated_p = interpolate_pressure(quad_pt(q), press_trg);
+            interpolated_p = interpolate_pressure(quad_pt[q], press_trg);
 
-            interpolate_grad_velocity(quad_pt(q), grad_veloc_trg, interpolated_grad_v);
-            interpolate_grad_pressure(quad_pt(q), grad_press_trg, interpolated_grad_p);
+            interpolate_grad_velocity(quad_pt[q], veloc_trg, interpolated_grad_v);
+            interpolate_grad_pressure(quad_pt[q], press_trg, interpolated_grad_p);
 
             // Get the values of the shape functions and their gradients at the quadrature points //
-
-            div_phi_u_.reinit(dofs_per_trg);
-            phi_p.reinit(dofs_per_trg);
-            phi_u.reinit(dofs_per_trg);
-            grad_phi_p.reinit(dofs_per_trg);
-            grad_phi_u.reinit(dofs_per_trg);
 
             // phi_u is such as [[phi_u_0,0], [0, phi_v_0] , [0,0], [phi_u_1,0], ...]
             // phi_p is such as [0, 0, phi_p_0, 0, ...]
@@ -202,22 +176,22 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
             for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
 
-                div_phi_u_(dofs_per_node*i) = divergence(i, 0, pass_mat) // We apply the passage matrix
+                div_phi_u_[dofs_per_node*i] = divergence(i, 0, pass_mat) // We apply the passage matrix
                                                                 // in order to change of coordinates
                 ;
-                div_phi_u_(dofs_per_node*i +1) = divergence(i, 1, pass_mat);
+                div_phi_u_[dofs_per_node*i +1] = divergence(i, 1, pass_mat);
 
-                grad_phi_u(dofs_per_node*i) = div_phi_u_(dofs_per_node*i) * e1_x_e1 + div_phi_u_(dofs_per_node*i+1) * e1_x_e2;
-                grad_phi_u(dofs_per_node*i+1) = div_phi_u_(dofs_per_node*i) * e2_x_e1 + div_phi_u_(dofs_per_node*i+1) * e2_x_e2;
+                grad_phi_u[dofs_per_node*i] = div_phi_u_[dofs_per_node*i] * e1_x_e1 + div_phi_u_[dofs_per_node*i+1] * e1_x_e2;
+                grad_phi_u[dofs_per_node*i+1] = div_phi_u_[dofs_per_node*i] * e2_x_e1 + div_phi_u_[dofs_per_node*i+1] * e2_x_e2;
 
-                phi_u(dofs_per_node*i)(0) = interp_pressure(quad_pt(q), i);
-                phi_u(dofs_per_node*i)(0) = 0;
-                phi_u(dofs_per_node*i+1)(1) = 0;
-                phi_u(dofs_per_node*i+1)(1) = interp_pressure(quad_pt(q), i);
+                phi_u[dofs_per_node*i](0) = shape_function(quad_pt[q], i);
+                phi_u[dofs_per_node*i](0) = 0;
+                phi_u[dofs_per_node*i+1](1) = 0;
+                phi_u[dofs_per_node*i+1](1) = shape_function(quad_pt[q], i);
 
-                phi_p(dofs_per_node*(i+1)-1) = interp_pressure(quad_pt(q), i);
+                phi_p[dofs_per_node*(i+1)-1] = shape_function(quad_pt[q], i);
 
-                grad_interp_pressure(i, grad_phi_p(dofs_per_node*(i+1)-1), pass_mat);
+                grad_shape_function(i, grad_phi_p[dofs_per_node*(i+1)-1], pass_mat);
 
                 // we applied the change of coordinates to div_phi_u_, grad_phi_u, and to grad_phi_p
             }
@@ -230,35 +204,35 @@ void GLS_residual_trg(  Vector<Point<dim>>          decomp_trg,
 
                 for (unsigned int j=0; j<dofs_per_trg; ++j)
                 {
-                    local_mat(i, j) += (     viscosity_ * scalar_product(grad_phi_u(j), grad_phi_u(i))          // ok + ok changement de coor
+                    local_mat(i, j) += (     viscosity_ * scalar_product(grad_phi_u[j], grad_phi_u[i])          // ok + ok changement de coor
 
                                              + phi_u[j] * interpolated_grad_v * phi_u[i]                        // ok + ok changement de coor
 
-                                             + (grad_phi_u(j) * interpolated_v) * phi_u(i)                      // ok + ok changement de coor
+                                             + (grad_phi_u[j] * interpolated_v) * phi_u[i]                      // ok + ok changement de coor
 
-                                             - (div_phi_u_(i))*phi_p[j]                                         // ok + ok changement de coor
+                                             - (div_phi_u_[i])*phi_p[j]                                         // ok + ok changement de coor
 
-                                             + phi_p[i]*(div_phi_u_(j))                                         // ok + ok changement de coor
+                                             + phi_p[i]*(div_phi_u_[j])                                         // ok + ok changement de coor
 
                                              ) * JxW ;
 
                     // PSPG GLS term //
 
                     local_mat(i, j) += tau* (  grad_phi_p[i] * interpolated_grad_v * phi_u[j]                   // ok + ok changement de coor
-                                               + grad_phi_u(j) * interpolated_v * grad_phi_p[i]                 // ok + ok changement de coor
+                                               + grad_phi_u[j] * interpolated_v * grad_phi_p[i]                 // ok + ok changement de coor
                                                + grad_phi_p[j]*grad_phi_p[i]                                    // ok + ok changement de coor
                                                )  * JxW;
 
                     // SUPG term //
 
                     local_mat(i, j) += tau* // convection and velocity terms
-                                    (  (interpolated_grad_v * phi_u(j)) * (grad_phi_u(i) * interpolated_v)      // ok + ok changement de coor
-                                    +  (grad_phi_u(i) * interpolated_v) * (grad_phi_u(j) * interpolated_v)      // ok + ok changement de coor
-                                    +  phi_u(j) * ((interpolated_grad_v * interpolated_v) * grad_phi_u(i))      // ok + ok changement de coor
+                                    (  (interpolated_grad_v * phi_u[j]) * (grad_phi_u[i] * interpolated_v)      // ok + ok changement de coor
+                                    +  (grad_phi_u[i] * interpolated_v) * (grad_phi_u[j] * interpolated_v)      // ok + ok changement de coor
+                                    +  phi_u[j] * ((interpolated_grad_v * interpolated_v) * grad_phi_u[i])      // ok + ok changement de coor
                                     )* JxW
 
                                     +  tau* // pressure terms
-                                    (  grad_phi_p(j) * (grad_phi_u(i) * interpolated_v)                         // ok + ok changement de coor
+                                    (  grad_phi_p[j] * (grad_phi_u[i] * interpolated_v)                         // ok + ok changement de coor
                                     +  phi_u[j]*(interpolated_grad_p *grad_phi_u[i])                            // ok + ok changement de coor
 //                                    -  force * (phi_u[j]*grad_phi_u[i])
                                     )* JxW;
