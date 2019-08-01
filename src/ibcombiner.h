@@ -62,7 +62,10 @@ public:
     {
      double local_dist=functions[ib]->distance(p);
      if (local_dist<dist)
+      {
        shape_id = ib;
+       dist = local_dist;
+      }
      }
     return shape_id;
   }
