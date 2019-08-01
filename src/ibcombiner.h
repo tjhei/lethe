@@ -43,6 +43,8 @@ public:
 
   virtual double value(const Point<dim> &p) const;
 
+  unsigned int size() {return functions.size();}
+
   double scalar(const Point<dim> &p) const;
 
   void velocity(const Point<dim> &p, Vector<double> &velocity_values) const;
@@ -60,7 +62,10 @@ public:
     {
      double local_dist=functions[ib]->distance(p);
      if (local_dist<dist)
+      {
        shape_id = ib;
+       dist = local_dist;
+      }
      }
     return shape_id;
   }
