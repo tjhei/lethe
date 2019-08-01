@@ -483,6 +483,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             //!
             //!
 
+            //ib_combiner.velocity()
+
             // We then condensate the system to make the boundary points not explicitly appear in the system
 
             condensate_NS_trg(cell_mat, cell_rhs, local_matrix, local_rhs);
