@@ -430,7 +430,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             Vector<double>              loc_rhs(9);
 
             Tensor<1, dim> force;
-            double tau;
+
             force =0;
             // these are the cell matrix and rhs before we condensate them
             // we store the contributions created by the boundary points in it as well as the other contributions
@@ -468,7 +468,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                 corresp_loc[8] = dofs_per_vertex*corresp[(3*n)+2]+2;
 
                 // the following function calculates the values of the coefficient of the matrix and the rhs for the considered triangle
-                GLS_residual_trg(coor_trg, trg_v, trg_p, force, loc_mat, local_rhs, viscosity_, tau);
+                GLS_residual_trg(coor_trg, trg_v, trg_p, force, loc_mat, local_rhs, viscosity_);
 
                 for (int i = 0; i < 3; ++i) {
                     for (int j = 0; j < 3; ++j) {
