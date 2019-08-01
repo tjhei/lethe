@@ -88,6 +88,7 @@ public:
     DirectSteadyNavierStokes(const unsigned int degreeVelocity, const unsigned int degreePressure);
     ~DirectSteadyNavierStokes();
     void runCouetteX();
+    void runCouetteIBX();
     void runCouetteXPerturbedMesh();
     void runIBTaylorCouette();
     void runMMS();
@@ -339,26 +340,30 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
         fe_values.reinit(cell);
         cell->get_dof_indices (local_dof_indices);
 
-        for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
+        if (ib_combiner.size()>0)
         {
-          dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-          distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+          for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
+          {
+            dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
+            distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+          }
+
+          // We get the coordinates and the distance associated to the vertices of the element
+          for (unsigned int i = 0; i < dofs_per_cell/(dim+1); ++i) {
+            coor[i] = dofs_points[(dim+1)*i];
+            dist[i] = distance[(dim+1)*i];
+          }
+
+          nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
         }
+        else
+          nb_poly=0;
 
-        // We get the coordinates and the distance associated to the vertices of the element
-        //for (unsigned int i = 0; i < dofs_per_cell/(dim+1); ++i) {
-        //  std::cout << "i - " << i << std::endl;
-        //  coor[i] = dofs_points[(dim+1)*i];
-        //  dist[i] = distance[(dim+1)*i];
-        //}
-        //
-        //nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
-
-        nb_poly=0;
+        //nb_poly=0;
         local_matrix = 0;
         local_rhs    = 0;
 
-        if (nb_poly == 0)
+        if (ib_combiner.size()<1 || (nb_poly==0 && (distance[0]>0)) )
         {
           if (dim==2) h = std::sqrt(4.* cell->measure() / M_PI) ;
           else if (dim==3) h = pow(6*cell->measure()/M_PI,1./3.) ;
@@ -416,10 +421,9 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                                              + present_velocity_gradients[q]*phi_u[j]*phi_u[i]
                                              + grad_phi_u[j]*present_velocity_values[q]*phi_u[i]
                                              - div_phi_u[i]*phi_p[j]
-                                             - phi_p[i]*div_phi_u[j]
+                                             + phi_p[i]*div_phi_u[j]
                                              )
                                           * fe_values.JxW(q);
-
                     //PSPG GLS term
                     local_matrix(i, j) += tau*
                                           strong_jac* grad_phi_p[i]
@@ -445,12 +449,10 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                   local_rhs(i) += ( - viscosity_*scalar_product(present_velocity_gradients[q],grad_phi_u[i])
                                     - present_velocity_gradients[q]*present_velocity_values[q]*phi_u[i]
                                     + present_pressure_values[q]*div_phi_u[i]
-                                    + present_velocity_divergence*phi_p[i])
-                                  * fe_values.JxW(q);
-
-                  local_rhs(i) += fe_values.shape_value(i,q) *
-                                  rhs_force[q](component_i) *
-                      fe_values.JxW(q);
+                                    - present_velocity_divergence*phi_p[i]
+                                    + force * phi_u[i]
+                                    )
+                          * fe_values.JxW(q);
 
                   // PSPG GLS term
                   local_rhs(i) +=  - tau
@@ -463,6 +465,18 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                                       * fe_values.JxW(q);
                 }
             }
+        }
+
+        // Pure solid case
+        else if ((nb_poly==0 && (distance[0]<0)) )
+        {
+
+        }
+
+        // Quadrilateral case
+        else if (nb_poly==-1)
+        {
+
         }
 
         else if (nb_poly>0) {
@@ -909,6 +923,25 @@ void DirectSteadyNavierStokes<dim>::runIBTaylorCouette()
     output_file.close();
 }
 
+template<int dim>
+void DirectSteadyNavierStokes<dim>::runCouetteIBX()
+{
+  std::cout << "**********************************************" << std::endl;
+  std::cout << "* Couette IB X                                  *" << std::endl;
+  std::cout << "**********************************************" << std::endl;
+  simulationCase_=CouetteX;
+  GridGenerator::hyper_cube (triangulation, 0, 1,true);
+  forcing_function = new NoForce<dim>;
+  triangulation.refine_global (3);
+  exact_solution = new ExactSolutionCouetteX<dim>;
+  viscosity_=1.;
+  setup_dofs();
+
+  newton_iteration(1.e-6, 5, true, true);
+  output_results ("Couette-X-",0);
+  calculateL2Error();
+}
+
 
 
 int main ()
@@ -926,7 +959,11 @@ int main ()
       }
       {
         DirectSteadyNavierStokes<2> problem_2d(1,1);
-        problem_2d.runMMS();
+        problem_2d.runCouetteIBX();
+      }
+      {
+      DirectSteadyNavierStokes<2> problem_2d(1,1);
+      problem_2d.runMMS();
       }
     }
     catch (std::exception &exc)
