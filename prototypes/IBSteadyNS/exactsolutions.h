@@ -25,6 +25,45 @@ void ExactSolutionMMS<dim>::vector_value(const Point<dim> &p,
 }
 
 template<int dim>
+class ExactSolutionCouetteX : public Function<dim>
+{
+public:
+    ExactSolutionCouetteX() : Function<dim>(3) {}
+    virtual void vector_value(const Point<dim> &p,
+                              Vector<double> &values) const;
+};
+template<int dim>
+void ExactSolutionCouetteX<dim>::vector_value(const Point<dim> &p,
+                                                    Vector<double> &values) const
+{
+    const double a = M_PI;
+    double x = p[0];
+    double y = p[1];
+    values(0) = 0.;
+    values(1) = x;
+}
+
+template<int dim>
+class ExactSolutionCouetteY : public Function<dim>
+{
+public:
+    ExactSolutionCouetteY() : Function<dim>(3) {}
+    virtual void vector_value(const Point<dim> &p,
+                              Vector<double> &values) const;
+};
+template<int dim>
+void ExactSolutionCouetteY<dim>::vector_value(const Point<dim> &p,
+                                                    Vector<double> &values) const
+{
+    const double a = M_PI;
+    double x = p[0];
+    double y = p[1];
+    values(0) = 0.;
+    values(1) = x;
+}
+
+
+template<int dim>
 class ExactSolutionTaylorCouette : public Function<dim>
 {
 public:

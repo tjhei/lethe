@@ -100,10 +100,10 @@ double ConstantXInlet<dim>::value (const Point<dim> &/*p*/,
 }
 
 template <int dim>
-class ConstantXSlip : public Function<dim>
+class ConstantYMotion : public Function<dim>
 {
 public:
-  ConstantXSlip () : Function<dim>(dim+1)
+  ConstantYMotion () : Function<dim>(dim+1)
   {
       value_=1.;
   };
@@ -116,17 +116,19 @@ private:
 
 
 template <int dim>
-double ConstantXSlip<dim>::value (const Point<dim> &p,
+double ConstantYMotion<dim>::value (const Point<dim> &p,
                                     const unsigned int component) const
 {
     Assert (component < this->n_components,
             ExcIndexRange (component, 0, this->n_components));
 
-    if (component==0)
+    if (component==1)
     {
         return value_;
     }
-    else if(component==1)
+    else if(component==0)
         return 0.;
     return 0.;
 }
+
+

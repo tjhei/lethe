@@ -33,6 +33,10 @@ public:
     functions(p_functions)
   {}
 
+  IBCombiner() :
+    Function<dim>(1)
+  {}
+
   virtual void
   value_list(const std::vector<Point<dim>> &points,
              std::vector<double>           &return_values) const;
