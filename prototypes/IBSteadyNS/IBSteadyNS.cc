@@ -524,15 +524,37 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             std::vector<Tensor<1, dim>>     trg_v(dim+1);
             std::vector<double>             trg_p(dim+1);
 
+            std::vector<node_status>        status_vertices(nb_poly*(dim+1)); // it helps setting the boundary conditions
+            if (nb_poly==1)
+            {
+                status_vertices[0] = fluid;
+                status_vertices[1] = solid;
+                status_vertices[2] = solid;
+            }
+
+            else if (nb_poly==3)
+            {
+                status_vertices[0] = fluid;
+                status_vertices[1] = fluid;
+                status_vertices[2] = solid;
+
+                status_vertices[3] = fluid;
+                status_vertices[4] = solid;
+                status_vertices[5] = solid;
+
+                status_vertices[6] = fluid;
+                status_vertices[7] = solid;
+                status_vertices[8] = fluid;
+            }
+
+            else { //should not happen
+                throw std::runtime_error("nb_poly was not built correctly");
+            }
+
+
             for (int n = 0; n < nb_poly; ++n) {
                 loc_mat =0;
                 loc_rhs =0;
-
-                // We build the vector of velocity on the vertices of the triangle and the vector of pressure
-
-                //!!!!
-                //!
-                //!
 
                 // We construct a vector of the coordinates of the vertices of the triangle considered
                 coor_trg[0] = decomp_elem[(3*n)];
@@ -552,6 +574,20 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                 corresp_loc[6] = dofs_per_vertex*corresp[(3*n)+2];
                 corresp_loc[7] = dofs_per_vertex*corresp[(3*n)+2]+1;
                 corresp_loc[8] = dofs_per_vertex*corresp[(3*n)+2]+2;
+
+                // We build the vector of velocity on the vertices of the triangle and the vector of pressure
+
+                for (int index_vertex = 0; index_vertex < dim+1; ++index_vertex) {
+
+                    if (status_vertices[3*n+index_vertex]==fluid)
+                    {
+                        trg_v[index_vertex] = local_v[corresp[3*n+index_vertex]];
+                    }
+
+                    else {
+                        ib_combiner.velocity(coor_trg[index_vertex], trg_v[index_vertex]);
+                    }
+                }
 
                 // the following function calculates the values of the coefficient of the matrix and the rhs for the considered triangle
                 GLS_residual_trg(coor_trg, trg_v, trg_p, force, loc_mat, local_rhs, viscosity_);
