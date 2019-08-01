@@ -307,6 +307,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
     std::vector<Tensor<2, dim> >  grad_phi_u                (dofs_per_cell);
     std::vector<double>           phi_p                     (dofs_per_cell);
 
+    std::vector<double>   vertices_vp(dofs_per_cell); //only in 2D, stores the velocity and the pressure on each vertex of the square element considered
+
     std::map< types::global_dof_index, Point< 2 > > support_points;
     std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
     std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
@@ -337,6 +339,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
         {
           dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
           distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+          vertices_vp[dof_index] = evaluation_point[local_dof_indices[dof_index]]; // values of the velocity and pressure stored as [u, v, p, u, v, p, ..]
         }
 
         // We get the coordinates and the distance associated to the vertices of the element
@@ -400,28 +403,64 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
               }
         }
 
-        else if (nb_poly>0) {
+        else if (nb_poly>0) { // this part is implemented for 2D problems only !! //
 
-            std::vector<Point<dim> >      coor_trg(3);
+            std::vector<Point<dim> >      coor_trg(dim+1); // triangles or tetraedromn are simplexes
+            std::vector<double>           corresp_loc(dim+1); // gives the equivalence between the numerotation of the considered trg and the numerotaion of the square element
 
             FullMatrix<double>            cell_mat(18, 18);
             Vector<double>                cell_rhs(18);
 
+            std::vector<Tensor<1, dim>>   local_v(4);
+            std::vector<double>           local_p(4);
+
+            const unsigned int nb_of_vertices = 4; // (2D) nb_of_vertices should be 2^(dim)
+
+            for (unsigned int vertex_index = 0; vertex_index < nb_of_vertices; ++vertex_index) {
+
+                for (int i = 0; i < dim; ++i) { // i is the component of the velocity
+                    local_v[vertex_index][i] = vertices_vp[vertex_index+i];
+                }
+                local_p[vertex_index] = vertices_vp[vertex_index+dim];
+            }
+
             cell_mat = 0;
             cell_rhs = 0;
 
+            // creating local matrix and rhs for each triangle
+            FullMatrix<double>          local_mat(9,9);
+            Vector<double>              local_rhs(9);
+
+            Tensor<1, dim> force;
+            double tau;
+            force =0;
             // these are the cell matrix and rhs before we condensate them
             // we store the contributions created by the boundary points in it as well as the other contributions
 
             for (int n = 0; n < nb_poly; ++n) {
+                local_mat =0;
+                local_rhs =0;
+
                 coor_trg[0] = decomp_elem[(3*n)];
                 coor_trg[(1)] = decomp_elem[(3*n+1)];
                 coor_trg[2] = decomp_elem[(3*n)+2];
 
-                // récuperer vitesse pression et grad, ensuite on appelle glsres
+                corresp_loc[0] = corresp[(3*n)];
+                corresp_loc[1] = corresp[(3*n)+1];
+                corresp_loc[2] = corresp[(3*n)+2];
 
-                //condenser ensuite
+                // the following function calculates the values of the coefficient of the matrix and the rhs for the considered triangle
+                GLS_residual_trg(coor_trg, local_v, local_p, force, local_mat, local_rhs, viscosity_, tau);
+
+                for (int i = 0; i < 3; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+
+                    }
+                }
+
             }
+            //condenser ensuite
+
         }
 
 
