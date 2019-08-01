@@ -255,7 +255,7 @@ double calculate_L2_error(int refinement)
 
   VectorTools::interpolate_boundary_values (*dof_handler,
                                             1,
-                                             Functions::ConstantFunction<2>(1.),
+                                             Functions::ConstantFunction<2>(2.),
                                             boundary_values);
 
   MatrixTools::apply_boundary_values (boundary_values,
