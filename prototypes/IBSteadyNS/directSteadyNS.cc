@@ -78,7 +78,7 @@
 // Finally, this is as in previous programs:
 using namespace dealii;
 
-enum SimulationCases{MMS=0, TaylorCouette=1,};
+enum SimulationCases{MMS, CouetteX, CouetteY, TaylorCouette};
 
 template <int dim>
 class DirectSteadyNavierStokes
@@ -87,8 +87,11 @@ class DirectSteadyNavierStokes
 public:
     DirectSteadyNavierStokes(const unsigned int degreeVelocity, const unsigned int degreePressure);
     ~DirectSteadyNavierStokes();
+    void runCouetteX();
+    void runCouetteXPerturbedMesh();
+    void runIBTaylorCouette();
     void runMMS();
-    void runCouette();
+    void runTaylorCouette();
 
     Function<dim> *exact_solution;
     Function<dim> *forcing_function;
@@ -107,7 +110,7 @@ private:
     void assemble_rhs(const bool initial_step);
     void solve(bool initial_step);
     void calculateL2Error();
-    void output_results(const unsigned int cycle) const;
+    void output_results(std::string case_name, const unsigned int cycle) const;
     void newton_iteration(const double tolerance,
                           const unsigned int max_iteration,
                           const bool is_initial_step,
@@ -134,7 +137,10 @@ private:
     BlockVector<double>          system_rhs;
     BlockVector<double>          evaluation_point;
 
-    const SimulationCases simulationCase_=MMS;
+    IBCombiner<dim>              ib_combiner;
+
+
+    SimulationCases simulationCase_;
     const bool stabilized_=false;
     const bool iterative_=false;
     std::vector<double> L2ErrorU_;
@@ -204,6 +210,15 @@ void DirectSteadyNavierStokes<dim>::setup_dofs ()
                                                    nonzero_constraints,
                                                    fe.component_mask(velocities));
       }
+
+      if (simulationCase_==CouetteX)
+      {
+          VectorTools::interpolate_boundary_values(dof_handler,
+                                                   1,
+                                                   ConstantYMotion<dim>(),
+                                                   nonzero_constraints,
+                                                   fe.component_mask(velocities));
+      }
     }
     nonzero_constraints.close();
 
@@ -217,7 +232,7 @@ void DirectSteadyNavierStokes<dim>::setup_dofs ()
                                                fe.component_mask(velocities));
 
 
-      if (simulationCase_==TaylorCouette )
+      if (simulationCase_==TaylorCouette || simulationCase_==CouetteX )
       {
           VectorTools::interpolate_boundary_values(dof_handler,
                                                1,
@@ -256,30 +271,7 @@ template <int dim>
 void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                                            const bool assemble_matrix)
 {
-    // Set-up the center, velocity and angular velocity of circle
-    Point<2> center(0.2356,-0.0125);
-    Tensor<1,2> velocity;
-    velocity[0]=1.;
-    velocity[1]=0.;
-    Tensor<1,3> angular;
-    angular[0]=0;
-    angular[1]=0;
-    angular[2]=0;
-    double T_scal;
-    T_scal=1;
-    double radius1 =0.76891/2.;
-    double radius2 =1.56841/2.;
-    bool inside=0;
-    // IB composer
-    std::vector<IBLevelSetFunctions<2> *> ib_functions;
-    // Add a shape to it
-    IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal, inside, radius1);
-    IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal, !inside, radius2);
 
-    ib_functions.push_back(&circle1);
-    ib_functions.push_back(&circle2);
-
-    IBCombiner<dim> ib_combiner(ib_functions);
 
 
     if (assemble_matrix) system_matrix    = 0;
@@ -330,7 +322,6 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
     for (; cell!=endc; ++cell)
       {
         fe_values.reinit(cell);
-
         cell->get_dof_indices (local_dof_indices);
 
         for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
@@ -340,13 +331,15 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
         }
 
         // We get the coordinates and the distance associated to the vertices of the element
-        for (unsigned int i = 0; i < dofs_per_cell/(dim+1); ++i) {
-          coor[i] = dofs_points[(dim+1)*i];
-          dist[i] = distance[(dim+1)*i];
-        }
+        //for (unsigned int i = 0; i < dofs_per_cell/(dim+1); ++i) {
+        //  std::cout << "i - " << i << std::endl;
+        //  coor[i] = dofs_points[(dim+1)*i];
+        //  dist[i] = distance[(dim+1)*i];
+        //}
+        //
+        //nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
 
-        nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
-
+        nb_poly=0;
         local_matrix = 0;
         local_rhs    = 0;
 
@@ -567,7 +560,7 @@ void DirectSteadyNavierStokes<dim>::newton_iteration(const double tolerance,
 }
 
 template <int dim>
-void DirectSteadyNavierStokes<dim>::output_results (const unsigned int cycle) const
+void DirectSteadyNavierStokes<dim>::output_results (std::string case_name, const unsigned int cycle) const
 {
     std::vector<std::string> solution_names (dim, "velocity");
     solution_names.push_back ("pressure");
@@ -583,7 +576,7 @@ void DirectSteadyNavierStokes<dim>::output_results (const unsigned int cycle) co
     data_out.add_data_vector (present_solution, solution_names, DataOut<dim>::type_dof_data, data_component_interpretation);
     data_out.build_patches (1);
 
-    std::string filenamesolution = "solution-";
+    std::string filenamesolution = case_name;
     filenamesolution += ('0' + cycle);
     filenamesolution += ".vtk";
 
@@ -674,33 +667,74 @@ void DirectSteadyNavierStokes<dim>::calculateL2Error()
 template<int dim>
 void DirectSteadyNavierStokes<dim>::runMMS()
 {
-    make_cube_grid(initialSize_);
-    exact_solution = new ExactSolutionMMS<dim>;
-    forcing_function = new MMSSineForcingFunction<dim>;
-    viscosity_=1.;
-    setup_dofs();
+  std::cout << "**********************************************" << std::endl;
+  std::cout << "* Method of Manufactured Solutions           *" << std::endl;
+  std::cout << "**********************************************" << std::endl;
+  simulationCase_=MMS;
+  make_cube_grid(initialSize_);
+  exact_solution = new ExactSolutionMMS<dim>;
+  forcing_function = new MMSSineForcingFunction<dim>;
+  viscosity_=1.;
+  setup_dofs();
 
+  for (unsigned int cycle =0; cycle < 3 ; cycle++)
+  {
+    if (cycle !=0) refine_mesh_uniform();
+    newton_iteration(1.e-6, 5, true, true);
+    output_results ("MMS-",cycle);
+    calculateL2Error();
 
-//    compute_initial_guess();
-    for (unsigned int cycle =0; cycle < 4 ; cycle++)
-    {
-        if (cycle !=0) refine_mesh_uniform();
-        newton_iteration(1.e-6, 5, true, true);
-        output_results (cycle);
-        calculateL2Error();
+  }
+  std::ofstream output_file("./L2Error.dat");
+  for (unsigned int i=0 ; i < L2ErrorU_.size() ; ++i)
+  {
+    output_file << i+initialSize_ << " " << L2ErrorU_[i] << std::endl;
+  }
+  output_file.close();
+}
 
-    }
-    std::ofstream output_file("./L2Error.dat");
-    for (unsigned int i=0 ; i < L2ErrorU_.size() ; ++i)
-    {
-        output_file << i+initialSize_ << " " << L2ErrorU_[i] << std::endl;
-    }
-    output_file.close();
+template<int dim>
+void DirectSteadyNavierStokes<dim>::runCouetteX()
+{
+  std::cout << "**********************************************" << std::endl;
+  std::cout << "* Couette X                                  *" << std::endl;
+  std::cout << "**********************************************" << std::endl;
+  simulationCase_=CouetteX;
+  GridGenerator::hyper_cube (triangulation, 0, 1,true);
+  forcing_function = new NoForce<dim>;
+  triangulation.refine_global (3);
+  exact_solution = new ExactSolutionCouetteX<dim>;
+  viscosity_=1.;
+  setup_dofs();
+
+  newton_iteration(1.e-6, 5, true, true);
+  output_results ("Couette-X-",0);
+  calculateL2Error();
+}
+
+template<int dim>
+void DirectSteadyNavierStokes<dim>::runCouetteXPerturbedMesh()
+{
+  std::cout << "**********************************************" << std::endl;
+  std::cout << "* Couette X  - Perturbed Mesh                *" << std::endl;
+  std::cout << "**********************************************" << std::endl;
+  simulationCase_=CouetteX;
+  GridGenerator::hyper_cube (triangulation, 0, 1,true);
+  forcing_function = new NoForce<dim>;
+  triangulation.refine_global (3);
+  GridTools::distort_random(0.3,triangulation);
+  exact_solution = new ExactSolutionCouetteX<dim>;
+  viscosity_=1.;
+  setup_dofs();
+
+  newton_iteration(1.e-6, 5, true, true);
+  output_results ("Couette-X-Perturbed-",0);
+  calculateL2Error();
 }
 
 
 template<int dim>
-void DirectSteadyNavierStokes<dim>::runCouette()
+void DirectSteadyNavierStokes<dim>::runTaylorCouette()
 {
     viscosity_=10;
     GridIn<dim> grid_in;
@@ -738,13 +772,89 @@ void DirectSteadyNavierStokes<dim>::runCouette()
     output_file.close();
 }
 
+template<int dim>
+void DirectSteadyNavierStokes<dim>::runIBTaylorCouette()
+{
+    viscosity_=10;
+    GridIn<dim> grid_in;
+    grid_in.attach_triangulation (triangulation);
+    std::ifstream input_file("taylorcouette.msh");
+
+    grid_in.read_msh(input_file);
+
+    // Set-up the center, velocity and angular velocity of circle
+    Point<2> center(0.2356,-0.0125);
+    Tensor<1,2> velocity;
+    velocity[0]=1.;
+    velocity[1]=0.;
+    Tensor<1,3> angular;
+    angular[0]=0;
+    angular[1]=0;
+    angular[2]=0;
+    double T_scal;
+    T_scal=1;
+    double radius1 =0.76891/2.;
+    double radius2 =1.56841/2.;
+    bool inside=0;
+    // IB composer
+    std::vector<IBLevelSetFunctions<2> *> ib_functions;
+    // Add a shape to it
+    IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal, inside, radius1);
+    IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal, !inside, radius2);
+
+    ib_functions.push_back(&circle1);
+    ib_functions.push_back(&circle2);
+
+    IBCombiner<dim>              ib_combiner(ib_functions);
+
+
+
+    static const SphericalManifold<dim> boundary;
+
+    triangulation.set_all_manifold_ids_on_boundary(0);
+    triangulation.set_manifold (0, boundary);
+
+    forcing_function = new NoForce<dim>;
+    exact_solution = new ExactSolutionTaylorCouette<dim>;
+    setup_dofs();
+
+
+
+
+    for (int cycle=0 ; cycle < 4 ; cycle++)
+    {
+        if (cycle !=0)  refine_mesh();
+        newton_iteration(1.e-10, 50, true, true);
+        output_results (cycle);
+        calculateL2Error();
+    }
+
+    std::ofstream output_file("./L2Error.dat");
+    for (unsigned int i=0 ; i < L2ErrorU_.size() ; ++i)
+    {
+        output_file << i+initialSize_ << " " << L2ErrorU_[i] << std::endl;
+    }
+    output_file.close();
+}
+
+
+
 int main ()
 {
     try
     {
-        DirectSteadyNavierStokes<2> problem_2d(2,1);
-//        problem_2d.runCouette();
-       problem_2d.runMMS();
+    {
+      DirectSteadyNavierStokes<2> problem_2d(2,1);
+      problem_2d.runMMS();
+    }
+    {
+      DirectSteadyNavierStokes<2> problem_2d(2,1);
+      problem_2d.runCouetteX();
+    }
+    {
+      DirectSteadyNavierStokes<2> problem_2d(2,1);
+      problem_2d.runCouetteXPerturbedMesh();
+    }
     }
     catch (std::exception &exc)
     {
