@@ -52,8 +52,8 @@ void test_condensate()
 {
     FullMatrix<double>      M(4,4);
     FullMatrix<double>      new_m(2,2);
-    std::vector<double>     rhs(4);
-    std::vector<double>     new_rhs(2);
+    Vector<double>     rhs(4);
+    Vector<double>     new_rhs(2);
 
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -77,7 +77,7 @@ void test_condensate()
 
 }
 
-void integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,  FullMatrix<double> &system_matrix, Vector<double> &system_rhs)
+void integrate_sub_quad_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,  FullMatrix<double> &system_matrix, Vector<double> &system_rhs)
 {
   // Create a mapping for this new element
   const MappingQ<2>      mapping (1);
@@ -281,7 +281,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       // Initialize vector and sparsity patterns
       sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
       sub_system_rhs.reinit (sub_dof_handler.n_dofs());
-      integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
+      integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
 
       // Condensate
       for (unsigned int i=0; i<4; ++i)
@@ -351,7 +351,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
       sub_system_rhs.reinit    (sub_dof_handler.n_dofs());
 
-      integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
+      integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
 
       for (int i = 0; i < 7; ++i) {
           sub_system_matrix(2,i)=0.;
@@ -381,7 +381,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       sub_system_rhs[4]=1.;
 
       FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
-      std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
+      Vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
       std::vector<int>                  change_coor = {0, 4, 6, 1, 2, 3, 5};
       for (unsigned int i = 0; i < sub_dof_handler.n_dofs(); ++i) {
           for (unsigned int j = 0; j < sub_dof_handler.n_dofs(); ++j) {
@@ -391,7 +391,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       }
 
       FullMatrix<double>                mat(1,1);
-      std::vector<double>               rhs(1);
+      Vector<double>               rhs(1);
 
       condensate(sub_dof_handler.n_dofs(), 1, Mat_sorted, mat, rhs_sorted, rhs);
 
@@ -413,11 +413,11 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       //Create new triangulation and integrate
 
       FullMatrix<double>        mat6(6,6);
-      std::vector<double>            rhs6(6);
+      Vector<double>            rhs6(6);
       cell_matrix=0;
       cell_rhs=0;
       mat6=0;
-      std::fill(rhs6.begin(),rhs6.end(),0.0);
+      rhs6=0.;
 
       for (int sub_element = 0 ; sub_element<nb_poly ; ++sub_element)
       {
@@ -446,7 +446,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         sub_system_matrix=0;
         sub_system_rhs=0;
 
-        integrate_sub_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
+        integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs);
 
             for (int i = 0; i < 7; ++i) {
                 sub_system_matrix(2,i)=0.;
@@ -470,7 +470,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
             sub_system_rhs[5]=0.;
 
         FullMatrix<double>                Mat_sorted(sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
-        std::vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
+        Vector<double>               rhs_sorted(sub_dof_handler.n_dofs());
         std::vector<int>                  change_coor = {0, 4, 6, 1, 2, 3, 5};
 
         for (unsigned int i = 0; i < sub_dof_handler.n_dofs(); ++i) {
@@ -481,10 +481,9 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
         }
 
         FullMatrix<double>                mat3(3,3);
-        std::vector<double>               rhs3(3);
+        Vector<double>               rhs3(3);
         mat3=0;
-        std::fill(rhs3.begin(),rhs3.end(),0.0);
-
+        rhs3=0.;
         condensate(sub_dof_handler.n_dofs(), 3, Mat_sorted, mat3, rhs_sorted, rhs3);
 
         for (unsigned int i = 0; i < 3; ++i) {
@@ -504,7 +503,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       rhs6[4]=1;
       rhs6[5]=1;
 
-      std::vector<double>       copy_cell_rhs(4);
+      Vector<double>       copy_cell_rhs(4);
 
       condensate(6,4,mat6,cell_matrix,rhs6,copy_cell_rhs);
 

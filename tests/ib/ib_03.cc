@@ -109,7 +109,7 @@ void test_decomp()
     Point<2>                             pt3 (pt1(0), pt1(1)+len);
     Point<2>                             pt4 (pt1(0)+len, pt1(1)+len);
 
-    std::vector<Point<2>>                coor;
+    std::vector<Point<2>>                coor(4);
     coor[0]=pt1;
     coor[1]=pt2;
     coor[2]=pt3;

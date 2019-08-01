@@ -47,7 +47,7 @@ public:
 
   double scalar(const Point<dim> &p) const;
 
-  void velocity(const Point<dim> &p, Vector<double> &velocity_values) const;
+  void velocity(const Point<dim> &p, Tensor<1,dim> &velocity_values) const;
 
   void setFunctions(std::vector<IBLevelSetFunctions<dim>* > p_functions)
   {
@@ -108,7 +108,7 @@ double IBCombiner<dim>::scalar(const Point<dim> &p) const
 }
 
 template<int dim>
-void IBCombiner<dim>::velocity(const Point<dim> &p, Vector<double> &velocity_values) const
+void IBCombiner<dim>::velocity(const Point<dim> &p, Tensor<1,dim> &velocity_values) const
 {
   unsigned int shape_id = localize(p);
   functions[shape_id]->velocity(p,velocity_values);

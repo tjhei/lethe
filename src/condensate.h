@@ -21,7 +21,7 @@
 
 using namespace dealii;
 
-void condensate(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, std::vector<double> &rhs, std::vector<double> &new_rhs)
+void condensate(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, Vector<double> &rhs, Vector<double> &new_rhs)
 {
     int a;
 

@@ -33,7 +33,7 @@ public:
     // Value of the distance
     virtual double distance(const Point<dim> &p) = 0;
     virtual double scalar  (const Point<dim> &/*p*/) {return scalar_value;}
-    virtual void   velocity(const Point<dim> &p, Vector<double> &values)=0;
+    virtual void   velocity(const Point<dim> &p, Tensor<1,dim> &values)=0;
 protected:
       double   scalar_value; // will be used to make tests by solving the heat equation
 };
@@ -70,7 +70,7 @@ public:
       else {return -(std::sqrt(x*x+y*y)-radius);}
 
     }
-    virtual void   velocity(const Point<dim> &p, Vector<double> &values)
+    virtual void   velocity(const Point<dim> &p, Tensor<1,dim> &values)
     {
       if (dim==2)
       {
@@ -115,7 +115,7 @@ public:
     }
 
     // Value of the velocity
-    virtual void velocity(const Point<dim> &/*p*/, Vector<double> &values)
+    virtual void velocity(const Point<dim> &/*p*/, Tensor<1,dim> &values)
     {
         for (int i = 0 ; i<dim ; ++i)
         {

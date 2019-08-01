@@ -19,7 +19,7 @@
 #include <deal.II/distributed/tria.h>
 
 //Addings
-
+#include "condensate.h"
 #include "iblevelsetfunctions.h"
 #include <thread>
 #include <chrono>
@@ -53,45 +53,7 @@ double T_analytical_q(Point<2> pt, Point<2> center, double T1, double T2, double
     return -A*log(r_eff)+B;
 }
 
-void condensate(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, std::vector<double> &rhs, std::vector<double> &new_rhs)
-{
-    int a;
-
-    for (unsigned int i = nb_of_line-2; i >new_nb-1; --i) { // We begin at the second to last line, i is the number associated to line we're modifying
-
-        for (unsigned int k = 0; k < nb_of_line-1-i ; ++k) { // How many times we modify the line
-            a = nb_of_line-1-k;
-
-            for (unsigned int j = 0; j < i+1; ++j) { // number associated to the column
-                M(i,j) -= M(i,a)*M(a,j)/M(a,a);
-            }
-
-            rhs[i] -= rhs[a]*M(i,a)/M(a,a);
-        }
-    }
-
-    // We modified the bottom of the matrix, now we have to reinject the coefficients
-    // into the part of the matrix we want to return
-
-    for (unsigned int i = 0; i < new_nb; ++i) {
-        for (unsigned int k = nb_of_line-1; k > new_nb-1 ; --k) {
-            for (unsigned int j = 0; j < k; ++j) {
-                M(i,j)-=M(i,k)*M(k,j)/M(k,k);
-            }
-            rhs[i]-=rhs[k]*M(i,k)/M(k,k);
-        }
-    }
-
-    for (unsigned int i = 0; i < new_nb; ++i) {
-        for (unsigned int j = 0; j < new_nb; ++j) {
-            new_mat[i][j]=M[i][j];
-        }
-        new_rhs[i]=rhs[i];
-    }
-}
-
-
-void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
+void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, Vector<double> &cell_rhs)
 {
 
     // Create a dummy empty triangulation
@@ -174,12 +136,12 @@ void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std
           }
 
           FullMatrix<double> m4(4,4);
-          std::vector<double> rhs4(4);
-          std::vector<double> rhs6(6);
+          Vector<double> rhs4(4);
+          Vector<double> rhs6(6);
 
-          std::fill(rhs4.begin(), rhs4.end(),0);
+          rhs4=0.;
           m4=0;
-          std::fill(rhs6.begin(), rhs6.end(),0);
+          rhs6=0.;
 
           for (int j = 0; j < 6; ++j) {
                for (int i = 4; i < 6; ++i){

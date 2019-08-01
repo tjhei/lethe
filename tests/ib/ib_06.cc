@@ -142,7 +142,7 @@ void Temperature_field_decomp_trg()
 
 
   FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
-  std::vector<double> elem_rhs(dofs_per_cell);
+  Vector<double> elem_rhs(dofs_per_cell);
 
   Point<2> a;
   a[0]=0;
@@ -155,7 +155,7 @@ void Temperature_field_decomp_trg()
   endc = dof_handler->end();
   for (; cell!=endc; ++cell)
   {
-    std::fill(elem_rhs.begin(), elem_rhs.end(), 0.0);
+    elem_rhs=0;
     cell_mat = 0;
 
     if (cell->is_locally_owned())

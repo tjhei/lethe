@@ -56,7 +56,7 @@
 
 using namespace dealii;
 
-double integrate_sub_element( Triangulation<2> &sub_triangulation)
+double integrate_sub_quad_element( Triangulation<2> &sub_triangulation)
 {
   double area=0;
 
@@ -198,7 +198,7 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
 
       Triangulation<2> sub_triangulation;
       sub_triangulation.create_triangulation (triangulation_points, cells, SubCellData());
-      area+= integrate_sub_element(sub_triangulation);
+      area+= integrate_sub_quad_element(sub_triangulation);
     }
     if (nb_poly==1)
     {
@@ -211,7 +211,7 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
       }
       Triangulation<2> sub_triangulation;
       GridGenerator::simplex(sub_triangulation,triangulation_points);
-      area+= integrate_sub_element(sub_triangulation);
+      area+= integrate_sub_quad_element(sub_triangulation);
     }
     if (nb_poly==3)
     {
@@ -227,7 +227,7 @@ double area_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2
         }
         Triangulation<2> sub_triangulation;
         GridGenerator::simplex(sub_triangulation,triangulation_points);
-        area += integrate_sub_element(sub_triangulation);
+        area += integrate_sub_quad_element(sub_triangulation);
       }
     }
 

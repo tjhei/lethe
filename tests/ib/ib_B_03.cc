@@ -63,8 +63,8 @@ void test_condensate()
 {
     FullMatrix<double>      M(3,3);
     FullMatrix<double>      new_m(1,1);
-    std::vector<double>     rhs(3);
-    std::vector<double>     new_rhs(1);
+    Vector<double>     rhs(3);
+    Vector<double>     new_rhs(1);
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {

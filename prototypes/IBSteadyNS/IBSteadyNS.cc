@@ -72,6 +72,7 @@
 #include "GLS_residual.h"
 #include "iblevelsetfunctions.h"
 #include "ibcombiner.h"
+#include "ibcomposer.h"
 #include "ib_node_status.h"
 #include "nouvtriangles.h"
 
@@ -90,7 +91,6 @@ public:
     void runCouetteX();
     void runCouetteIBX();
     void runCouetteXPerturbedMesh();
-    void runIBTaylorCouette();
     void runMMS();
     void runTaylorCouette();
 
@@ -104,6 +104,13 @@ private:
     void refine_mesh_uniform();
     void setup_dofs();
     void initialize_system();
+
+
+    void integrate_sub_quad_element( Triangulation<2> &sub_triangulation,
+                                     DoFHandler<2> &dof_handler,FESystem<2> &fe,
+                                     FullMatrix<double> &system_matrix,
+                                     Vector<double> &system_rhs,
+                                     Vector<double> &evaluation_point);
 
     void assemble(const bool initial_step,
                    const bool assemble_matrix);
@@ -148,6 +155,183 @@ private:
     const int initialSize_=3;
 };
 
+template<int dim>
+void DirectSteadyNavierStokes<dim>::integrate_sub_quad_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,
+                                                                FullMatrix<double> &system_matrix, Vector<double> &system_rhs, Vector<double> &local_evaluation_point)
+{
+  // Create a mapping for this new element
+  const MappingQ<dim>      mapping (1);
+  QGauss<dim>              quadrature_formula(4);
+
+  // Integrate over this element, in this case we only integrate
+  // over the quadrature to calculate the area
+  FEValues<dim> fe_values (mapping,
+                           fe,
+                           quadrature_formula,
+                           update_values |
+                           update_quadrature_points |
+                           update_JxW_values |
+                           update_gradients |
+                           update_hessians);
+
+  const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+  const unsigned int   n_q_points    = quadrature_formula.size();
+  const FEValuesExtractors::Vector velocities (0);
+  const FEValuesExtractors::Scalar pressure (dim);
+  FullMatrix<double>   local_matrix (dofs_per_cell, dofs_per_cell);
+  Vector<double>       local_rhs    (dofs_per_cell);
+  std::vector<Vector<double> >      rhs_force (n_q_points, Vector<double>(dim+1));
+  std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+  std::vector<Tensor<1, dim> >  present_velocity_values    (n_q_points);
+  std::vector<Tensor<2, dim> >  present_velocity_gradients (n_q_points);
+  std::vector<double>           present_pressure_values    (n_q_points);
+  std::vector<Tensor<1, dim> >  present_pressure_gradients   (n_q_points);
+  std::vector<Tensor<1, dim> >  present_velocity_laplacians  (n_q_points);
+  std::vector<Tensor<2, dim> >  present_velocity_hess        (n_q_points);
+
+  Tensor<1, dim>  force;
+
+  std::vector<double>           div_phi_u                 (dofs_per_cell);
+  std::vector<Tensor<1, dim> >  phi_u                     (dofs_per_cell);
+  std::vector<Tensor<3, dim> >  hess_phi_u                (dofs_per_cell);
+  std::vector<Tensor<1, dim> >  laplacian_phi_u           (dofs_per_cell);
+  std::vector<Tensor<2, dim> >  grad_phi_u                (dofs_per_cell);
+  std::vector<double>           phi_p                     (dofs_per_cell);
+  std::vector<Tensor<1, dim> >  grad_phi_p                (dofs_per_cell);
+
+
+
+  FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+  Vector<double>       cell_rhs (dofs_per_cell);
+
+  double h;
+
+  typename DoFHandler<2>::active_cell_iterator
+      cell = dof_handler.begin_active(),
+      endc = dof_handler.end();
+  for (; cell!=endc; ++cell)
+  {
+    fe_values.reinit (cell);
+    cell_matrix = 0;
+    cell_rhs = 0;
+
+    std::cout << "Looping over quadrature" << std::endl;
+    for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
+    {
+      if (dim==2) h = std::sqrt(4.* cell->measure() / M_PI) ;
+      else if (dim==3) h = pow(6*cell->measure()/M_PI,1./3.) ;
+
+      fe_values[velocities].get_function_values(local_evaluation_point, present_velocity_values);
+      fe_values[velocities].get_function_gradients(local_evaluation_point, present_velocity_gradients);
+      fe_values[pressure].get_function_values(local_evaluation_point,present_pressure_values);
+      fe_values[pressure].get_function_gradients(local_evaluation_point,present_pressure_gradients);
+      fe_values[velocities].get_function_laplacians(local_evaluation_point,present_velocity_laplacians);
+        forcing_function->vector_value_list(fe_values.get_quadrature_points(),
+                                                   rhs_force);
+
+        for (unsigned int q=0; q<n_q_points; ++q)
+        {
+          const double u_mag= std::max(present_velocity_values[q].norm(),1e-3*1.);
+          double tau = 1./ std::sqrt(std::pow(2.*u_mag/h,2)+9*std::pow(4*viscosity_/(h*h),2));
+          for (unsigned int k=0; k<dofs_per_cell; ++k)
+          {
+            div_phi_u[k]  =  fe_values[velocities].divergence (k, q);
+            grad_phi_u[k] =  fe_values[velocities].gradient(k, q);
+            phi_u[k]      =  fe_values[velocities].value(k, q);
+            hess_phi_u[k] =  fe_values[velocities].hessian(k, q);
+            phi_p[k]      =  fe_values[pressure]  .value(k, q);
+            grad_phi_p[k] =  fe_values[pressure]  .gradient(k, q);
+
+            for( int d=0; d<dim; ++d )
+              laplacian_phi_u[k][d] = trace( hess_phi_u[k][d] );
+          }
+
+          // Establish the force vector
+          for( int i=0; i<dim; ++i )
+          {
+            const unsigned int component_i = fe.system_to_component_index(i).first;
+            force[i] = rhs_force[q](component_i);
+          }
+
+          auto strong_residual= present_velocity_gradients[q]*present_velocity_values[q]
+                                + present_pressure_gradients[q]
+                                - viscosity_* present_velocity_laplacians[q]
+                                - force ;
+
+          for (unsigned int j=0; j<dofs_per_cell; ++j)
+          {
+            {
+              auto strong_jac = (  present_velocity_gradients[q]*phi_u[j]
+                                   + grad_phi_u[j]*present_velocity_values[q]
+                                   + grad_phi_p[j]
+                                   - viscosity_* laplacian_phi_u[j]
+                                   );
+
+              for (unsigned int i=0; i<dofs_per_cell; ++i)
+              {
+                local_matrix(i, j) += (  viscosity_*scalar_product(grad_phi_u[j], grad_phi_u[i])
+                                         + present_velocity_gradients[q]*phi_u[j]*phi_u[i]
+                                         + grad_phi_u[j]*present_velocity_values[q]*phi_u[i]
+                                         - div_phi_u[i]*phi_p[j]
+                                         + phi_p[i]*div_phi_u[j]
+                                         )
+                                      * fe_values.JxW(q);
+                //PSPG GLS term
+                local_matrix(i, j) += tau*
+                                      strong_jac* grad_phi_p[i]
+                                      * fe_values.JxW(q);
+
+                // SUPG GLS term
+                local_matrix(i, j) +=
+                    tau*
+                    (
+                      strong_jac*(grad_phi_u[i]*present_velocity_values[q])
+                      +
+                      strong_residual* (grad_phi_u[i]*phi_u[j])
+                      )
+                    * fe_values.JxW(q)
+                    ;
+              }
+            }
+          }
+          for (unsigned int i=0; i<dofs_per_cell; ++i)
+          {
+            const unsigned int component_i = fe.system_to_component_index(i).first;
+            double present_velocity_divergence =  trace(present_velocity_gradients[q]);
+            local_rhs(i) += ( - viscosity_*scalar_product(present_velocity_gradients[q],grad_phi_u[i])
+                              - present_velocity_gradients[q]*present_velocity_values[q]*phi_u[i]
+                              + present_pressure_values[q]*div_phi_u[i]
+                              - present_velocity_divergence*phi_p[i]
+                              + force * phi_u[i]
+                              )
+                            * fe_values.JxW(q);
+
+            // PSPG GLS term
+            local_rhs(i) +=  - tau
+                             * (strong_residual*grad_phi_p[i])
+                             * fe_values.JxW(q);
+
+            //SUPG GLS term
+            local_rhs(i) += - tau
+                            *(strong_residual*(grad_phi_u[i]*present_velocity_values[q]))
+                            * fe_values.JxW(q);
+          }
+        }
+      }
+
+    // Assemble global matrix and RHS
+    cell->get_dof_indices (local_dof_indices);
+    for (unsigned int i=0; i<dofs_per_cell; ++i)
+    {
+      for (unsigned int j=0; j<dofs_per_cell; ++j)
+        system_matrix.add (local_dof_indices[i],
+                           local_dof_indices[j],
+                           cell_matrix(i,j));
+
+      system_rhs(local_dof_indices[i]) += cell_rhs(i);
+    }
+  }
+ }
 
 // Constructor
 template<int dim>
@@ -316,6 +500,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
     std::vector<double>   vertices_vp(dofs_per_cell); //only in 2D, stores the velocity and the pressure on each vertex of the square element considered
 
     std::map< types::global_dof_index, Point< 2 > > support_points;
+    DoFTools::map_dofs_to_support_points ( mapping, dof_handler,support_points );
     std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
     std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
 
@@ -362,7 +547,6 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
         else
           nb_poly=0;
 
-        //nb_poly=0;
         local_matrix = 0;
         local_rhs    = 0;
 
@@ -470,15 +654,65 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             }
         }
 
-        // Pure solid case
+        // Pure solid elements
         else if ((nb_poly==0 && (distance[0]<0)) )
         {
+          std::cout << "Integrating over pure solid elements" << std::endl;
+          Tensor<1,dim> ib_velocity;
+          for (int i = 0; i < dofs_per_cell; ++i)
+          {
+            for (int j = 0; j < dofs_per_cell; ++j)
+            {
+              if (i==j)
+                local_matrix[i][j] = 1;
+              else
+              {
+                local_matrix[i][j] = 0;
+              }
+            }
 
+            if (i%3==0) ib_combiner.velocity(dofs_points[i],ib_velocity);
+
+            // Impose X, Y velocity and pressure depending on dof index
+            if (i%3==0) local_rhs[i]=ib_velocity[0];
+            else if (i%3==1) local_rhs[i]=ib_velocity[1];
+            else local_rhs[i]=0;
+          }
         }
 
         // Quadrilateral case
         else if (nb_poly==-1)
         {
+          std::cout << "Integrating over cut quad element" << std::endl;
+          // Create triangulation points
+          std::vector<Point<dim> > triangulation_points(GeometryInfo<dim>::vertices_per_cell);
+          // Create 4 points for triangulation:
+          for (unsigned int i_pt =0 ; i_pt < 4 ; ++i_pt)
+            triangulation_points[i_pt]=decomp_elem[i_pt];
+
+          // Prepare cell data
+          std::vector<CellData<dim> > cells (1);
+          for (unsigned int i=0; i<GeometryInfo<2>::vertices_per_cell; ++i)
+              cells[0].vertices[i] = i;
+          cells[0].material_id = 0;
+
+          Triangulation<dim> sub_triangulation;
+          sub_triangulation.create_triangulation (triangulation_points, cells, SubCellData());
+
+          // Create a FE system for this element
+          DoFHandler<dim>                  sub_dof_handler(sub_triangulation);
+          FESystem<dim>                    sub_fe(FE_Q<dim>(1),dim,FE_Q<dim>(1),1);
+          sub_dof_handler.distribute_dofs(sub_fe);
+
+          FullMatrix<double> sub_system_matrix;
+          Vector<double>     sub_system_rhs;
+          Vector<double>     sub_system_dofs;
+
+          // Initialize vector and sparsity patterns
+          sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
+          sub_system_rhs.reinit (sub_dof_handler.n_dofs());
+          sub_system_dofs.reinit((sub_dof_handler.n_dofs()));
+          integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs,sub_system_dofs);
 
         }
 
@@ -930,71 +1164,6 @@ void DirectSteadyNavierStokes<dim>::runTaylorCouette()
 }
 
 template<int dim>
-void DirectSteadyNavierStokes<dim>::runIBTaylorCouette()
-{
-    viscosity_=10;
-    GridIn<dim> grid_in;
-    grid_in.attach_triangulation (triangulation);
-    std::ifstream input_file("taylorcouette.msh");
-
-    grid_in.read_msh(input_file);
-
-    // Set-up the center, velocity and angular velocity of circle
-    Point<2> center(0.2356,-0.0125);
-    Tensor<1,2> velocity;
-    velocity[0]=1.;
-    velocity[1]=0.;
-    Tensor<1,3> angular;
-    angular[0]=0;
-    angular[1]=0;
-    angular[2]=0;
-    double T_scal;
-    T_scal=1;
-    double radius1 =0.76891/2.;
-    double radius2 =1.56841/2.;
-    bool inside=0;
-    // IB composer
-    std::vector<IBLevelSetFunctions<2> *> ib_functions;
-    // Add a shape to it
-    IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal, inside, radius1);
-    IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal, !inside, radius2);
-
-    ib_functions.push_back(&circle1);
-    ib_functions.push_back(&circle2);
-
-    IBCombiner<dim>              ib_combiner(ib_functions);
-
-
-
-    static const SphericalManifold<dim> boundary;
-
-    triangulation.set_all_manifold_ids_on_boundary(0);
-    triangulation.set_manifold (0, boundary);
-
-    forcing_function = new NoForce<dim>;
-    exact_solution = new ExactSolutionTaylorCouette<dim>;
-    setup_dofs();
-
-
-
-
-    for (int cycle=0 ; cycle < 4 ; cycle++)
-    {
-        if (cycle !=0)  refine_mesh();
-        newton_iteration(1.e-10, 50, true, true);
-        output_results (cycle);
-        calculateL2Error();
-    }
-
-    std::ofstream output_file("./L2Error.dat");
-    for (unsigned int i=0 ; i < L2ErrorU_.size() ; ++i)
-    {
-        output_file << i+initialSize_ << " " << L2ErrorU_[i] << std::endl;
-    }
-    output_file.close();
-}
-
-template<int dim>
 void DirectSteadyNavierStokes<dim>::runCouetteIBX()
 {
   std::cout << "**********************************************" << std::endl;
@@ -1003,13 +1172,27 @@ void DirectSteadyNavierStokes<dim>::runCouetteIBX()
   simulationCase_=CouetteX;
   GridGenerator::hyper_cube (triangulation, 0, 1,true);
   forcing_function = new NoForce<dim>;
-  triangulation.refine_global (3);
+  triangulation.refine_global (4);
+
+  // Generate the IB composer
+  Point<2> center1(0.55,0);
+  Tensor<1,2> velocity;
+  velocity[0]=0.; velocity[1]=1.;
+  Tensor<1,2> normal;
+  normal[0]=-1; normal[1]=0;
+  double T_scal=1;
+  // Add a shape to it
+  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+  ib_functions.push_back(&plane);
+  ib_combiner.setFunctions(ib_functions);
+
   exact_solution = new ExactSolutionCouetteX<dim>;
   viscosity_=1.;
   setup_dofs();
 
   newton_iteration(1.e-6, 5, true, true);
-  output_results ("Couette-X-",0);
+  output_results ("Couette-X-IB-",0);
   calculateL2Error();
 }
 

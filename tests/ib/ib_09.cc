@@ -150,7 +150,7 @@ double calculate_L2_error(int refinement)
   system_rhs.reinit (dof_handler->n_dofs());
 
   FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
-  std::vector<double> elem_rhs(dofs_per_cell);
+  Vector<double> elem_rhs(dofs_per_cell);
 
   Point<2> a;
   a[0]=0;
@@ -165,7 +165,7 @@ double calculate_L2_error(int refinement)
   endc = dof_handler->end();
   for (; cell!=endc; ++cell)
   {
-    std::fill(elem_rhs.begin(), elem_rhs.end(), 0.0);
+    elem_rhs=0.;
     cell_mat = 0;
 
     int_or_ext =0; // doesnt work if you don't refine at least 4 times

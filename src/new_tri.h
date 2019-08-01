@@ -10,7 +10,7 @@
 #include "ib_node_status.h"
 using namespace dealii;
 
-void condensate_trg(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, std::vector<double> &rhs, std::vector<double> &new_rhs)
+void condensate_trg(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<double> &M, FullMatrix<double> &new_mat, Vector<double> &rhs, Vector<double> &new_rhs)
 {
     int a;
 
@@ -47,7 +47,7 @@ void condensate_trg(unsigned int nb_of_line, unsigned int new_nb, FullMatrix<dou
     }
 }
 
-void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<node_status> pts_statut, FullMatrix<double> &cell_mat, std::vector<double> &cell_rhs)
+void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, std::vector<node_status> pts_statut, FullMatrix<double> &cell_mat, Vector<double> &cell_rhs)
 {
     // For a given element and the values of the distance function at its vertices, gives back the elementary matrix in the finite elements method
     // for the heat equation
@@ -119,7 +119,7 @@ void new_tri(double Tdirichlet, int nbtrg, std::vector<int> corresp, std::vector
         }
 
         unsigned int dofs_per_cell =4;
-        std::vector<double> rhs6(6);
+        Vector<double> rhs6(6);
 
         for (int i = 0; i < 4; ++i) {
             rhs6[i]=cell_rhs[i];
