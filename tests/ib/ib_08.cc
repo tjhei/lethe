@@ -47,6 +47,24 @@
 
 using namespace dealii;
 
+template <int dim>
+class BoundaryValues : public Function<dim>
+{
+public:
+  BoundaryValues () : Function<dim>() {}
+  virtual double value (const Point<dim>   &p,
+                        const unsigned int  component = 0) const;
+};
+
+template <int dim>
+double BoundaryValues<dim>::value (const Point<dim> &p,
+                                   const unsigned int /*component*/) const
+{
+   return 2;
+}
+
+
+
 void Temperature_field_in_2_circles()
 
 // solves the heat equation between 2 circles, T set to 2 on the ext circle and to 1 on the int circles
