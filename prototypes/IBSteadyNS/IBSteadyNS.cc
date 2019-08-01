@@ -313,6 +313,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
     std::vector<double>           phi_p                     (dofs_per_cell);
     std::vector<Tensor<1, dim> >  grad_phi_p                (dofs_per_cell);
 
+    std::vector<double>   vertices_vp(dofs_per_cell); //only in 2D, stores the velocity and the pressure on each vertex of the square element considered
+
     std::map< types::global_dof_index, Point< 2 > > support_points;
     std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
     std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
@@ -346,6 +348,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           {
             dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
             distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
+            vertices_vp[dof_index] = evaluation_point[local_dof_indices[dof_index]];
           }
 
           // We get the coordinates and the distance associated to the vertices of the element
@@ -479,28 +482,96 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
 
         }
 
-        else if (nb_poly>0) {
+        else if (nb_poly>0) { // this part is implemented for 2D problems only !! //
 
-            std::vector<Point<dim> >      coor_trg(3);
+            unsigned int dofs_per_vertex = 3; // 2D
+            const unsigned int nb_of_vertices = 4; // (2D) nb_of_vertices should be 2^(dim), nb of vertices of the square / cubic element
+
+            std::vector<Point<dim> >      coor_trg(dim+1); // triangles or tetraedromn are simplexes
+            std::vector<unsigned int>     corresp_loc(dofs_per_vertex*(dim+1)); // gives the equivalence between the numerotation of the considered trg and the numerotaion of the square element
 
             FullMatrix<double>            cell_mat(18, 18);
             Vector<double>                cell_rhs(18);
 
+            std::vector<Tensor<1, dim>>   local_v(4);
+            std::vector<double>           local_p(4);
+
+
+
+            for (unsigned int vertex_index = 0; vertex_index < nb_of_vertices; ++vertex_index) {
+
+                for (int i = 0; i < dim; ++i) { // i is the component of the velocity
+                    local_v[vertex_index][i] = vertices_vp[vertex_index+i];
+                }
+                local_p[vertex_index] = vertices_vp[vertex_index+dim];
+            }
+
+
+            // set the cell matrix and rhs to 0 before any calculus
             cell_mat = 0;
             cell_rhs = 0;
 
+            // creating local matrix and rhs for each triangle
+            FullMatrix<double>          loc_mat(9,9);
+            Vector<double>              loc_rhs(9);
+
+            Tensor<1, dim> force;
+
+            force =0;
             // these are the cell matrix and rhs before we condensate them
             // we store the contributions created by the boundary points in it as well as the other contributions
 
+            std::vector<Tensor<1, dim>>     trg_v(dim+1);
+            std::vector<double>             trg_p(dim+1);
+
             for (int n = 0; n < nb_poly; ++n) {
+                loc_mat =0;
+                loc_rhs =0;
+
+                // We build the vector of velocity on the vertices of the triangle and the vector of pressure
+
+                //!!!!
+                //!
+                //!
+
+                // We construct a vector of the coordinates of the vertices of the triangle considered
                 coor_trg[0] = decomp_elem[(3*n)];
                 coor_trg[(1)] = decomp_elem[(3*n+1)];
                 coor_trg[2] = decomp_elem[(3*n)+2];
 
-                // récuperer vitesse pression et grad, ensuite on appelle glsres
 
-                //condenser ensuite
+                // Corresp is a numerotation for the vertices, and each vertex has "dofs_per_vertex" dofs
+                corresp_loc[0] = dofs_per_vertex*corresp[(3*n)];
+                corresp_loc[1] = dofs_per_vertex*corresp[(3*n)]+1;
+                corresp_loc[2] = dofs_per_vertex*corresp[(3*n)]+2;
+
+                corresp_loc[3] = dofs_per_vertex*corresp[(3*n)+1];
+                corresp_loc[4] = dofs_per_vertex*corresp[(3*n)+1]+1;
+                corresp_loc[5] = dofs_per_vertex*corresp[(3*n)+1]+2;
+
+                corresp_loc[6] = dofs_per_vertex*corresp[(3*n)+2];
+                corresp_loc[7] = dofs_per_vertex*corresp[(3*n)+2]+1;
+                corresp_loc[8] = dofs_per_vertex*corresp[(3*n)+2]+2;
+
+                // the following function calculates the values of the coefficient of the matrix and the rhs for the considered triangle
+                GLS_residual_trg(coor_trg, trg_v, trg_p, force, loc_mat, local_rhs, viscosity_);
+
+                for (int i = 0; i < 3; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+                        cell_mat(corresp_loc[i],corresp_loc[j]) += loc_mat(i,j);
+                    }
+                    cell_rhs(corresp_loc[i]) += local_rhs[i];
+                }
             }
+            // We now apply the boundary conditions to the points that are on the boundary or in the solid
+
+            //!!!!
+            //!
+            //!
+
+            // We then condensate the system to make the boundary points not explicitly appear in the system
+
+            condensate_NS_trg(cell_mat, cell_rhs, local_matrix, local_rhs);
         }
 
 

@@ -80,7 +80,7 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
                         FullMatrix<double> &local_mat,
                         Vector<double> &local_rhs,
 
-                        double viscosity_, double tau)
+                        double viscosity_)
 
 // decomp_trg gives the coordinates of the vertices of the triangle considered
 // the 4 following arguments are the values on these vertices of respectively the components of the velocity, the pressure, and the gradients of the velocity and the pressure
@@ -108,7 +108,7 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
         for (int i = 0; i < dim; ++i) {
             for (int var = 0; var < dim; ++var) {
-                pass_mat(i,var) = partial_coor_ref_2D(i,var, decomp_trg);
+                pass_mat[i][var] = partial_coor_ref_2D(i,var, decomp_trg);
             }
         }
 
@@ -146,7 +146,6 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
         // jacobian is a constant in a triangle
         double jac = jacobian(0, 0,0, decomp_trg);
 
-
         for (unsigned int q=0; q<n_pt_quad; ++q)
         {
             interpolated_v =0;
@@ -159,8 +158,12 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
             interpolated_p = interpolate_pressure(quad_pt[q], press_trg);
 
-            interpolate_grad_velocity(quad_pt[q], veloc_trg, interpolated_grad_v);
-            interpolate_grad_pressure(quad_pt[q], press_trg, interpolated_grad_p);
+            interpolate_grad_velocity( veloc_trg, interpolated_grad_v); // grad of the shape functions are constants in triangles
+            interpolate_grad_pressure( press_trg, interpolated_grad_p);
+
+            // Build the parameter of stabilisation
+            const double u_mag= std::max(interpolated_v.norm(),1e-3);
+            double tau = 1./ std::sqrt(std::pow(2.*u_mag/h,2)+9*std::pow(4*viscosity_/(h*h),2));
 
             // Get the values of the shape functions and their gradients at the quadrature points //
 
@@ -172,9 +175,12 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
             Tensor<2, dim> e1_x_e1;     Tensor<2, dim> e2_x_e2;     Tensor<2, dim> e1_x_e2;     Tensor<2, dim> e2_x_e1;
             e1_x_e1=0;                  e2_x_e2=0;                  e1_x_e2=0;                  e2_x_e1=0;
-            e1_x_e1(0,0) =1;            e2_x_e2(1,1) =1;            e1_x_e2(0,1) =1;            e2_x_e1(1,0)=1;
+            e1_x_e1[0][0] =1;           e2_x_e2[1][1] =1;           e1_x_e2[0][1] =1;           e2_x_e1[1][0]=1;
+
+
 
             for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
+
 
                 div_phi_u_[dofs_per_node*i] = divergence(i, 0, pass_mat) // We apply the passage matrix
                                                                 // in order to change of coordinates
@@ -184,12 +190,12 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
                 grad_phi_u[dofs_per_node*i] = div_phi_u_[dofs_per_node*i] * e1_x_e1 + div_phi_u_[dofs_per_node*i+1] * e1_x_e2;
                 grad_phi_u[dofs_per_node*i+1] = div_phi_u_[dofs_per_node*i] * e2_x_e1 + div_phi_u_[dofs_per_node*i+1] * e2_x_e2;
 
-                phi_u[dofs_per_node*i](0) = shape_function(quad_pt[q], i);
-                phi_u[dofs_per_node*i](0) = 0;
-                phi_u[dofs_per_node*i+1](1) = 0;
-                phi_u[dofs_per_node*i+1](1) = shape_function(quad_pt[q], i);
+                phi_u[dofs_per_node*i][0] = shape_function(i, quad_pt[q]);
+                phi_u[dofs_per_node*i][(0)] = 0;
+                phi_u[dofs_per_node*i+1][(1)] = 0;
+                phi_u[dofs_per_node*i+1][(1)] = shape_function(i, quad_pt[q]);
 
-                phi_p[dofs_per_node*(i+1)-1] = shape_function(quad_pt[q], i);
+                phi_p[dofs_per_node*(i+1)-1] = shape_function(i, quad_pt[q]);
 
                 grad_shape_function(i, grad_phi_p[dofs_per_node*(i+1)-1], pass_mat);
 
@@ -278,8 +284,8 @@ void condensate_NS_trg(FullMatrix<double> cell_mat, Vector<double> cell_rhs, Ful
 
     // this algorithm is similar to the "condensate.h" one.
 
-
-    int a, nb_of_line, new_nb;
+    int a;
+    unsigned int nb_of_line, new_nb;
 
     nb_of_line = 18;
     new_nb = 12;

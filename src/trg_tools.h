@@ -44,12 +44,12 @@ void grad_shape_function(int num_vertex, Tensor<1, dim> &grad_return, Tensor<2, 
     if (num_vertex==0) // scalar fct interp equals 1-x-y(-z if dim =3)
     {
         for (int i = 0; i < dim; ++i) {
-            temp(i)=-1;
+            temp[(i)]=-1;
         }
     }
 
     else { // num_vertex > 0
-       temp(num_vertex-1)=1;
+       temp[(num_vertex-1)]=1;
     }
     grad_return = pass_matrix * temp;
 }
@@ -95,11 +95,11 @@ double divergence(int num_vertex, int component, Tensor<2, dim> pass_matrix)
 
     Tensor<1, dim>      div;
     for (int i = 0; i < dim; ++i) {
-        div(i) = div_phi_u_ref(num_vertex, i, dim);
+        div[(i)] = div_phi_u_ref(num_vertex, i, dim);
     }
     Tensor<1, dim>      temp;
     temp = pass_matrix*div; // changing the coordinates, from the actual element to the ref element
-    return temp(component);
+    return temp[(component)];
 }
 
 // end of the shape functions //
@@ -137,14 +137,14 @@ void interpolate_velocity(Point<dim> pt_eval, std::vector<Tensor<1,dim>> values,
 
     for (int i = 0; i < dim+1 ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
         for (int j = 0; j < dim; ++j) { // j stands for the component of the speed we interpolate
-            values_return[j] += shape_function(i,pt_eval)*values(i,j);
+            values_return[j] += shape_function(i,pt_eval)*values[i][j];
         }
     }
 }
 
 
 template <int dim>
-void interpolate_grad_pressure(Point<dim>  pt_eval, std::vector<double>  p_on_vertices, Tensor<1,dim>  &grad_return)
+void interpolate_grad_pressure(std::vector<double>  p_on_vertices, Tensor<1,dim>  &grad_return)
 {
     // we interpolate like this : p = p_i * Phi_i => grad(p) = p_i * grad(Phi_i) (a_i * b_i is a sum on i here)
     // this function returns in "grad_return" the value of the interpolated pressure gradient at "pt_eval"
@@ -152,22 +152,22 @@ void interpolate_grad_pressure(Point<dim>  pt_eval, std::vector<double>  p_on_ve
     Tensor<2, dim>  pass_mat;
 
     pass_mat=0;
-    pass_mat(0,0)=1;
-    pass_mat(1,1)=1;
+    pass_mat[0][0]=1;
+    pass_mat[1][1]=1;
 
     grad_return =0;
 
     for (int i = 0; i < dim; ++i) {
         grad_shape_function(i, grad_phi_i, pass_mat);
         // i is the index of the vertex
-        grad_return(0) += grad_phi_i[0]*p_on_vertices[i];
-        grad_return(1) += grad_phi_i[1]*p_on_vertices[i];
+        grad_return[(0)] += grad_phi_i[0]*p_on_vertices[i];
+        grad_return[(1)] += grad_phi_i[1]*p_on_vertices[i];
     }
 }
 
 
 template <int dim>
-void interpolate_grad_velocity(Point<dim>  pt_eval, std::vector<Tensor<1,dim>>  v_on_vertices, Tensor<2,dim>  &grad_return)
+void interpolate_grad_velocity(std::vector<Tensor<1,dim>>  v_on_vertices, Tensor<2,dim>  &grad_return)
 {
     // each tensor in values_grad is the velocity gradient given for one of the vertices
     // this function returns in "grad_return" the value of the interpolated velocity gradient at "pt_eval"
@@ -180,13 +180,13 @@ void interpolate_grad_velocity(Point<dim>  pt_eval, std::vector<Tensor<1,dim>>  
     for (int j = 0; j < dim; ++j) { // j stands for the component of the velocity we interpolate, grad(u_j)
 
         for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex considered
-            v_i[i] = v_on_vertices[i](j);
+            v_i[i] = v_on_vertices[i][(j)];
         }
         temp=0;
-        interpolate_grad_pressure(pt_eval, v_i, temp);
+        interpolate_grad_pressure(v_i, temp);
 
         for (int i = 0; i < dim+1; ++i) {
-        grad_return(i,j) = temp(i);
+        grad_return[i][j] = temp[(i)];
         }
     }
 
