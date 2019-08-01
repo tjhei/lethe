@@ -21,10 +21,6 @@ FILE(GLOB_RECURSE TARGET_INC *.h)
 SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC}) 
 
 
-#SET(TARGET_SRC
-#  ${TARGET}.cc
-#  )
-
 # Usually, you will not need to modify anything beyond this point...
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)

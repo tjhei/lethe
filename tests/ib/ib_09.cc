@@ -33,7 +33,7 @@
 // Distributed
 #include <deal.II/distributed/tria.h>
 
-#include "ibcomposer.h"
+#include "ibcombiner.h"
 #include "iblevelsetfunctions.h"
 #include "write_data.h"
 #include "../tests.h"
@@ -53,18 +53,69 @@ double calculate_L2_error(int refinement)
 // calculates the L2 norm of (T_analytical - T_calculated)
 
 {
-  MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
-  unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
-  unsigned int this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator));
+    MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
+    unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
+    unsigned int this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator));
 
-  // Create triangulation and square mesh
-  parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
-                                                         (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
-  GridGenerator::hyper_cube (triangulation,
-                             -2,2,true);
+    // Create triangulation and square mesh
+    parallel::distributed::Triangulation<2> triangulation (mpi_communicator, typename Triangulation<2>::MeshSmoothing
+                                                           (Triangulation<2>::smoothing_on_refinement | Triangulation<2>::smoothing_on_coarsening));
+    GridGenerator::hyper_cube (triangulation,
+                               -2,2,false);
+    triangulation.refine_global(refinement);
 
-  // Refine it to get an interesting number of elements
-  triangulation.refine_global(refinement);
+    DoFHandler<2>                  dof_handler(triangulation);
+    FESystem<2>                    fe(FE_Q<2>(1),1);
+    dof_handler.distribute_dofs(fe);
+
+    // Set-up global system of equation
+    SparsityPattern      sparsity_pattern;
+    SparseMatrix<double> system_matrix;
+
+    Vector<double>       solution;
+    Vector<double>       system_rhs;
+
+    DynamicSparsityPattern dsp(dof_handler.n_dofs());
+    DoFTools::make_sparsity_pattern (dof_handler, dsp);
+
+    // Initialize vector and sparsity patterns
+    sparsity_pattern.copy_from(dsp);
+    system_matrix.reinit (sparsity_pattern);
+    solution.reinit (dof_handler.n_dofs());
+    system_rhs.reinit (dof_handler.n_dofs());
+
+    // Quadrature formula for the element
+    QGauss<2>            quadrature_formula(2);
+    const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int   n_q_points = quadrature_formula.size();
+
+    // Matrix and RHS sides;
+    FullMatrix<double>   cell_mat (dofs_per_cell, dofs_per_cell);
+    std::vector<double>       elem_rhs (dofs_per_cell);
+
+    // Get the position of the support points
+    const MappingQ<2>      mapping (1);
+
+    FEValues<2> fe_values (mapping,
+                           fe,
+                           quadrature_formula,
+                           update_values   | update_gradients |
+                           update_quadrature_points | update_JxW_values);
+
+    std::map< types::global_dof_index, Point< 2 > > support_points;
+    DoFTools::map_dofs_to_support_points ( mapping, dof_handler,support_points );
+
+    // Instantiations for the decomposition of the elements
+    std::vector<int>                     corresp(9);
+    std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
+    std::vector<node_status>             No_pts_solid(4);
+    int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
+    std::vector<Point<2> >               num_elem(6);
+
+    // Set the values of the dof points position
+    std::vector<double>                  distance(dofs_per_cell); // Array for the distances associated with the DOFS
+    std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
+    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
 
   // Set-up the center, velocity and angular velocity of circle
 
@@ -79,8 +130,10 @@ double calculate_L2_error(int refinement)
   angular[0]=0;
   angular[1]=0;
   angular[2]=0;
-  double T_scal;
-  T_scal=1;
+  double T_scal1, T_scal2;
+  T_scal1=1;
+  T_scal2=2;
+
   double radius1 =0.76891;
   double radius2 =1.56841;
   bool inside=0;
@@ -88,8 +141,8 @@ double calculate_L2_error(int refinement)
   // IB composer
   std::vector<IBLevelSetFunctions<2> *> ib_functions;
   // Add a shape to it
-  IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal, inside, radius1);
-  IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal, 1, radius2);
+  IBLevelSetCircle<2> circle1(center,velocity,angular, T_scal1,  inside, radius1);
+  IBLevelSetCircle<2> circle2(center,velocity,angular, T_scal2, !inside, radius2);
 
   ib_functions.push_back(&circle1);
   ib_functions.push_back(&circle2);
@@ -159,43 +212,39 @@ double calculate_L2_error(int refinement)
   int int_or_ext;
   double r;
   double Tdirichlet;
+  double            Tdirichlet;
+  Point<2> center_elem;
 
   typename DoFHandler<2>::active_cell_iterator
-  cell = dof_handler->begin_active(),
-  endc = dof_handler->end();
+  cell = dof_handler.begin_active(),
+  endc = dof_handler.end();
   for (; cell!=endc; ++cell)
   {
     elem_rhs=0.;
     cell_mat = 0;
 
-    int_or_ext =0; // doesnt work if you don't refine at least 4 times
+    center_elem[0]=0;
+    center_elem[1]=0;
 
     if (cell->is_locally_owned())
     {
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
-
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        distance[dof_index]=levelSet_distance[local_dof_indices[dof_index]];
-        r = (dofs_points[dof_index](0)-center(0))* (dofs_points[dof_index](0)-center(0))+ (dofs_points[dof_index](1)-center(1))*(dofs_points[dof_index](1)-center(1));
-        if ( r > 1.2){
-            int_or_ext+=1;
-        }
-
+        distance[dof_index]=ib_combiner.value(dofs_points[dof_index]);
+        center_elem[0] += dofs_points[dof_index][0]/4;
+        center_elem[1] += dofs_points[dof_index][1]/4;
       }
+
+      // center_elem is the point located at the barycenter of the square element
+      Tdirichlet = ib_combiner.scalar(center_elem);
+
 
 
       nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
-
-      if (int_or_ext == 4)
-          Tdirichlet = T2;
-      else {
-          Tdirichlet = T1;
-      }
-
 
       if (nb_poly==0)
       {
@@ -253,7 +302,7 @@ double calculate_L2_error(int refinement)
 
   std::map<types::global_dof_index,double> boundary_values;
 
-  VectorTools::interpolate_boundary_values (*dof_handler,
+  VectorTools::interpolate_boundary_values (dof_handler,
                                             1,
                                              Functions::ConstantFunction<2>(2.),
                                             boundary_values);
@@ -272,7 +321,7 @@ double calculate_L2_error(int refinement)
   double err=0;
   std::vector<double> T(6);
 
-  cell = dof_handler->begin_active();
+  cell = dof_handler.begin_active();
   for (; cell!=endc; ++cell)
   {
       fe_values.reinit(cell);
@@ -281,7 +330,7 @@ double calculate_L2_error(int refinement)
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-        distance[dof_index]=levelSet_distance[local_dof_indices[dof_index]];
+        distance[dof_index]= ib_combiner.value(dofs_points[dof_index]);
         T[dof_index]=solution[local_dof_indices[dof_index]];
       }
 
@@ -291,7 +340,7 @@ double calculate_L2_error(int refinement)
       {
           if (distance[0]>0){
               for (unsigned int q=0; q<n_q_points; q++) {
-                err+=std::pow(T_analytical(fe_values.quadrature_point (q), center, T1, T2, radius1, radius2)-T_calc_interp(T, fe_values.quadrature_point (q)), 2)
+                err+=std::pow(T_analytical(fe_values.quadrature_point (q), center, T_scal1, T_scal2, radius1, radius2)-T_calc_interp(T, fe_values.quadrature_point (q)), 2)
                         *fe_values.JxW(q);
               }
           }
@@ -299,7 +348,7 @@ double calculate_L2_error(int refinement)
       }
 
       else if (nb_poly<0) {
-        err+=quad_elem_L2(center, T1, T2, radius1, radius2, corresp, No_pts_solid, decomp_elem, T);
+        err+=quad_elem_L2(center, T_scal1, T_scal2, radius1, radius2, corresp, No_pts_solid, decomp_elem, T);
       }
 
       else {
@@ -307,7 +356,7 @@ double calculate_L2_error(int refinement)
         T[4]=T[No_pts_solid[0]];
         T[5]=T[No_pts_solid[0]];
 
-        err+=new_tri_L2(nb_poly, decomp_elem, corresp, No_pts_solid, center, T1, T2, radius1, radius2, T);
+        err+=new_tri_L2(nb_poly, decomp_elem, corresp, No_pts_solid, center, T_scal1, T_scal2, radius1, radius2, T);
       }
 
 
@@ -327,10 +376,10 @@ void test_L2()
         Error(i-4)=calculate_L2_error(i);
     }
 
-    Error_theo(0)=0.499282;
-    Error_theo(1)=0.166939;
-    Error_theo(2)=0.0475147;
-    Error_theo(3)=0.012687;
+    Error_theo(0)=0.47656;
+    Error_theo(1)=0.166937;
+    Error_theo(2)=0.0475146;
+    Error_theo(3)=0.0126869;
     Error_theo(4)=0.00325879;
 
     double acc = 1e-5;
