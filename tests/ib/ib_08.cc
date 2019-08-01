@@ -108,7 +108,7 @@ void Temperature_field_in_2_circles()
 
     // Matrix and RHS sides;
     FullMatrix<double>   cell_mat (dofs_per_cell, dofs_per_cell);
-    std::vector<double>       elem_rhs (dofs_per_cell);
+    Vector<double>       elem_rhs (dofs_per_cell);
 
     // Get the position of the support points
     const MappingQ<2>      mapping (1);
@@ -166,19 +166,6 @@ void Temperature_field_in_2_circles()
 
   IBCombiner<2> ib_combiner(ib_functions);
 
-  solution.reinit (dof_handler->n_dofs());
-  system_rhs.reinit (dof_handler->n_dofs());
-
-
-  FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
-  Vector<double> elem_rhs(dofs_per_cell);
-
-  Point<2> a;
-  a[0]=0;
-  a[1]=0;
-
-  int int_or_ext;
-  double r;
   double            Tdirichlet;
   Point<2> center_elem;
 
@@ -187,7 +174,7 @@ void Temperature_field_in_2_circles()
   endc = dof_handler.end();
   for (; cell!=endc; ++cell)
   {
-    elem_rhs=0;
+    std::fill(elem_rhs.begin(), elem_rhs.end(), 0.);
     cell_mat = 0;
 
     center_elem[0]=0;

@@ -91,7 +91,7 @@ double calculate_L2_error(int refinement)
 
     // Matrix and RHS sides;
     FullMatrix<double>   cell_mat (dofs_per_cell, dofs_per_cell);
-    std::vector<double>       elem_rhs (dofs_per_cell);
+    Vector<double>       elem_rhs (dofs_per_cell);
 
     // Get the position of the support points
     const MappingQ<2>      mapping (1);
@@ -147,71 +147,8 @@ double calculate_L2_error(int refinement)
   ib_functions.push_back(&circle1);
   ib_functions.push_back(&circle2);
 
-  IBComposer<2> ib_composer(&triangulation,ib_functions);
+  IBCombiner<2> ib_combiner(ib_functions);
 
-  // Calculate the distance
-  ib_composer.calculateDistance();
-
-  //Get the distance into a local vector
-  TrilinosWrappers::MPI::Vector levelSet_distance=ib_composer.getDistance();
-
-  // Get DOF handler and output the IB distance field
-  DoFHandler<2> *dof_handler(ib_composer.getDoFHandler());
-  write_ib_scalar_data<2>(triangulation,*dof_handler,mpi_communicator,levelSet_distance,"ls_composed_distance");
-
-  // Loop over all elements and extract the distances into a local array
-  FESystem<2> *fe(ib_composer.getFESystem());
-  QGauss<2>              quadrature_formula(4);
-  const MappingQ<2>      mapping (1);
-  std::map< types::global_dof_index, Point< 2 > > support_points;
-  DoFTools::map_dofs_to_support_points ( mapping, *dof_handler,support_points );
-  FEValues<2> fe_values (mapping,
-                         *fe,
-                         quadrature_formula,
-                         update_gradients |
-                         update_values |
-                         update_quadrature_points |
-                         update_JxW_values
-                         );
-  const unsigned int   dofs_per_cell = fe->dofs_per_cell;         // Number of dofs per cells.
-  const unsigned int   n_q_points    = quadrature_formula.size(); // quadrature on normal elements
-  std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell); // Global DOFs indices corresponding to cell
-  std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
-  std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
-
-  SparsityPattern                      sparsity_pattern;
-  SparseMatrix<double>                 system_matrix;   // créer la matrice entière, ainsi que le vecteur de second membre
-  DynamicSparsityPattern               dsp(dof_handler->n_dofs());
-
-  Vector<double>                       solution;
-  Vector<double>                       system_rhs;
-
-  std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
-  int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
-  std::vector<Point<2> >               num_elem(6);
-  std::vector<int>                     corresp(9);
-
-  std::vector<node_status>    No_pts_solid(4);
-  double                               T1 = 1;
-  double                               T2 = 2;
-
-  DoFTools::make_sparsity_pattern (*dof_handler, dsp);
-  sparsity_pattern.copy_from(dsp);
-  system_matrix.reinit (sparsity_pattern);
-
-  solution.reinit (dof_handler->n_dofs());
-  system_rhs.reinit (dof_handler->n_dofs());
-
-  FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
-  Vector<double> elem_rhs(dofs_per_cell);
-
-  Point<2> a;
-  a[0]=0;
-  a[1]=0;
-
-  int int_or_ext;
-  double r;
-  double Tdirichlet;
   double            Tdirichlet;
   Point<2> center_elem;
 
@@ -220,7 +157,7 @@ double calculate_L2_error(int refinement)
   endc = dof_handler.end();
   for (; cell!=endc; ++cell)
   {
-    elem_rhs=0.;
+    std::fill(elem_rhs.begin(), elem_rhs.end(), 0.);
     cell_mat = 0;
 
     center_elem[0]=0;
@@ -261,7 +198,6 @@ double calculate_L2_error(int refinement)
                           elem_rhs[i] += 0 ;
                       }
               }
-
           else
           {
               for (int i = 0; i < 4; ++i) {
