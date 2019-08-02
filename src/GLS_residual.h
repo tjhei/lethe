@@ -64,7 +64,6 @@
 // Added
 #include "trg_tools.h"
 
-
 // Finally, this is as in previous programs:
 using namespace dealii;
 
@@ -191,9 +190,9 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
                 grad_phi_u[dofs_per_node*i+1] = div_phi_u_[dofs_per_node*i] * e2_x_e1 + div_phi_u_[dofs_per_node*i+1] * e2_x_e2;
 
                 phi_u[dofs_per_node*i][0] = shape_function(i, quad_pt[q]);
-                phi_u[dofs_per_node*i][(0)] = 0;
-                phi_u[dofs_per_node*i+1][(1)] = 0;
-                phi_u[dofs_per_node*i+1][(1)] = shape_function(i, quad_pt[q]);
+                phi_u[dofs_per_node*i][1] = 0;
+                phi_u[dofs_per_node*i+1][0] = 0;
+                phi_u[dofs_per_node*i+1][1] = shape_function(i, quad_pt[q]);
 
                 phi_p[dofs_per_node*(i+1)-1] = shape_function(i, quad_pt[q]);
 
