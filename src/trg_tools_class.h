@@ -42,7 +42,7 @@ public:
     void grad_shape_function(const int num_vertex, Tensor<1,dim> &grad_return, const Tensor<2, dim> pass_matrix);
 
     void matrix_pass_elem_to_ref(Tensor<2, dim> &pass_matrix);
-    double size_el(const std::vector<Point<dim>> coor_elem);
+    double size_el();
     double divergence(const int num_vertex, const int component, const Tensor<2, dim> pass_matrix);
     double jacob();
 
@@ -59,8 +59,8 @@ public:
 
 private:
     double partial_coor_ref_2D(const int component, const int j_partial, const std::vector<Point<2>> coor_trg);
-    std::vector<Tensor<1,dim>>  P_node;
-    std::vector<double>         V_node;
+    std::vector<Tensor<1,dim>>  V_node;
+    std::vector<double>         P_node;
     std::vector<Point<2> > coor_vertices_trg_;
     unsigned int dofs_per_node;
 };
@@ -248,7 +248,7 @@ void TRG_tools<dim>::interpolate_grad_pressure(Tensor<1,dim>  &grad_return)
 
     grad_return =0;
 
-    for (int i = 0; i < dim; ++i) {
+    for (int i = 0; i < dim+1; ++i) {
         grad_shape_function(i, grad_phi_i, pass_mat);
         // i is the index of the vertex
         grad_return[(0)] += grad_phi_i[0]*P_node[i];
@@ -263,24 +263,26 @@ void TRG_tools<dim>::interpolate_grad_velocity(Tensor<2,dim>  &grad_return)
     // each tensor in values_grad is the velocity gradient given for one of the vertices
     // this function returns in "grad_return" the value of the interpolated velocity gradient at "pt_eval"
 
-    std::vector<double>   v_i(dim+1); /* we will store in this vector the value of one component of the
-                                      velocity, on each vertex of the element */
+    Tensor<1, dim>  grad_phi_i;
+    Tensor<2, dim>  pass_mat;
 
-    Tensor<1, dim>        temp;
+    pass_mat=0;
+    pass_mat[0][0]=1;
+    pass_mat[1][1]=1;
 
-    for (int j = 0; j < dim; ++j) { // j stands for the component of the velocity we interpolate, grad(u_j)
+    grad_return =0;
 
-        for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex considered
-            v_i[i] = V_node[i][(j)];
-        }
-        temp=0;
-        interpolate_grad_pressure(v_i, temp);
+    for (int i = 0; i < dim+1; ++i) {
+        grad_shape_function(i, grad_phi_i, pass_mat);
 
-        for (int i = 0; i < dim+1; ++i) {
-        grad_return[i][j] = temp[(i)];
+        for (int j = 0; j < dim; ++j) {
+
+            // i is the index of the vertex
+            // j is the component of the velocity of which we interpolate the gradient
+            grad_return[j][0] += grad_phi_i[0]*V_node[i][j];
+            grad_return[j][1] += grad_phi_i[1]*V_node[i][j];
         }
     }
-
 }
 
 //          //
@@ -290,11 +292,11 @@ void TRG_tools<dim>::interpolate_grad_velocity(Tensor<2,dim>  &grad_return)
 // Other functions that are useful //
 
 template <int dim>
-double TRG_tools<dim>::size_el(std::vector<Point<dim>> coor_elem)
+double TRG_tools<dim>::size_el()
 {
     // calculates the "size" of a triangular element
 
-    return std::sqrt(jacobian(0,0.,0.,coor_elem));
+    return std::sqrt(jacob());
 }
 
 template <int dim>

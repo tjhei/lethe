@@ -72,7 +72,6 @@
 #include "GLS_residual.h"
 #include "iblevelsetfunctions.h"
 #include "ibcombiner.h"
-#include "ibcomposer.h"
 #include "ib_node_status.h"
 #include "nouvtriangles.h"
 
@@ -659,9 +658,9 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
         {
           std::cout << "Integrating over pure solid elements" << std::endl;
           Tensor<1,dim> ib_velocity;
-          for (int i = 0; i < dofs_per_cell; ++i)
+          for (unsigned int i = 0; i < dofs_per_cell; ++i)
           {
-            for (int j = 0; j < dofs_per_cell; ++j)
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
             {
               if (i==j)
                 local_matrix[i][j] = 1;
@@ -836,8 +835,11 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                     }
                 }
 
+
+                TRG_tools<dim>  trg_(dofs_per_vertex, trg_p, trg_v, coor_trg);
+
                 // the following function calculates the values of the coefficient of the matrix and the rhs for the considered triangle
-                GLS_residual_trg(coor_trg, trg_v, trg_p, force, loc_mat, local_rhs, viscosity_);
+                GLS_residual_trg(trg_, force, loc_mat, local_rhs, viscosity_);
 
                 for (int i = 0; i < 3; ++i) {
                     for (int j = 0; j < 3; ++j) {
@@ -854,13 +856,13 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             // we first do it for the dofs that are associated to a vertex strictly located in the solid
             Tensor<1, dim>      v_solid;
 
-            for (int i = 0; i < dofs_per_cell; ++i) {
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 if (No_pts_solid[i/dofs_per_vertex]==solid)
                 {
                     if (!(i%dofs_per_vertex)) // this is done so that we dont calculate several time the same vector of velocity
                         ib_combiner.velocity(dofs_points[i], v_solid);
 
-                    for (int j = 0; j < dofs_per_cell; ++j) {
+                    for (unsigned int j = 0; j < dofs_per_cell; ++j) {
                         if (i==j)
                             cell_mat(i,j)=1;
                         else {
@@ -881,14 +883,14 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
 
             // we then apply the boundary conditions to the lines associated to dofs worn by boundary points
             // those dofs are the last in the matrix
-            int dof_index;
-            for (int i = 0; i < 2*dofs_per_vertex; ++i) {
+            unsigned int dof_index;
+            for (unsigned int i = 0; i < 2*dofs_per_vertex; ++i) {
                 dof_index = 4*dofs_per_vertex+i;
 
                 if (dof_index%dofs_per_vertex==0)
                     ib_combiner.velocity(boundary_points[i/dofs_per_vertex], v_solid);
 
-                for (int j = 0; j < dofs_per_cell; ++j) {
+                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
                     if (dof_index==j)
                         cell_mat(dof_index, j) = 1;
                     else {
