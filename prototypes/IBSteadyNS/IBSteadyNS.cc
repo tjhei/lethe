@@ -718,6 +718,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
 
         else if (nb_poly>0) { // this part is implemented for 2D problems only !! //
 
+            std::cout << "Integrating for an element decomposed into triangles" << std::endl;
+
             unsigned int dofs_per_vertex = 3; // 2D
             const unsigned int nb_of_vertices = 4; // (2D) nb_of_vertices should be 2^(dim), nb of vertices of the square / cubic element
 
@@ -785,6 +787,15 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                 throw std::runtime_error("nb_poly was not built correctly");
             }
 
+            std::vector<Point<dim>>   boundary_points(2); // in 2d there are only 2 intersection points
+
+            if (nb_poly==3){boundary_points[0] = decomp_elem[4];
+                boundary_points[1] = decomp_elem[5];}
+            else {
+                boundary_points[0] = decomp_elem[1];
+                boundary_points[1] = decomp_elem[2];
+            }
+
 
             for (int n = 0; n < nb_poly; ++n) {
                 loc_mat =0;
@@ -816,10 +827,12 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                     if (status_vertices[3*n+index_vertex]==fluid)
                     {
                         trg_v[index_vertex] = local_v[corresp[3*n+index_vertex]];
+                        trg_p[index_vertex] = local_p[corresp[3*n+index_vertex]];
                     }
 
-                    else {
+                    else { // Ib_combiner contains the informations we need (u, v, p) for the points that are on the boundary
                         ib_combiner.velocity(coor_trg[index_vertex], trg_v[index_vertex]);
+                        trg_p[index_vertex] = ib_combiner.scalar(coor_trg[index_vertex]);
                     }
                 }
 
@@ -833,15 +846,63 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                     cell_rhs(corresp_loc[i]) += local_rhs[i];
                 }
             }
-            // We now apply the boundary conditions to the points that are on the boundary or in the solid
 
-            //!!!!
-            //!
-            //!
 
-            //ib_combiner.velocity()
 
-            // We then condensate the system to make the boundary points not explicitly appear in the system
+            // We now apply the boundary conditions to the points that are on the boundary or in the solid //
+
+            // we first do it for the dofs that are associated to a vertex strictly located in the solid
+            Tensor<1, dim>      v_solid;
+
+            for (int i = 0; i < dofs_per_cell; ++i) {
+                if (No_pts_solid[i/dofs_per_vertex]==solid)
+                {
+                    if (!(i%dofs_per_vertex)) // this is done so that we dont calculate several time the same vector of velocity
+                        ib_combiner.velocity(dofs_points[i], v_solid);
+
+                    for (int j = 0; j < dofs_per_cell; ++j) {
+                        if (i==j)
+                            cell_mat(i,j)=1;
+                        else {
+                            cell_mat(i,j)=0;
+                            cell_mat(j,i)=0;
+                        }
+                    }
+
+                    if (i%dofs_per_vertex==dim) // the dof is a pressure one
+                    {
+                        cell_rhs(i) = 0; // in the solid, there is no pressure
+                    }
+                    else {
+                        cell_rhs(i) = v_solid[i%dofs_per_vertex]; // i%dofs_per_vertex is here the component of the speed we want to get
+                    }
+                }
+            }
+
+            // we then apply the boundary conditions to the lines associated to dofs worn by boundary points
+            // those dofs are the last in the matrix
+            int dof_index;
+            for (int i = 0; i < 2*dofs_per_vertex; ++i) {
+                dof_index = 4*dofs_per_vertex+i;
+
+                if (dof_index%dofs_per_vertex==0)
+                    ib_combiner.velocity(boundary_points[i/dofs_per_vertex], v_solid);
+
+                for (int j = 0; j < dofs_per_cell; ++j) {
+                    if (dof_index==j)
+                        cell_mat(dof_index, j) = 1;
+                    else {
+                        cell_mat(dof_index, j) = 0;
+                    }
+                }
+                if (!(dof_index%dofs_per_vertex==dim)) // we only set the velocity on the boundary, we dont set any value for the pressure on the boundary
+                    cell_rhs(dof_index) = v_solid[dof_index%dofs_per_vertex];
+            }
+
+
+
+
+            // We then condensate the system to make the boundary points not explicitly appear in the system //
 
             condensate_NS_trg(cell_mat, cell_rhs, local_matrix, local_rhs);
         }
