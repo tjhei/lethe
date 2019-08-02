@@ -62,17 +62,14 @@
 #include <deal.II/distributed/grid_refinement.h>
 
 // Added
-#include "trg_tools.h"
+#include "trg_tools_class.h"
 
 // Finally, this is as in previous programs:
 using namespace dealii;
 
 
 template<int dim>
-void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
-
-                        std::vector<Tensor<1,dim>>       veloc_trg,
-                        std::vector<double>              press_trg,
+void GLS_residual_trg(  TRG_tools<dim>  trg_,
 
                         Tensor<1, dim>  force,
 
@@ -87,7 +84,7 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 // local_mat and local_rhs are the local matrix and right hand side we are going to fill
 // the condensation is not made here
 // viscosity is a parameter of the problem (the viscosity obviously)
-// tau is the correction coefficient
+
 {
     local_mat = 0;
     local_rhs = 0;
@@ -99,19 +96,8 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
     if (dim==2)
     {
-        h = size_el(decomp_trg) ;
 
-        // Passage matrix from element coordinates to ref element coordinates, it is necessary to calculate the derivates
-
-        Tensor<2, dim>       pass_mat; // we express the coordinates of the ref element depending on the coordinates of the actual element
-
-        for (int i = 0; i < dim; ++i) {
-            for (int var = 0; var < dim; ++var) {
-                pass_mat[i][var] = partial_coor_ref_2D(i,var, decomp_trg);
-            }
-        }
-
-        int dofs_per_node = dim+1;
+        h = trg_.size_el() ; // "size" of the triangle, basically the square root of its area
 
         // Vectors for the shapes functions //
 
@@ -124,16 +110,18 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
         // the part for the force vector is not implemented yet
 
         // quadrature points + weight for a triangle : Hammer quadrature
-
-        unsigned int n_pt_quad = 4;
-        std::vector<Point<dim>>             quad_pt(n_pt_quad);
-        std::vector<double>                 weight(n_pt_quad);
-
         // Building the vector of quadrature points and vector associated weights //
 
-        Point<dim> pt0(1./3., 1./3.);   Point<dim> pt1(1./5., 1./5.);   Point<dim> pt2(1./5., 3./5.);   Point<dim> pt3(3./5., 1./5.);
-        quad_pt[0] = pt0;               quad_pt[1] = pt1;               quad_pt[2] = pt2;               quad_pt[3] = pt3;
-        weight[0] = -0.281250;          weight[1] = 0.264167;           weight[2] = 0.264167;           weight[3] = 0.264167;
+        unsigned int n_pt_quad = 4;
+
+        std::vector<Point<dim>>             quad_pt(n_pt_quad);
+        std::vector<double>                 weight(n_pt_quad);
+        get_Quadrature_trg(quad_pt, weight);
+
+        // Passage matrix from element coordinates to ref element coordinates, it is necessary to calculate the derivates
+
+        Tensor<2, dim>       pass_mat; // we express the coordinates of the ref element depending on the coordinates of the actual element
+        trg_.matrix_pass_elem_to_ref(pass_mat);
 
         // Values and gradients interpolated at the quadrature points shall be stored in the following vectors
 
@@ -143,7 +131,7 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
         Tensor<2,dim>           interpolated_grad_v;
 
         // jacobian is a constant in a triangle
-        double jac = jacobian(0, 0,0, decomp_trg);
+        double jac = trg_.jacob() ;
 
         for (unsigned int q=0; q<n_pt_quad; ++q)
         {
@@ -153,14 +141,13 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
             // Get the values of the variables at the quadrature point //
 
-            interpolate_velocity(quad_pt[q], veloc_trg, interpolated_v);
+            interpolated_p = trg_.interpolate_pressure(quad_pt[q]);
+            trg_.interpolate_velocity(quad_pt[q], interpolated_v);
+            trg_.interpolate_grad_pressure(interpolated_grad_p);
+            trg_.interpolate_grad_velocity(interpolated_grad_v);
 
-            interpolated_p = interpolate_pressure(quad_pt[q], press_trg);
+            // Build the parameter of stabilisation //
 
-            interpolate_grad_velocity( veloc_trg, interpolated_grad_v); // grad of the shape functions are constants in triangles
-            interpolate_grad_pressure( press_trg, interpolated_grad_p);
-
-            // Build the parameter of stabilisation
             const double u_mag= std::max(interpolated_v.norm(),1e-3);
             double tau = 1./ std::sqrt(std::pow(2.*u_mag/h,2)+9*std::pow(4*viscosity_/(h*h),2));
 
@@ -168,38 +155,15 @@ void GLS_residual_trg(  std::vector<Point<dim>>          decomp_trg,
 
             // phi_u is such as [[phi_u_0,0], [0, phi_v_0] , [0,0], [phi_u_1,0], ...]
             // phi_p is such as [0, 0, phi_p_0, 0, ...]
-            // div_phi_u is such as [[d(phi_u_0)/d(xi), d(phi_v_0)/d(eta)], [d(phi_u_0)/d(xi), d(phi_v_0)/d(eta)] , [0, 0], [d(phi_u_1)/d(xi), d(phi_v_1)/d(eta)], ...] (xi, eta) being the system of coordinates used in the ref element
+            // div_phi_u is such as [d(phi_u_0)/d(xi), d(phi_v_0)/d(eta) , 0, d(phi_u_1)/d(xi), ...] (xi, eta) being the system of coordinates used in the ref element
             // grad_phi_u is such as [[[grad_phi_u_0],[0, 0]], [[0, 0], [grad_phi_v_0]], [[0, 0], [0, 0]], [[grad_phi_u_1],[0, 0]], ...]
             // grad_phi_p is such as [[0, 0], [0, 0], [grad_phi_p_0], [0, 0], ...]
 
-            Tensor<2, dim> e1_x_e1;     Tensor<2, dim> e2_x_e2;     Tensor<2, dim> e1_x_e2;     Tensor<2, dim> e2_x_e1;
-            e1_x_e1=0;                  e2_x_e2=0;                  e1_x_e2=0;                  e2_x_e1=0;
-            e1_x_e1[0][0] =1;           e2_x_e2[1][1] =1;           e1_x_e2[0][1] =1;           e2_x_e1[1][0]=1;
-
-
-
-            for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
-
-
-                div_phi_u_[dofs_per_node*i] = divergence(i, 0, pass_mat) // We apply the passage matrix
-                                                                // in order to change of coordinates
-                ;
-                div_phi_u_[dofs_per_node*i +1] = divergence(i, 1, pass_mat);
-
-                grad_phi_u[dofs_per_node*i] = div_phi_u_[dofs_per_node*i] * e1_x_e1 + div_phi_u_[dofs_per_node*i+1] * e1_x_e2;
-                grad_phi_u[dofs_per_node*i+1] = div_phi_u_[dofs_per_node*i] * e2_x_e1 + div_phi_u_[dofs_per_node*i+1] * e2_x_e2;
-
-                phi_u[dofs_per_node*i][0] = shape_function(i, quad_pt[q]);
-                phi_u[dofs_per_node*i][1] = 0;
-                phi_u[dofs_per_node*i+1][0] = 0;
-                phi_u[dofs_per_node*i+1][1] = shape_function(i, quad_pt[q]);
-
-                phi_p[dofs_per_node*(i+1)-1] = shape_function(i, quad_pt[q]);
-
-                grad_shape_function(i, grad_phi_p[dofs_per_node*(i+1)-1], pass_mat);
-
-                // we applied the change of coordinates to div_phi_u_, grad_phi_u, and to grad_phi_p
-            }
+            trg_.build_phi_p(quad_pt[q], phi_p);
+            trg_.build_phi_u(quad_pt[q], phi_u);
+            trg_.build_div_phi_u(pass_mat, div_phi_u_);
+            trg_.build_grad_phi_p(pass_mat, grad_phi_p);
+            trg_.build_grad_phi_u(pass_mat, grad_phi_u);
 
             // Calculate and put in a local matrix and local rhs which will be returned
             for (unsigned int i=0; i<dofs_per_trg; ++i)

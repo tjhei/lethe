@@ -41,9 +41,10 @@ public:
     virtual double shape_function(const int num_vertex, const Point<dim> p_eval) const;
     void grad_shape_function(const int num_vertex, Tensor<1,dim> &grad_return, const Tensor<2, dim> pass_matrix);
 
-    void matrix_pass_elem_to_ref(const std::vector<Point<2>> coor_trg, Tensor<2, dim> &pass_matrix);
+    void matrix_pass_elem_to_ref(Tensor<2, dim> &pass_matrix);
     double size_el(const std::vector<Point<dim>> coor_elem);
     double divergence(const int num_vertex, const int component, const Tensor<2, dim> pass_matrix);
+    double jacob();
 
     double interpolate_pressure(const Point<dim> pt_eval);
     void interpolate_velocity(const Point<dim> pt_eval, Tensor<1,dim> &values_return);
@@ -63,6 +64,18 @@ private:
     std::vector<Point<2> > coor_vertices_trg_;
     unsigned int dofs_per_node;
 };
+
+
+// jacobian is now part of this class //
+
+template <int dim>
+double TRG_tools<dim>::jacob()
+{
+    return jacobian(0, 0., 0., coor_vertices_trg_);
+}
+
+//      //
+
 
 // functions to build the vectors of shape functions for u and p //
 // at the moment it works for 2D only !!
@@ -315,12 +328,12 @@ double TRG_tools<dim>::partial_coor_ref_2D(const int component, const int j_part
 
 
 template <int dim>
-void TRG_tools<dim>::matrix_pass_elem_to_ref(const std::vector<Point<2>> coor_trg, Tensor<2, dim> &pass_matrix)
+void TRG_tools<dim>::matrix_pass_elem_to_ref(Tensor<2, dim> &pass_matrix)
 {
     // returns in "pass_matrix" the passage matrix from a triangle of coordinates "coor_trg" to the triangle of reference
     for (int i = 0; i < dim; ++i) {
         for (int var = 0; var < dim; ++var) {
-            pass_matrix[i][var] = partial_coor_ref_2D(i,var, coor_trg);
+            pass_matrix[i][var] = partial_coor_ref_2D(i,var, coor_vertices_trg_);
         }
     }
 }
