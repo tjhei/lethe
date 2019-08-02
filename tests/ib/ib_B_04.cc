@@ -48,34 +48,6 @@
 
 using namespace dealii;
 
-void test_condensate()
-{
-    FullMatrix<double>      M(4,4);
-    FullMatrix<double>      new_m(2,2);
-    Vector<double>     rhs(4);
-    Vector<double>     new_rhs(2);
-
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            M(i,j)=std::pow(-1,i+j);
-        }
-        rhs[i]=0;
-    }
-
-    M(2,0)=-1;
-    M(3,2)=1;
-    rhs[3]=1;
-
-    condensate(4,2,M,new_m,rhs,new_rhs);
-
-    if (std::abs(new_rhs[0])>1e-10) throw std::runtime_error("Failed to build the condensated RHS 0");
-    if (std::abs(new_rhs[1])>1e-10) throw std::runtime_error("Failed to build the condensated RHS 1");
-    if (std::abs(new_m(0,0)-2)>1e-10) throw std::runtime_error("Failed to build the condensated matrix (0,0)");
-    if (std::abs(new_m(0,1))>1e-10) throw std::runtime_error("Failed to build the condensated matrix (0,1)");
-    if (std::abs(new_m(1,0)+2)>1e-10) throw std::runtime_error("Failed to build the condensated matrix (1,0)");
-    if (std::abs(new_m(1,1))>1e-10) throw std::runtime_error("Failed to build the condensated matrix (1,1)");
-
-}
 
 void integrate_sub_quad_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,  FullMatrix<double> &system_matrix, Vector<double> &system_rhs)
 {

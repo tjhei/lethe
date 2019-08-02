@@ -59,24 +59,6 @@
 
 using namespace dealii;
 
-void test_condensate()
-{
-    FullMatrix<double>      M(3,3);
-    FullMatrix<double>      new_m(1,1);
-    Vector<double>     rhs(3);
-    Vector<double>     new_rhs(1);
-
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            M(i,j)=i+j+1;
-        }
-        rhs[i]=1+i;
-    }
-    condensate(3,1,M,new_m,rhs,new_rhs);
-    if (std::abs(new_rhs[0])>1e-10) throw std::runtime_error("Failed to build the condensated RHS");
-    if (std::abs(new_m(0,0))>1e-10) throw std::runtime_error("Failed to build the condensated matrix");
-}
-
 void integrate_sub_element( Triangulation<2> &sub_triangulation,  DoFHandler<2> &dof_handler,FESystem<2> &fe,  FullMatrix<double> &system_matrix, Vector<double> &system_rhs)
 {
   // Create a mapping for this new element
@@ -493,8 +475,6 @@ main(int argc, char* argv[])
     initlog();
     square();
     cut_square();
-//    square_hole();
-    test_condensate();
 
   }
   catch (std::exception &exc)

@@ -66,3 +66,13 @@ ADD_EXECUTABLE(ib_B_04 ib_B_04.cc)
 DEAL_II_SETUP_TARGET(ib_B_04)
 TARGET_LINK_LIBRARIES(ib_B_04 lethe)
 add_test( "IB_B_03" ib_B_04)
+
+ADD_EXECUTABLE(condensate condensate.cc)
+DEAL_II_SETUP_TARGET(condensate)
+TARGET_LINK_LIBRARIES(condensate lethe)
+add_test( "condensate" condensate)
+
+ADD_EXECUTABLE(trg_tools trg_tools.cc)
+DEAL_II_SETUP_TARGET(trg_tools)
+TARGET_LINK_LIBRARIES(trg_tools lethe)
+add_test( "trg_tools" trg_tools)
