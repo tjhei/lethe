@@ -59,10 +59,11 @@ public:
 
 private:
     double partial_coor_ref_2D(const int component, const int j_partial, const std::vector<Point<2>> coor_trg);
-    std::vector<Tensor<1,dim>>  V_node;
-    std::vector<double>         P_node;
-    std::vector<Point<2> > coor_vertices_trg_;
     unsigned int dofs_per_node;
+    std::vector<double>         P_node;
+    std::vector<Tensor<1,dim>>  V_node;
+    std::vector<Point<2> > coor_vertices_trg_;
+
 };
 
 

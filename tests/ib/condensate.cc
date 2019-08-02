@@ -32,6 +32,8 @@ void test_condensate()
     if (std::abs(new_m(1,0)+2)>1e-10) throw std::runtime_error("Failed to build the condensated matrix (1,0)");
     if (std::abs(new_m(1,1))>1e-10) throw std::runtime_error("Failed to build the condensated matrix (1,1)");
 
+    std::cout << " Tests passed successfully" << std::endl;
+
 }
 
 int main()

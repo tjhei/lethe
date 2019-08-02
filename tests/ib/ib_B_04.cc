@@ -607,7 +607,6 @@ main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    test_condensate();
 
     //square();
     //cut_square();
