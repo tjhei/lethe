@@ -3,8 +3,10 @@
  *
  * This class gives all the tools necessary to build the shape functions and
  * the vectors in order to integrate the Navier Stokes equations in a
- * triangle element (hence in 2D). Most functions will yet work in 3D, not
- * all though, that's why we talk about triangle elements and not simplexes
+ * triangle element (hence in 2D), and also to interpolate the vector of the
+ * velocity, of the pressure and their gradients at given points.
+ * Most functions will yet work in 3D, not all though, that's why we talk
+ * about triangle elements and not simplexes.
  *
  * -------------------------------------------------------------------------
  */
@@ -37,6 +39,15 @@ public:
     TRG_tools() :
         Function<dim>(1)
       {}
+
+    void set_dofs_per_node(int dofs_per_node_)
+    {dofs_per_node = dofs_per_node_;}
+    void set_P_on_vertices(std::vector<double> p_on_vertices)
+    {P_node = p_on_vertices;}
+    void set_V_on_vertices(std::vector<Tensor<1,dim>>  v_on_vertices)
+    {V_node = v_on_vertices;}
+    void set_coor_trg(std::vector<Point<2> > coor_vertices_trg)
+    {coor_vertices_trg_ = coor_vertices_trg;}
 
     virtual double shape_function(const int num_vertex, const Point<dim> p_eval) const;
     void grad_shape_function(const int num_vertex, Tensor<1,dim> &grad_return, const Tensor<2, dim> pass_matrix);
