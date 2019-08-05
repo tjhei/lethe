@@ -539,7 +539,7 @@ void DirectSteadyNavierStokes<dim>::GLS_residual_trg(
 
             // phi_u is such as [[phi_u_0,0], [0, phi_v_0] , [0,0], [phi_u_1,0], ...]
             // phi_p is such as [0, 0, phi_p_0, 0, ...]
-            // div_phi_u is such as [d(phi_u_0)/d(xi), d(phi_v_0)/d(eta) , 0, d(phi_u_1)/d(xi), ...] (xi, eta) being the system of coordinates used in the ref element
+            // div_phi_u is such as [d(phi_u_0)/d(xi), d(phi_v_0)/d(eta), 0, d(phi_u_1)/d(xi), ...] (xi, eta) being the system of coordinates used in the ref element
             // grad_phi_u is such as [[[grad_phi_u_0],[0, 0]], [[0, 0], [grad_phi_v_0]], [[0, 0], [0, 0]], [[grad_phi_u_1],[0, 0]], ...]
             // grad_phi_p is such as [[0, 0], [0, 0], [grad_phi_p_0], [0, 0], ...]
 

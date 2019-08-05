@@ -132,14 +132,17 @@ void TRG_tools<dim>::build_div_phi_u (const Tensor<2,dim> passage_matrix, std::v
 template <int dim>
 void TRG_tools<dim>::build_grad_phi_u(const Tensor<2,dim> passage_matrix, std::vector<Tensor<2, dim>> &grad_phi_u)
 {
-    Tensor<2, dim> e1_x_e1;     Tensor<2, dim> e2_x_e2;     Tensor<2, dim> e1_x_e2;     Tensor<2, dim> e2_x_e1;
-    e1_x_e1=0;                  e2_x_e2=0;                  e1_x_e2=0;                  e2_x_e1=0;
-    e1_x_e1[0][0] =1;           e2_x_e2[1][1] =1;           e1_x_e2[0][1] =1;           e2_x_e1[1][0]=1;
-
+    Tensor<1, dim>  grad_temp;
     for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
-            grad_phi_u[dofs_per_node*i] = divergence(i, 0, passage_matrix) * e1_x_e1 + divergence(i, 1, passage_matrix) * e1_x_e2;
-            grad_phi_u[dofs_per_node*i+1] = divergence(i, 0, passage_matrix) * e2_x_e1 + divergence(i, 1, passage_matrix) * e2_x_e2;
-            grad_phi_u[dofs_per_node*i+2] = 0;
+        grad_shape_function(i, grad_temp, passage_matrix);
+        grad_phi_u[dofs_per_node*i][0][0] = grad_temp[0];
+        grad_phi_u[dofs_per_node*i][0][1] = grad_temp[1];
+
+        grad_phi_u[dofs_per_node*i+1][1][0] = grad_temp[0];
+        grad_phi_u[dofs_per_node*i+1][1][1] = grad_temp[1];
+
+        grad_phi_u[dofs_per_node*i+2] = 0;
+
     }
 }
 
@@ -219,6 +222,7 @@ double TRG_tools<dim>::interpolate_pressure(Point<dim> pt_eval)
     // (if you don't have the corresponding coordinates in the ref element, just apply "change_coor" to the coordinates of the point in the element)
     // returns the interpolated value of the pressure at the point "pt_eval"
 
+
     double value = 0;
     for (int i = 0; i < dim+1; ++i) {
         value += P_node[i]*shape_function(i, pt_eval);
@@ -238,6 +242,9 @@ void TRG_tools<dim>::interpolate_velocity(const Point<dim> pt_eval, Tensor<1,dim
 
     // we will suppose that  pt_eval is given in the reference element
 
+    for (int i = 0; i < dim; ++i) {
+        values_return[i] = 0;
+    }
     for (int i = 0; i < dim+1 ; ++i) { // there are 3 vertices if we are in 2D and 4 if we are in 3D
         for (int j = 0; j < dim; ++j) { // j stands for the component of the speed we interpolate
             values_return[j] += shape_function(i,pt_eval)*V_node[i][j];
@@ -363,26 +370,10 @@ double div_shape_velocity_ref(int num_vertex, int u_v_w, int dim)
     {
         return -1.;
     }
-    else if (num_vertex==1) {
-        if (u_v_w==0)
-            return 1.;
-        else {
-            return 0.;
-        }
-    }
-    else if (num_vertex==2) {
-        if (u_v_w==1)
-            return 1.;
-        else {
-            return 0.;
-        }
-    }
+    else if (num_vertex==u_v_w-1) {
+            return 1.;}
     else {
-        if (u_v_w==2)
-            return 1.;
-        else {
             return 0.;
-        }
     }
 }
 
@@ -400,7 +391,6 @@ double TRG_tools<dim>::divergence(int num_vertex, int component, Tensor<2, dim> 
     temp = pass_matrix*div; // changing the coordinates, from the actual element to the ref element
     return temp[(component)];
 }
-
 
 
 

@@ -67,6 +67,7 @@
 // Finally, this is as in previous programs:
 using namespace dealii;
 
+// To this day, this function is not relevant anymore, I still keep it in case it wouldnt work properly in the solver
 
 template<int dim>
 void GLS_residual_trg(  TRG_tools<dim>  trg_,
