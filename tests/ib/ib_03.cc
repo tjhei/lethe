@@ -46,7 +46,7 @@
 using namespace dealii;
 void test_decomp_and_area()
 {
-    // asserts that "nouv_triangles" works well
+    // asserts that "nouv_triangles" and the function of evaluation of the area "area" work well
     Point<2> pt1 (0,0);
     Point<2> pt2 (1,0);
     Point<2> pt3 (0,1);
@@ -68,21 +68,21 @@ void test_decomp_and_area()
     int nb_poly;
 
     Vector<int> cor_thq1  {2, 0, 5, 0, 4, 5, 1, 4, 0}; // what we should get for corresp
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance1);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance1);
     for (int i = 0; i < 9; ++i) {
         if (cor_thq1[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the first case");
         corresp[i] = -1; //we reset the values of corresp for the next case
     }
 
     Vector<int> cor_thq2  {0,4,5, -1,-1,-1,-1,-1,-1};
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance2);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance2);
     for (int i = 0; i < 9; ++i) {
         if (cor_thq2[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the second case");
         corresp[i] =-1;
     }
 
     Vector<int> cor_thq3   {4,5,1,0, -1,-1,-1,-1,-1};
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance3);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance3);
     for (int i = 0; i < 9; ++i) {
         if (cor_thq3[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the third case");
     }
@@ -93,6 +93,7 @@ void test_decomp_and_area()
 
 void test_decomp()
 {
+    // Testing the decomposition function to ensure it works properly in all cases
     // First test //
 
     std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
@@ -117,7 +118,7 @@ void test_decomp()
 
     std::vector<double>                  dist1  {0.001, 0.0005, 0.0005, -0.0005};
 
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist1);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist1);
     Point<2> p1 (pt1(0)+len/2., pt1(1)+len);
     Point<2> p2 (pt1(0)+len, pt1(1)+len/2.);
     std::vector<Point<2>>                decomp_theo1 = {pt3, pt1, p1, pt1, p2, p1, pt2, p2, pt1};
@@ -140,7 +141,7 @@ void test_decomp()
 
     double x = (-acc + dist2[0])/(acc + dist2[0]);
 
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist2);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist2);
 
     Point<2> p3 ((x+1)*len/2., 0);
     Point<2> p4 (0, (x+1)*len/2.);
@@ -152,7 +153,8 @@ void test_decomp()
 
 }
 
-void Calculate_area_(unsigned int refinement) // Gives the error between the calculated fluid area and the theoretical area of the fluid part
+void Calculate_area_(unsigned int refinement)
+// Gives the error between the calculated fluid area and the theoretical area of the fluid part
 {
   MPI_Comm                         mpi_communicator(MPI_COMM_WORLD);
   unsigned int n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator));
@@ -167,7 +169,7 @@ void Calculate_area_(unsigned int refinement) // Gives the error between the cal
   // Refine it to get an interesting number of elements
   triangulation.refine_global(refinement);
 
-  // Set-up the center, velocity and angular velocity of circle
+  // Set-up the center, velocity and angular velocity of circle (Which is the solid part of the domain)
   Point<2> center1(0.1254,0.111);
   Tensor<1,2> velocity;
   velocity[0]=1.;
@@ -217,43 +219,52 @@ void Calculate_area_(unsigned int refinement) // Gives the error between the cal
   std::vector<Point<2> >               dofs_points(dofs_per_cell);// Array for the DOFs points
   std::vector<double>  distance                  (dofs_per_cell); // Array for the distances associated with the DOFS
 
+  // Initializing tools for the conformal decomposition
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   double                               fluid_area = 0;
   double                               area_temp;
-  double areaa = M_PI * radius * radius ;
   std::vector<Point<2> >               num_elem(6);
   std::vector<int>                     corresp(9);
-  std::vector<node_status>    No_pts_solid(4);
+  std::vector<node_status>             No_pts_solid(4);
 
-  Point<2> a;
-  a[0]=0;
-  a[1]=0;
+  double areaa = M_PI * radius * radius ; // in that case, the solid part is a circle of center "center" and radius "radius"
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
   endc = dof_handler->end();
   for (; cell!=endc; ++cell)
   {
+    // local area of the fluid part, reset to 0 in each element
     area_temp = 0.0;
-    std::fill(decomp_elem.begin(), decomp_elem.end(), a);
 
     if (cell->is_locally_owned())
     {
-      fe_values.reinit(cell);
-      cell->get_dof_indices (local_dof_indices);
+        fe_values.reinit(cell);
+        cell->get_dof_indices (local_dof_indices);
 
-      for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
-      {
-        distance[dof_index] = levelSet_distance[local_dof_indices[dof_index]];
-        dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
-      }
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
-//    area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
-//    areaa += area_temp;
+        // we get the value of the distance function (signed distance to the boundary solid/fluid, positive in the fluid) and the position of the vertices of the element
+
+        for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
+        {
+            distance[dof_index] = levelSet_distance[local_dof_indices[dof_index]];
+            dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
+        }
+
+        // We decompose the elements that are crossed by the boundary fluid/solid into triangles or quadrilaterals that are only in the fluid or only in the solid
+
+        decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+
+        // We then calculate the area of the fluid part of the considered element
+
+        area_temp = area(nb_poly, decomp_elem, distance, dofs_points);
+
+        // We add it to the total area of the fluid part of the decomposed domain
+
+        areaa += area_temp;
         }
     }
-//  std::cout << " Error on the area of the fluid zone = " << areaa - 16 << std::endl;
+    std::cout << " Error on the area of the fluid zone = " << areaa - 16 << std::endl;
 }
 
 int main(int argc, char* argv[])

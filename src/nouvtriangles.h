@@ -173,7 +173,7 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
     */
 }
 
-void nouvtriangles(std::vector<int> &corresp, std::vector<node_status> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
+void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
 {
     /* *** decomp_elem is a vector in which we shall store the coordinates of the sub_elements created with this function
 

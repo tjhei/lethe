@@ -128,7 +128,7 @@ void Temperature_field_decomp_quad()
   Vector<double>                       solution;
   Vector<double>                       system_rhs;
 
-
+// Initializing tools for the conformal decomposition
   std::vector<Point<2> >               decomp_elem(9);         // Array containing the points of the new elements created by decomposing the elements crossed by the boundary fluid/solid, there are up to 9 points that are stored in it
   int                                  nb_poly;                   // Number of sub-elements created in the fluid part for each element ( 0 if the element is entirely in the solid or the fluid)
   std::vector<Point<2> >               num_elem(6);
@@ -145,23 +145,17 @@ void Temperature_field_decomp_quad()
   system_rhs.reinit (dof_handler->n_dofs());
 
 
-  FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell); // elementary matrix
-
+  // elementary matrix and righthand-side
+  FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell);
   Vector<double> elem_rhs(dofs_per_cell);
-  Vector<double> sec_membre_elem(dofs_per_cell);
-
-  Point<2> a;
-  a[0]=0;
-  a[1]=0;
 
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
   endc = dof_handler->end();
-  for (; cell!=endc; ++cell)
+  for (; cell!=endc; ++cell) // we loop on every cell
   {
 
     elem_rhs=0;
-    sec_membre_elem=0;
     cell_mat =0;
 
     if (cell->is_locally_owned())
@@ -169,17 +163,26 @@ void Temperature_field_decomp_quad()
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
+
+      // we get the value of the distance function (signed distance to the boundary solid/fluid, positive in the fluid) and the position of the vertices of the element
+
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         distance[dof_index] = -(dofs_points[dof_index][0]-abscisse);
       }
 
-      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+      // We decompose the elements that are crossed by the boundary fluid/solid into triangles or quadrilaterals that are only in the fluid or only in the solid
+      decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
-      if (nb_poly==0)
+      // We distinguish the cases were the elements are not crossed by the boundary (nb_poly = 0)
+      // and the cases where they are.
+
+      // Here, if there is decomposition of the element, the decomposition is always into a quadrilateral (nb_poly = -1)
+
+      if (nb_poly==0) // the element is entirely solid or fluid
       {
-          if (distance[0]>0)
+          if (distance[0]>0) // allows to know if we are in solid (dist < 0) or in fluid (dist > 0)
               for (int i = 0; i < 4; ++i) {
                   for (int j = 0; j < 4; ++j) {
                       for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
@@ -188,8 +191,8 @@ void Temperature_field_decomp_quad()
                       }
                   }
               }
-          else
-          {
+          else // solid case
+          { // we set the vertices to T_dirichlet by putting 1 on the diagonal of the matrix and 0 everywhere else, and setting the rhs to T_dirichlet
               for (int i = 0; i < 4; ++i) {
                   for (int j = 0; j < 4; ++j) {
                         if (i==j)
@@ -204,8 +207,8 @@ void Temperature_field_decomp_quad()
           }
       }
 
-      else {
-          quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+      else { // case where there is a decomposition into a quadrilateral
+          T_decomp_quad(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
       }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -252,7 +255,7 @@ main(int argc, char* argv[])
   {
     Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, numbers::invalid_unsigned_int);
     initlog();
-    Temperature_field_decomp_quad();
+    Temperature_field_decomp_quad(); // returns in a file the values of T on each node of calculus
   }
 
   catch (std::exception &exc)

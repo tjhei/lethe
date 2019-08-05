@@ -173,7 +173,7 @@ void Temperature_field_decomp_trg()
 
       }
 
-      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+      decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
       if (nb_poly==0)
       {
@@ -207,7 +207,7 @@ void Temperature_field_decomp_trg()
       }
 
       else {
-          new_tri(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
+          T_decomp_trg(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
       }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)

@@ -181,7 +181,7 @@ double calculate_L2_error(int refinement)
 
 
 
-      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+      decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
       if (nb_poly==0)
       {
@@ -215,11 +215,11 @@ double calculate_L2_error(int refinement)
       }
 
       else if (nb_poly<0) {
-          quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+          T_decomp_quad(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
       }
 
       else {
-          new_tri(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
+          T_decomp_trg(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
       }
 
 
@@ -270,7 +270,7 @@ double calculate_L2_error(int refinement)
         T[dof_index]=solution[local_dof_indices[dof_index]];
       }
 
-      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+      decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
       if (nb_poly==0)
       {
@@ -284,7 +284,7 @@ double calculate_L2_error(int refinement)
       }
 
       else if (nb_poly<0) {
-        err+=quad_elem_L2(center, T_scal1, T_scal2, radius1, radius2, corresp, No_pts_solid, decomp_elem, T);
+        err+=T_norm_L2_quad(center, T_scal1, T_scal2, radius1, radius2, corresp, No_pts_solid, decomp_elem, T);
       }
 
       else {
@@ -292,7 +292,7 @@ double calculate_L2_error(int refinement)
         T[4]=T[No_pts_solid[0]];
         T[5]=T[No_pts_solid[0]];
 
-        err+=new_tri_L2(nb_poly, decomp_elem, corresp, No_pts_solid, center, T_scal1, T_scal2, radius1, radius2, T);
+        err+=T_norm_l2_trg(nb_poly, decomp_elem, corresp, No_pts_solid, center, T_scal1, T_scal2, radius1, radius2, T);
       }
 
 

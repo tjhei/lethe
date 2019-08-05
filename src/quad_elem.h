@@ -53,7 +53,7 @@ double T_analytical_q(Point<2> pt, Point<2> center, double T1, double T2, double
     return -A*log(r_eff)+B;
 }
 
-void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, Vector<double> &cell_rhs)
+void T_decomp_quad(double Tdirichlet, std::vector<node_status> No_pts_solid, std::vector<int> corresp, std::vector<Point<2>> decomp_elem, FullMatrix<double> &cell_mat, Vector<double> &cell_rhs)
 {
 
     // Create a dummy empty triangulation
@@ -82,7 +82,7 @@ void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std
     DoFHandler<2>                  dof_handler(triangulation);
     // Create a FE system for this element
     FESystem<2>                    fe(FE_Q<2>(1),1);
-
+    dof_handler.distribute_dofs(fe);
     // Create a mapping for this new element
     const MappingQ<2>      mapping (1);
 
@@ -170,7 +170,7 @@ void quad_elem_mix(double Tdirichlet, std::vector<node_status> No_pts_solid, std
       }
 }
 
-double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2, std::vector<int> corresp, std::vector<node_status> pts_statut, std::vector<Point<2>> decomp_elem, std::vector<double> sol_loc)
+double T_norm_L2_quad(Point<2> center, double T1, double T2, double r1, double r2, std::vector<int> corresp, std::vector<node_status> pts_statut, std::vector<Point<2>> decomp_elem, std::vector<double> sol_loc)
 {
 
     // Create a dummy empty triangulation
@@ -199,7 +199,7 @@ double quad_elem_L2(Point<2> center, double T1, double T2, double r1, double r2,
     DoFHandler<2>                  dof_handler(triangulation);
     // Create a FE system for this element
     FESystem<2>                    fe(FE_Q<2>(1),1);
-
+    dof_handler.distribute_dofs(fe);
     // Create a mapping for this new element
     const MappingQ<2>      mapping (1);
 

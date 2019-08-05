@@ -202,7 +202,7 @@ void heat_integrator(int refinement_level,   std::vector<IBLevelSetFunctions<2> 
       distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
     }
     // Decompose the geometry
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
     if (nb_poly==0 && (distance[0]>0))
     {

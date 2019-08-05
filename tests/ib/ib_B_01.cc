@@ -120,7 +120,7 @@ void test1_square_subelement()
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
     }
     // Decompose the geometry
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
     if (nb_poly != -1 ) throw std::runtime_error("Test 1 - Decomposition lead a non-quad element");
 
@@ -245,7 +245,7 @@ void test2_single_triangle_subelement()
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
     }
     // Decompose the geometry
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
     if (nb_poly != 1 ) throw std::runtime_error("Test 2 - Decomposition did not lead to a single triangle");
 
@@ -363,7 +363,7 @@ void test3_triple_triangle_subelement()
       dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
     }
     // Decompose the geometry
-    nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+    decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
     if (nb_poly != 3 ) throw std::runtime_error("Test 3 - Decomposition did not lead to a single triangle");
 

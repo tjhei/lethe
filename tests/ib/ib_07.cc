@@ -198,7 +198,7 @@ void Temperature_field_one_circle()
 
     // std::cout << distance[0] << ", " << distance[1] << ", " << distance[2] << ", " << distance[3] << "\n" << std::endl;
 
-      nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+     decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
       if (nb_poly==0)
       {
           if (distance[0]>0)
@@ -231,11 +231,11 @@ void Temperature_field_one_circle()
       }
 
       else if (nb_poly<0) {
-          quad_elem_mix(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+          T_decomp_quad(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
       }
 
       else {
-          new_tri(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
+          T_decomp_trg(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
       }
 
 
