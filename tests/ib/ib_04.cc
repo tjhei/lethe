@@ -1,3 +1,11 @@
+/*The function given here integrates the weak form of the
+ * heat equation, for a domain totally fluid (no decomposition here).
+ * The right hand side is chosen so that the solution we should get
+ * is T = cos(pi*x/4)cos(pi*y/4).
+ * */
+
+
+
 //BASE
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -117,7 +125,7 @@ void Temperature_field_full_fluid()
   double                               Tdirichlet = 1.0;
 
   SparsityPattern                      sparsity_pattern;
-  SparseMatrix<double>                 system_matrix;   // créer la matrice entière, ainsi que le vecteur de second membre
+  SparseMatrix<double>                 system_matrix;
   DynamicSparsityPattern               dsp(dof_handler->n_dofs());
 
   Vector<double>                       solution;

@@ -40,8 +40,7 @@
 
 // Mes ajouts so far
 #include "nouvtriangles.h"
-#include "quad_elem.h"
-#include "new_tri.h"
+#include "T_integration_class.h"
 
 using namespace dealii;
 
@@ -148,6 +147,9 @@ void Temperature_field_decomp_trg()
   a[0]=0;
   a[1]=0;
 
+  // creating a heat integrator object
+  Heat_integration_circles         H_i_c;
+
   int index_boundary_point_set = 0;
 
   typename DoFHandler<2>::active_cell_iterator
@@ -164,16 +166,26 @@ void Temperature_field_decomp_trg()
       cell->get_dof_indices (local_dof_indices);
 
 
+      // we get the value of the distance function (signed distance to the boundary solid/fluid, positive in the fluid) and the position of the vertices of the element
+
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         distance[dof_index]=-dofs_points[dof_index](1)+dofs_points[dof_index](0)+1.51;
         if ((dofs_points[dof_index](0)==2)&&(dofs_points[dof_index](1)==-2))
-            index_boundary_point_set = local_dof_indices[dof_index];
+            index_boundary_point_set = local_dof_indices[dof_index]; // this line is to impose a dirichlet condition to only one point on the boundary of the entire domain
 
       }
 
+      // we apply the decomposition function to determine if the cell is crossed by the solid-fluid boundary
+
       decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+
+      // we set the H_i_c object for this cell
+      H_i_c.set_decomp(decomp_elem);
+      H_i_c.set_nb_poly(nb_poly);
+      H_i_c.set_corresp(corresp);
+      H_i_c.set_pts_status(No_pts_solid);
 
       if (nb_poly==0)
       {
@@ -207,7 +219,8 @@ void Temperature_field_decomp_trg()
       }
 
       else {
-          T_decomp_trg(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
+          // H_i_c.T_integrate_IB evaluates the elementary matrix and elementary rhs in the cases where we decompose the element
+          H_i_c.T_integrate_IB(Tdirichlet, cell_mat, elem_rhs);
       }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)

@@ -1,3 +1,14 @@
+/* ---------------------------------------------------------------------------
+ *  This function calculates a solution to the heat equation
+ * between two circles set to different temperatures (Dirichlet boundary
+ * condition), and returns it into a file
+ * You can view the solution with gnuplot, by typing gnuplot in the terminal
+ * and then typing "set style data lines", and eventually
+ * "splot "solution.gpl""
+ * ----------------------------------------------------------------------------
+ */
+
+
 //BASE
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -40,13 +51,12 @@
 
 // Mes ajouts so far
 #include "nouvtriangles.h"
-//#include "area.h"
-//#include "integlocal.h"
-#include "quad_elem.h"
-#include "new_tri.h"
+#include "T_integration_class.h"
 
 using namespace dealii;
 
+
+// Creating a class to set a boundary condition on the edge of the domain, in order to use a direct solver
 template <int dim>
 class BoundaryValues : public Function<dim>
 {
@@ -169,6 +179,9 @@ void Temperature_field_in_2_circles()
   double            Tdirichlet;
   Point<2> center_elem;
 
+  // creating a heat integrator object
+  Heat_integration_circles         H_i_c;
+
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler.begin_active(),
   endc = dof_handler.end();
@@ -185,6 +198,8 @@ void Temperature_field_in_2_circles()
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
+      // we get the value of the distance function (signed distance to the boundary solid/fluid, positive in the fluid) and the position of the vertices of the element
+
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
@@ -196,12 +211,19 @@ void Temperature_field_in_2_circles()
       // center_elem is the point located at the barycenter of the square element
       Tdirichlet = ib_combiner.scalar(center_elem);
 
+      // we apply the decomposition function to determine if the cell is crossed by the solid-fluid boundary
 
       decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
-      if (nb_poly==0)
+      // we set the H_i_c object for this cell
+      H_i_c.set_decomp(decomp_elem);
+      H_i_c.set_nb_poly(nb_poly);
+      H_i_c.set_corresp(corresp);
+      H_i_c.set_pts_status(No_pts_solid);
+
+      if (nb_poly==0) // case where there is no decomposition
       {
-          if (distance[0]>0)
+          if (distance[0]>0) // the cell is entirely in the fluid
               for (int i = 0; i < 4; ++i) {
                   for (int j = 0; j < 4; ++j) {
                       for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
@@ -214,8 +236,11 @@ void Temperature_field_in_2_circles()
                           elem_rhs[i] += 0 ;
                       }
               }
-          else
+
+          else // the cell is entirely in the solid
           {
+              //in that case we set T to be Tdirichlet in the solid, so we put zeros in the matrix, we set its diagonal to be full of ones, and we put Tdirichlet as rhs
+
               for (int i = 0; i < 4; ++i) {
                   for (int j = 0; j < 4; ++j) {
                         if (i==j)
@@ -230,12 +255,10 @@ void Temperature_field_in_2_circles()
           }
       }
 
-      else if (nb_poly<0) {
-          T_decomp_quad(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
-      }
 
       else {
-          T_decomp_trg(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
+          // H_i_c.T_integrate_IB evaluates the elementary matrix and elementary rhs in the cases where we decompose the element
+          H_i_c.T_integrate_IB(Tdirichlet, cell_mat, elem_rhs);
       }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)

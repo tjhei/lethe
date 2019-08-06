@@ -41,7 +41,7 @@
 // Mes ajouts so far
 #include "nouvtriangles.h"
 #include "ib_node_status.h"
-#include "quad_elem.h"
+#include "T_integration_class.h"
 
 using namespace dealii;
 
@@ -149,6 +149,9 @@ void Temperature_field_decomp_quad()
   FullMatrix<double> cell_mat(dofs_per_cell, dofs_per_cell);
   Vector<double> elem_rhs(dofs_per_cell);
 
+  // creating a heat integrator object
+  Heat_integration_circles         H_i_c;
+
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler->begin_active(),
   endc = dof_handler->end();
@@ -172,8 +175,15 @@ void Temperature_field_decomp_quad()
         distance[dof_index] = -(dofs_points[dof_index][0]-abscisse);
       }
 
-      // We decompose the elements that are crossed by the boundary fluid/solid into triangles or quadrilaterals that are only in the fluid or only in the solid
+      // we apply the decomposition function to determine if the cell is crossed by the solid-fluid boundary
+
       decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+
+      // we set the H_i_c object for this cell
+      H_i_c.set_decomp(decomp_elem);
+      H_i_c.set_nb_poly(nb_poly);
+      H_i_c.set_corresp(corresp);
+      H_i_c.set_pts_status(No_pts_solid);
 
       // We distinguish the cases were the elements are not crossed by the boundary (nb_poly = 0)
       // and the cases where they are.
@@ -208,7 +218,8 @@ void Temperature_field_decomp_quad()
       }
 
       else { // case where there is a decomposition into a quadrilateral
-          T_decomp_quad(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
+          // H_i_c.T_integrate_IB evaluates the elementary matrix and elementary rhs in the cases where we decompose the element
+          H_i_c.T_integrate_IB(Tdirichlet, cell_mat, elem_rhs);
       }
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)

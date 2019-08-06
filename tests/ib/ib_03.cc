@@ -1,3 +1,19 @@
+/* ----------------------------------------------------------------------
+ * This function brings tests on the decomposition function and
+ * is there to check if we can evaluate properly the area of the
+ * fluid domain (using the jacobian of the transformation from the
+ * reference element to the cell considered)
+ * There are two tests : one on the decomposition and the evaluation of the
+ * area, the other to check the others vectors returned by
+ * the decomposition function.
+ * The last function evaluates the fluid area for a given grid and triangulation,
+ * refined a selected number of times, and compares it to the theoritical
+ * area. It returns the error made on the evaluation of the area.
+ * ------------------------------------------------------------------------
+*/
+
+
+
 //BASE
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
@@ -51,6 +67,8 @@ void test_decomp_and_area()
     Point<2> pt2 (1,0);
     Point<2> pt3 (0,1);
     Point<2> pt4 (1,1);
+
+    // We create a quadrilateral with different sets of distance on the vertices to check the differents cases of decomnposition
     std::vector<Point<2>> coor(4);
     coor[0] = pt1;
     coor[1] = pt2;
@@ -61,11 +79,15 @@ void test_decomp_and_area()
     std::vector<double> distance2  {1,-1,-1,-1};
     std::vector<double> distance3  {1,1,-1,-1};
 
+    // Initializing the tools for the decomposition, for more info, check the description of "decomposition" in nouvtriangles.h
     std::vector<Point<2>> decomp_elem(9);
     std::vector<int>    corresp(9);
     std::vector<Point<2>>    num_elem(6);
     std::vector<node_status> No_pts_solid(4);
     int nb_poly;
+
+
+    // We compare the coordinates given by decomposition to the coordinates we should obtain
 
     Vector<int> cor_thq1  {2, 0, 5, 0, 4, 5, 1, 4, 0}; // what we should get for corresp
     decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, distance1);
@@ -87,6 +109,7 @@ void test_decomp_and_area()
         if (cor_thq3[i]!=corresp[i]) throw std::runtime_error("Failed to build the 'corresp' vector for the third case");
     }
 
+    // We compare the area of the fluid domain given after using the decomposition function to what we should obtain
     double areaa = area(nb_poly, decomp_elem, distance3, coor)-1.0/2.0;
     if ((areaa>0.0001) || (areaa<-0.0001)) throw std::runtime_error("Failed to evaluate the area of the fluid domain");
 }

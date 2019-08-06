@@ -40,10 +40,8 @@
 
 // Mes ajouts so far
 #include "nouvtriangles.h"
-//#include "area.h"
-//#include "integlocal.h"
-#include "quad_elem.h"
-#include "new_tri.h"
+
+#include "T_integration_class.h"
 
 using namespace dealii;
 
@@ -152,6 +150,9 @@ double calculate_L2_error(int refinement)
   double            Tdirichlet;
   Point<2> center_elem;
 
+  // Tool for the integration
+  Heat_integration_circles  H_i_c;
+
   typename DoFHandler<2>::active_cell_iterator
   cell = dof_handler.begin_active(),
   endc = dof_handler.end();
@@ -168,6 +169,8 @@ double calculate_L2_error(int refinement)
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
+      // we get the value of the distance function (signed distance to the boundary solid/fluid, positive in the fluid) and the position of the vertices of the element
+
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
@@ -179,13 +182,19 @@ double calculate_L2_error(int refinement)
       // center_elem is the point located at the barycenter of the square element
       Tdirichlet = ib_combiner.scalar(center_elem);
 
-
+      // we apply the decomposition function to determine if the cell is crossed by the solid-fluid boundary
 
       decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
 
-      if (nb_poly==0)
+      // we set the H_i_c object for this cell
+      H_i_c.set_decomp(decomp_elem);
+      H_i_c.set_nb_poly(nb_poly);
+      H_i_c.set_corresp(corresp);
+      H_i_c.set_pts_status(No_pts_solid);
+
+      if (nb_poly==0) // case where there is no decomposition
       {
-          if (distance[0]>0)
+          if (distance[0]>0) // the cell is entirely in the fluid
               for (int i = 0; i < 4; ++i) {
                   for (int j = 0; j < 4; ++j) {
                       for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
@@ -198,8 +207,10 @@ double calculate_L2_error(int refinement)
                           elem_rhs[i] += 0 ;
                       }
               }
-          else
+          else // the cell is entirely in the solid
           {
+              //in that case we set T to be Tdirichlet in the solid, so we put zeros in the matrix, we set its diagonal to be full of ones, and we put Tdirichlet as rhs
+
               for (int i = 0; i < 4; ++i) {
                   for (int j = 0; j < 4; ++j) {
                         if (i==j)
@@ -214,14 +225,11 @@ double calculate_L2_error(int refinement)
           }
       }
 
-      else if (nb_poly<0) {
-          T_decomp_quad(Tdirichlet, No_pts_solid, corresp, decomp_elem, cell_mat, elem_rhs);
-      }
-
       else {
-          T_decomp_trg(Tdirichlet, nb_poly, corresp, decomp_elem, No_pts_solid, cell_mat, elem_rhs);
-      }
 
+          // H_i_c.T_integrate_IB evaluates the elementary matrix and elementary rhs in the cases where we decompose the element
+          H_i_c.T_integrate_IB(Tdirichlet, cell_mat, elem_rhs);
+      }
 
 
     for (unsigned int i=0; i<dofs_per_cell; ++i)
@@ -254,8 +262,11 @@ double calculate_L2_error(int refinement)
   solver.solve (system_matrix, solution, system_rhs,
                 PreconditionIdentity());
 
-  double err=0;
-  std::vector<double> T(6);
+  double err=0; // the soon-to-be L2 error
+  std::vector<double> T(6); // vector in which we will store the values of the solution at each vertex plus at the boundary points if we decompose
+
+  // We have calculated the solution, we now want to determine the L2-error on it, as we know the analytical solution
+  // since we have to calculate integrals again, we will sum the values on each element
 
   cell = dof_handler.begin_active();
   for (; cell!=endc; ++cell)
@@ -263,39 +274,46 @@ double calculate_L2_error(int refinement)
       fe_values.reinit(cell);
       cell->get_dof_indices (local_dof_indices);
 
+      // getting the distance to the boundary and the point associated to each dof
       for (unsigned int dof_index=0 ; dof_index < local_dof_indices.size() ; ++dof_index)
       {
         dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
         distance[dof_index]= ib_combiner.value(dofs_points[dof_index]);
+
+        // we fill the vector of the values of the solution on each vertex
         T[dof_index]=solution[local_dof_indices[dof_index]];
       }
 
+      // we decompose
+
       decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, dofs_points, distance);
+
+      // we set the H_i_c object for this cell
+      H_i_c.set_decomp(decomp_elem);
+      H_i_c.set_nb_poly(nb_poly);
+      H_i_c.set_corresp(corresp);
+      H_i_c.set_pts_status(No_pts_solid);
 
       if (nb_poly==0)
       {
           if (distance[0]>0){
               for (unsigned int q=0; q<n_q_points; q++) {
-                err+=std::pow(T_analytical(fe_values.quadrature_point (q), center, T_scal1, T_scal2, radius1, radius2)-T_calc_interp(T, fe_values.quadrature_point (q)), 2)
+                err+=std::pow(T_analytical(fe_values.quadrature_point (q), center, T_scal1, T_scal2, radius1, radius2)-T_calc_interp_quad(T, fe_values.quadrature_point (q)), 2)
                         *fe_values.JxW(q);
               }
           }
 
       }
 
-      else if (nb_poly<0) {
-        err+=T_norm_L2_quad(center, T_scal1, T_scal2, radius1, radius2, corresp, No_pts_solid, decomp_elem, T);
-      }
-
       else {
 
         T[4]=T[No_pts_solid[0]];
         T[5]=T[No_pts_solid[0]];
+        // T is set to Tdirichlet on the boundary, indices 4 and 5 refer to the boundary points calculated by "decomposition"
 
-        err+=T_norm_l2_trg(nb_poly, decomp_elem, corresp, No_pts_solid, center, T_scal1, T_scal2, radius1, radius2, T);
+        // H_i_c.T_L2_norm_IB evaluates the error for a decomposed element
+        err+=H_i_c.T_L2_norm_IB(center, T_scal1, T_scal2, radius1, radius2, T);
       }
-
-
   }
   std::cout << err << std::endl;
   return err;
