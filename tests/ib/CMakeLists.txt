@@ -76,3 +76,8 @@ ADD_EXECUTABLE(trg_tools trg_tools.cc)
 DEAL_II_SETUP_TARGET(trg_tools)
 TARGET_LINK_LIBRARIES(trg_tools lethe)
 add_test( "trg_tools" trg_tools)
+
+ADD_EXECUTABLE(GLS_residual_test GLS_residual_test.cc)
+DEAL_II_SETUP_TARGET(GLS_residual_test)
+TARGET_LINK_LIBRARIES(GLS_residual_test lethe)
+add_test( "GLS_residual_test" GLS_residual_test)

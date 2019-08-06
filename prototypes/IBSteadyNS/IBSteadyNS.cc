@@ -1008,7 +1008,6 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                     }
                 }
 
-
                 trg_.set_coor_trg(coor_trg);
                 trg_.set_dofs_per_node(dofs_per_vertex);
                 trg_.set_P_on_vertices(local_p);
