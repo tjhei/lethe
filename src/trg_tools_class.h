@@ -122,10 +122,9 @@ template <int dim>
 void TRG_tools<dim>::build_div_phi_u (const Tensor<2,dim> passage_matrix, std::vector<double> &div_phi_u_)
 {
     for (int i = 0; i < dim+1; ++i) { // i is the index of the vertex
-        for (int j = 0; j < dim; ++j) {
+        for (int j = 0; j < dim+1; ++j) {
             div_phi_u_[dofs_per_node*i+j] = divergence(i, j, passage_matrix); // We apply the passage matrix
         }
-        div_phi_u_[dofs_per_node*i +dim] = 0;
     }
 }
 
@@ -359,37 +358,19 @@ void TRG_tools<dim>::matrix_pass_elem_to_ref(Tensor<2, dim> &pass_matrix)
     }
 }
 
-double div_shape_velocity_ref(int num_vertex, int u_v_w, int dim)
-{
-    // returns the value d(phi_u_{num_vertex})/d(x_{u_v_w})
-
-    if (u_v_w == dim)
-        return 0; // we put 0 if u_v_w is associated to a pressure dof
-
-    else if (num_vertex==0)
-    {
-        return -1.;
-    }
-    else if (num_vertex==u_v_w-1) {
-            return 1.;}
-    else {
-            return 0.;
-    }
-}
-
 
 template <int dim>
 double TRG_tools<dim>::divergence(int num_vertex, int component, Tensor<2, dim> pass_matrix)
 {
     // returns the d(phi_{num_vertex})/dx_{component} in the ref element
 
-    Tensor<1, dim>      div;
-    for (int i = 0; i < dim; ++i) {
-        div[(i)] = div_shape_velocity_ref(num_vertex, i, dim);
+    Tensor<1, dim> grads;
+    grad_shape_function(num_vertex,grads, pass_matrix);
+    if (component!=dim+1)
+        return grads[component];
+    else {
+        return 0;
     }
-    Tensor<1, dim>      temp;
-    temp = pass_matrix*div; // changing the coordinates, from the actual element to the ref element
-    return temp[(component)];
 }
 
 

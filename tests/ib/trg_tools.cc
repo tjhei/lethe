@@ -252,11 +252,17 @@ void test_shape_build()
         grad_phi_u_th[3*i+1][1][0] = grad_shape_th[i][0];
         grad_phi_u_th[3*i+1][1][1] = grad_shape_th[i][1];
         grad_phi_u_th[3*i+2] = 0;
-
-        div_phi_u_th[3*i] = div_shape_velocity_ref(i, 0, 2); //trg_.divergence(i, 0, Pass_mat);
-        div_phi_u_th[3*i+1] = trg_.divergence(i, 1, Pass_mat);
-        div_phi_u_th[3*i+2] = 0 ;
     }
+
+    div_phi_u_th[0] = -1;
+    div_phi_u_th[1] = -1;
+    div_phi_u_th[2] = 0;
+    div_phi_u_th[3] = 1;
+    div_phi_u_th[4] = 0;
+    div_phi_u_th[5] = 0;
+    div_phi_u_th[6] = 0;
+    div_phi_u_th[7] = 1;
+    div_phi_u_th[8] = 0;
 
     double err_p, err_grad_p, err_v, err_grad_v, err_div;
     err_p =0;
@@ -299,7 +305,7 @@ int main()
 {
   try
   {
-    test_interpolate();
+    //test_interpolate();
     test_shape_build();
   }
   catch (std::exception &exc)
