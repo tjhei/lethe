@@ -557,9 +557,9 @@ void DirectSteadyNavierStokes<dim>::GLS_residual_trg(
 
                 for (unsigned int j=0; j<dofs_per_trg; ++j)
                 {
-                    local_mat(i, j) += (     viscosity_ * scalar_product(grad_phi_u[j], grad_phi_u[i])          // ok + ok changement de coor
+                    local_mat(i, j) += (     viscosity_ * trace(grad_phi_u[j] * grad_phi_u[i])          // ok + ok changement de coor
 
-                                             + phi_u[j] * interpolated_grad_v * phi_u[i]                        // ok + ok changement de coor
+                                             + phi_u[i] * interpolated_grad_v * phi_u[j]                        // ok + ok changement de coor
 
                                              + (grad_phi_u[j] * interpolated_v) * phi_u[i]                      // ok + ok changement de coor
 
@@ -597,7 +597,7 @@ void DirectSteadyNavierStokes<dim>::GLS_residual_trg(
 
                 double present_velocity_divergence =  trace(interpolated_grad_v);
 
-                local_rhs(i) += ( - viscosity_*scalar_product(interpolated_grad_v,grad_phi_u[i])
+                local_rhs(i) += ( - viscosity_*trace(interpolated_grad_v*grad_phi_u[i])
                                   - interpolated_grad_v * interpolated_v * phi_u[i]
                                   + interpolated_p * div_phi_u_[i]
                                   - present_velocity_divergence*phi_p[i]
