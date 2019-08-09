@@ -305,7 +305,7 @@ int main()
 {
   try
   {
-    //test_interpolate();
+    test_interpolate();
     test_shape_build();
   }
   catch (std::exception &exc)

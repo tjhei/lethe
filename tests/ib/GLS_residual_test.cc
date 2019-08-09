@@ -155,21 +155,21 @@ void GLS_residual_trg_adapted(  TRG_tools<dim>  trg_,
 
                 double present_velocity_divergence =  trace(interpolated_grad_v);
 
-                local_rhs(i) += ( - viscosity_*trace(interpolated_grad_v*grad_phi_u[i])
-                                  - interpolated_grad_v * interpolated_v * phi_u[i]
-                                  + interpolated_p * div_phi_u_[i]
-                                  - present_velocity_divergence*phi_p[i]
+                local_rhs(i) += ( - viscosity_*trace(interpolated_grad_v*grad_phi_u[i])   // ok
+                                  - interpolated_grad_v * interpolated_v * phi_u[i]       // ok
+                                  + interpolated_p * div_phi_u_[i]                        // ok
+                                  - present_velocity_divergence*phi_p[i]                  // ok
                                 ) * JxW;
 
-
                 // PSPG GLS term for the rhs //
-                local_rhs(i) +=  tau*(  - interpolated_grad_v * interpolated_v* grad_phi_p[i]
-                                        - interpolated_grad_p * grad_phi_p[i]
+                local_rhs(i) +=  tau*(  - interpolated_grad_v * interpolated_v* grad_phi_p[i]     //ok
+                                        - interpolated_grad_p * grad_phi_p[i]                     //ok
                                      )  * JxW;
 
+
                 // SUPG term for the rhs //
-                local_rhs(i) += tau*(   - interpolated_grad_v * interpolated_v * (grad_phi_u[i] * interpolated_v )
-                                        - interpolated_grad_p * (grad_phi_u[i] * interpolated_v)
+                local_rhs(i) += tau*(   - interpolated_grad_v * interpolated_v * (grad_phi_u[i] * interpolated_v )  // ok
+                                        - interpolated_grad_p * (grad_phi_u[i] * interpolated_v)                    // ok
                                     )   * JxW;
 
             }
@@ -365,23 +365,45 @@ void test_residual()
             }
 
             // evaluating the rhs
-            // will be done later
 
             if (i%3!=2)
             {
-                Check_rhs(i) += 0;
+                Check_rhs(i) +=  - viscosity * (interpolated_grad_v[0][i%3]*grad_phi[i/3][0]+interpolated_grad_v[1][i%3]*grad_phi[i/3][1])*weight;
+                Check_rhs(i) +=  - phi[i/3] * (interpolated_v[0]*interpolated_grad_v[i%3][0]+interpolated_v[1]*interpolated_grad_v[i%3][1])*weight;
+                Check_rhs(i) +=    interpolated_p * grad_phi[i/3][i%3];
+
+            }
+
+            else {
+                Check_rhs(i) +=  - trace(interpolated_grad_v) * phi[i/3];
+
+                // PSPG part
+
+                Check_rhs(i) +=  - tau *(interpolated_grad_v*interpolated_v) * grad_phi[i/3] *weight;
+                Check_rhs(i) +=  - tau * interpolated_grad_p * grad_phi[i/3] * weight;
+            }
+
+            // SUPG part
+
+            if (i%3!=2)
+            {
+                Check_rhs(i) +=  - tau * (interpolated_v[0]*grad_phi[i/3][0] + interpolated_v[1]*grad_phi[i/3][1]) * (interpolated_v[0]*interpolated_grad_v[i%3][0]+interpolated_v[1]*interpolated_grad_v[i%3][1])*weight;
+                Check_rhs(i) +=  - tau * (interpolated_v[0]*grad_phi[i/3][0] + interpolated_v[1]*grad_phi[i/3][1]) * interpolated_grad_p[i%3] * weight ;
             }
         }
 
 
-
         for (int i = 0; i < 9; ++i) {
             for (int j = 0; j < 9; ++j) {
-                if (std::abs(Check_mat(i,j) - cell_mat(i,j))>1e-10)
+                if (std::abs(Check_mat(i,j) - cell_mat(i,j))>1e-10){
                     std::cout << "failed to build the coef "  <<  i << ","<< j << " of the matrix, error : " << std::abs(Check_mat(i,j) - cell_mat(i,j)) << std::endl;
+                    throw std::runtime_error("There was an error in the coefficients of the elementary matrix");
+                }
             }
-//            if (std::abs(Check_rhs[(i)] - cell_rhs[(i)])>1e-10)
-//                std::cout << "failed to build the coef " << i << " of the rhs, error : " << std::abs(Check_rhs[(i)] - cell_rhs[(i)]) << std::endl;
+            if (std::abs(Check_rhs[(i)] - cell_rhs[(i)])>1e-10){
+                std::cout << "failed to build the coef " << i << " of the rhs, error : " << std::abs(Check_rhs[(i)] - cell_rhs[(i)]) << std::endl;
+                throw std::runtime_error("There was an error in the coefficients of the elementary rhs");
+            }
         }
 
 }
@@ -389,6 +411,54 @@ void test_residual()
 
 int main()
 {
-    test_residual();
-    return 1;
+    try{
+        std::vector<Point<2>>   coor(4);
+        coor[0][0] = 0;
+        coor[0][1] = 0;
+        coor[1][0] = 2;
+        coor[1][1] = 0;
+        coor[2][0] = 0;
+        coor[2][1] = 2;
+        coor[3][0] = 2;
+        coor[3][1] = 2;
+
+        std::vector<double>     dist(4);
+
+        dist[0] = 1.;
+        dist[1] = -1.;
+        dist[2] = -1.;
+        dist[3] = -1.5;
+
+        double viscosity_   =1;
+        double tau_         =1;
+        double weight       =1;
+
+        test_residual();
+    }
+
+    catch (std::exception &exc)
+    {
+      std::cerr << std::endl << std::endl
+                << "----------------------------------------------------"
+                << std::endl;
+      std::cerr << "Exception on processing: " << std::endl
+                << exc.what()  << std::endl
+                << "Aborting!" << std::endl
+                << "----------------------------------------------------"
+                << std::endl;
+      return 1;
+    }
+    catch (...)
+    {
+      std::cerr << std::endl << std::endl
+                << "----------------------------------------------------"
+                << std::endl;
+      std::cerr << "Unknown exception!" << std::endl
+                << "Aborting!" << std::endl
+                << "----------------------------------------------------"
+                << std::endl;
+      return 1;
+    }
+
+    return 0;
 }
