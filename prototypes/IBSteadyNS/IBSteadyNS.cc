@@ -714,7 +714,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             dist[i] = distance[(dim+1)*i];
           }
 
-          nouvtriangles(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
+          decomposition(corresp, No_pts_solid, num_elem, decomp_elem, &nb_poly, coor, dist);
         }
         else
           nb_poly=0;
