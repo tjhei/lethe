@@ -157,7 +157,7 @@ void GLS_residual_trg_adapted(  TRG_tools<dim>  trg_,
 
                 local_rhs(i) += ( - viscosity_*trace(interpolated_grad_v*grad_phi_u[i])   // ok
                                   - interpolated_grad_v * interpolated_v * phi_u[i]       // ok
-                                  + interpolated_p * div_phi_u_[i]                        // pas ok
+                                  + interpolated_p * div_phi_u_[i]                        // ok
                                   - present_velocity_divergence*phi_p[i]                  // ok
                                 ) * JxW;
 
