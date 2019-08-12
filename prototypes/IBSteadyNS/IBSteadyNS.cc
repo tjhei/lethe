@@ -968,15 +968,16 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           // we now set the boundary conditions on the boundary points
 
           for (int i = 12; i < 18; ++i) {
-              for (int j = 0; j < 18; ++j) {
-                  loc_mat(i,j) = 0;
-              }
-              loc_mat(i,i) = 1;
-              ib_combiner.velocity(num_elem[i/3], v_solid);
               // we only set the velocity, the pressure is free
-
               if (i%3!=2)
-                loc_rhs[i] = v_solid[i%3];
+              {
+                  for (int j = 0; j < 18; ++j) {
+                      loc_mat(i,j) = 0;
+                  }
+                  loc_mat(i,i) = 1;
+                  ib_combiner.velocity(num_elem[i/3], v_solid);
+                  loc_rhs[i] = v_solid[i%3];
+              }
           }
 
           condensate(18, 12, loc_mat, local_matrix, loc_rhs, local_rhs);
@@ -1160,12 +1161,15 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                 if (dof_index%dofs_per_vertex==0)
                     ib_combiner.velocity(boundary_points[i/dofs_per_vertex], v_solid);
 
-                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                    if (dof_index==j)
-                        cell_mat(dof_index, j) = 1;
-                    else {
-                        cell_mat(dof_index, j) = 0;
+                if (i%3!=2){
+                    for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+                        if (dof_index==j)
+                            cell_mat(dof_index, j) = 1;
+                        else {
+                            cell_mat(dof_index, j) = 0;
+                        }
                     }
+
                 }
                 if (!(dof_index%dofs_per_vertex==dim)) // we only set the velocity on the boundary, we dont set any value for the pressure on the boundary
                     cell_rhs(dof_index) = v_solid[dof_index%dofs_per_vertex];
