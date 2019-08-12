@@ -204,10 +204,6 @@ void DirectSteadyNavierStokes<dim>::integrate_sub_quad_element( Triangulation<2>
   std::vector<Tensor<1, dim> >  grad_phi_p                (dofs_per_cell);
 
 
-
-  FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-  Vector<double>       cell_rhs (dofs_per_cell);
-
   double h;
 
   typename DoFHandler<2>::active_cell_iterator
@@ -216,12 +212,12 @@ void DirectSteadyNavierStokes<dim>::integrate_sub_quad_element( Triangulation<2>
   for (; cell!=endc; ++cell)
   {
     fe_values.reinit (cell);
-    cell_matrix = 0;
-    cell_rhs = 0;
+
+    local_rhs=0;
+    local_matrix=0;
 
     std::cout << "Looping over quadrature" << std::endl;
-    for (unsigned int q_index=0; q_index<n_q_points; ++q_index)
-    {
+
       if (dim==2) h = std::sqrt(4.* cell->measure() / M_PI) ;
       else if (dim==3) h = pow(6*cell->measure()/M_PI,1./3.) ;
 
@@ -264,7 +260,6 @@ void DirectSteadyNavierStokes<dim>::integrate_sub_quad_element( Triangulation<2>
 
           for (unsigned int j=0; j<dofs_per_cell; ++j)
           {
-            {
               auto strong_jac = (  present_velocity_gradients[q]*phi_u[j]
                                    + grad_phi_u[j]*present_velocity_values[q]
                                    + grad_phi_p[j]
@@ -296,7 +291,6 @@ void DirectSteadyNavierStokes<dim>::integrate_sub_quad_element( Triangulation<2>
                     * fe_values.JxW(q)
                     ;
               }
-            }
           }
           for (unsigned int i=0; i<dofs_per_cell; ++i)
           {
@@ -319,20 +313,24 @@ void DirectSteadyNavierStokes<dim>::integrate_sub_quad_element( Triangulation<2>
             local_rhs(i) += - tau
                             *(strong_residual*(grad_phi_u[i]*present_velocity_values[q]))
                             * fe_values.JxW(q);
+
+
           }
+
+
         }
-      }
 
     // Assemble global matrix and RHS
     cell->get_dof_indices (local_dof_indices);
+
     for (unsigned int i=0; i<dofs_per_cell; ++i)
     {
       for (unsigned int j=0; j<dofs_per_cell; ++j)
-        system_matrix.add (local_dof_indices[i],
-                           local_dof_indices[j],
-                           cell_matrix(i,j));
+        system_matrix(local_dof_indices[i],
+                       local_dof_indices[j])
+                        += local_matrix(i,j);
 
-      system_rhs(local_dof_indices[i]) += cell_rhs(i);
+      system_rhs(local_dof_indices[i]) += local_rhs(i);
     }
   }
  }
@@ -932,6 +930,17 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           loc_mat=0;
           loc_rhs=0;
 
+//          std::cout << " \n system matrix before sorting : " << std::endl;
+//          for (int i = 0; i < 12; ++i) {
+//              std::cout << sub_system_matrix(i,0) << " "  << sub_system_matrix(i,1) << " " << sub_system_matrix(i,2) << " "
+//                        << sub_system_matrix(i,3) << " "  << sub_system_matrix(i,4) << " " << sub_system_matrix(i,5) << " "
+//                        << sub_system_matrix(i,6) << " "  << sub_system_matrix(i,7) << " " << sub_system_matrix(i,8) << " "
+//                        << sub_system_matrix(i,9) << " "  << sub_system_matrix(i,10) << " " << sub_system_matrix(i,11) << " "
+//                        << std::endl;
+//          }
+//          for (int i = 0; i < 12; ++i) {
+//              std::cout << "rhs " << i << " : " << sub_system_rhs[i] << std::endl;
+//          }
           for (int i = 0; i < 12; ++i) {
               for (int j = 0; j < 12; ++j) {
                   loc_mat(corresp_dofs[i],corresp_dofs[j]) = sub_system_matrix(i,j);
@@ -965,6 +974,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
               }
           }
 
+
           // we now set the boundary conditions on the boundary points
 
           for (int i = 12; i < 18; ++i) {
@@ -979,6 +989,23 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                   loc_rhs[i] = v_solid[i%3];
               }
           }
+          std::cout << " \n system matrix after sorting and applying boundary conditions : " << std::endl;
+          for (int i = 0; i < 18; ++i) {
+              std::cout << loc_mat(i,0) << " "  << loc_mat(i,1) << " " << loc_mat(i,2) << " "
+                        << loc_mat(i,3) << " "  << loc_mat(i,4) << " " << loc_mat(i,5) << " "
+                        << loc_mat(i,6) << " "  << loc_mat(i,7) << " " << loc_mat(i,8) << " "
+                        << loc_mat(i,9) << " "  << loc_mat(i,10) << " " << loc_mat(i,11) << " "
+                        << loc_mat(i,12) << " "  << loc_mat(i,13) << " " << loc_mat(i,14) << " "
+                        << loc_mat(i,15) << " "  << loc_mat(i,16) << " " << loc_mat(i,17) << " "
+                        << std::endl;}
+          std::cout << " \n system rhs after sorting and applying boundary conditions : " << std::endl;
+          std::cout << loc_rhs(0) << " "  << loc_rhs(1) << " " << loc_rhs(2) << " "
+                    << loc_rhs(3) << " "  << loc_rhs(4) << " " << loc_rhs(5) << " "
+                    << loc_rhs(6) << " "  << loc_rhs(7) << " " << loc_rhs(8) << " "
+                    << loc_rhs(9) << " "  << loc_rhs(10) << " " << loc_rhs(11) << " "
+                    << loc_rhs(12) << " "  << loc_rhs(13) << " " << loc_rhs(14) << " "
+                    << loc_rhs(15) << " "  << loc_rhs(16) << " " << loc_rhs(17) << " "
+                    << std::endl;
 
           condensate(18, 12, loc_mat, local_matrix, loc_rhs, local_rhs);
         }
@@ -1544,7 +1571,7 @@ void DirectSteadyNavierStokes<dim>::runCouetteIBX()
   simulationCase_=CouetteX;
   GridGenerator::hyper_cube (triangulation, 0, 1,true);
   forcing_function = new NoForce<dim>;
-  triangulation.refine_global (4);
+  triangulation.refine_global (2);
 
   // Generate the IB composer
   Point<2> center1(0.55,0);
@@ -1575,22 +1602,22 @@ int main ()
     try
     {
 
-      {
-        DirectSteadyNavierStokes<2> problem_2d(1,1);
-        problem_2d.runCouetteX();
-      }
-      {
-        DirectSteadyNavierStokes<2> problem_2d(1,1);
-        problem_2d.runCouetteXPerturbedMesh();
-      }
+//      {
+//        DirectSteadyNavierStokes<2> problem_2d(1,1);
+//        problem_2d.runCouetteX();
+//      }
+//      {
+//        DirectSteadyNavierStokes<2> problem_2d(1,1);
+//        problem_2d.runCouetteXPerturbedMesh();
+//      }
       {
         DirectSteadyNavierStokes<2> problem_2d(1,1);
         problem_2d.runCouetteIBX();
       }
-      {
-      DirectSteadyNavierStokes<2> problem_2d(1,1);
-      problem_2d.runMMS();
-      }
+//      {
+//      DirectSteadyNavierStokes<2> problem_2d(1,1);
+//      problem_2d.runMMS();
+//      }
     }
     catch (std::exception &exc)
     {
