@@ -886,10 +886,105 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           sub_system_dofs.reinit((sub_dof_handler.n_dofs()));
           integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs,sub_system_dofs);
 
+          // Create a vector in order to know on which dof we apply the boundary conditions
+          // the definition of decomp_elem for a quad element (nb_poly== -1) is that the first 2 points are the boundary points, and the 2 others are the vertices in the fluid
+          std::vector<node_status>      loc_vertices_status(4);
+          loc_vertices_status[0] = solid;
+          loc_vertices_status[1] = solid;
+          loc_vertices_status[2] = fluid;
+          loc_vertices_status[3] = fluid;
+
+          // Create a vector to sort the dofs in order to condensate more easily
+
+          /* here we create a quad sub element, but the numerotation in the element is as follow :
+           *
+           * 2-----5--3
+           * | F  /   |
+           * |   /  S |         F is the fluid part, S the solid part
+           * 0--4-----1
+           *
+           * where 4 and 5 are the boundary points created with the decomposition function.
+           * But in the local sub element formed by 4, 5, 0 and 2, we have the following numerotation
+           *
+           *(2)
+           * 3-----1(5)
+           * |    /
+           * |   /
+           * 2--0(4)
+           *(0)
+           *
+           * We want to create a vector that will put the coefficients associated to dofs held by 0 and 1 in the local numerotation of the sub-element
+           * at the last lines and columns of the elementary matrix so that we condensate those lines and columns later
+           */
+
+          std::vector<int>          corresp_dofs(12);
+          for (int i = 0; i < 4; ++i) {
+              corresp_dofs[i*3] = 3*corresp[i];
+              corresp_dofs[i*3+1] = 3*corresp[i]+1;
+              corresp_dofs[i*3+2] = 3*corresp[i]+2;
+          }
+
+          // creating the vector like this allows us to be sure that the dofs held by the boundary points will be associated to the last columns and lines of the local matrix
+
+          // we create a matrix and a rhs-vector for the element plus the boundary points
+          FullMatrix<double>    loc_mat(18,18); // there are 18 dofs since we added two points holding 3 dofs each
+          Vector<double>        loc_rhs(18);
+          loc_mat=0;
+          loc_rhs=0;
+
+          for (int i = 0; i < 12; ++i) {
+              for (int j = 0; j < 12; ++j) {
+                  loc_mat(corresp_dofs[i],corresp_dofs[j]) = sub_system_matrix(i,j);
+              }
+              loc_rhs(corresp_dofs[i]) = sub_system_rhs[i];
+          }
+
+          // we create a tensor to store the value of the velocity on a point in the solid
+          Tensor<1,dim>         v_solid;
+
+          // we now set the conditions for the points in the solid part (not on the boundary points yet)
+          for (int i = 0; i < 4; ++i) {
+              if (No_pts_solid[i]==solid)
+              {
+                  // we set the speed dofs to be those given by ib_combiner, we set 0 for the pressure inside a solid
+                  for (int j = 0; j < 18; ++j) {
+                      loc_mat(3*i,j)=0;
+                      loc_mat(3*i+1,j)=0;
+                      loc_mat(3*i+2,j)=0; // pressure dof
+                  }
+                  // we set 1 on the diagonal, so that we can set the value we want for the speed in the rhs
+                  loc_mat(3*i,3*i)=1;
+                  loc_mat(3*i+1,3*i+1)=1;
+                  loc_mat(3*i+2,3*i+2)=1; // we set the rhs to 0 for this one so that we have literally "p_node_solid = 0"
+
+                  // we get the value of the velocity at the considered point
+                  ib_combiner.velocity(dofs_points[i], v_solid);
+
+                  loc_rhs(3*i) = v_solid[0];
+                  loc_rhs(3*i+1) = v_solid[1];
+              }
+          }
+
+          // we now set the boundary conditions on the boundary points
+
+          for (int i = 12; i < 18; ++i) {
+              for (int j = 0; j < 18; ++j) {
+                  loc_mat(i,j) = 0;
+              }
+              loc_mat(i,i) = 1;
+              ib_combiner.velocity(num_elem[i/3], v_solid);
+              // we only set the velocity, the pressure is free
+
+              if (i%3!=2)
+                loc_rhs[i] = v_solid[i%3];
+          }
+
+          condensate(18, 12, loc_mat, local_matrix, loc_rhs, local_rhs);
         }
 
         else if (nb_poly>0) { // this part is implemented for 2D problems only !! //
 
+            // basically works as for nb_poly = -1, but with triangles, so check the comments of the previous part if you do not understand something here
             std::cout << "Integrating for an element decomposed into triangles" << std::endl;
 
             unsigned int dofs_per_vertex = 3; // 2D
