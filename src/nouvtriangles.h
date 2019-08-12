@@ -31,9 +31,6 @@ void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<
     // We calculate the coordinates of the intersections between the element and the boundary by interpolating the distance function with the Lagrange functions
     // We first determine the coordinates of this point in the reference square [-1, 1]x[-1, 1]
 
-    /*std::cout << "val_f = " << val_f[0] << ", " << val_f[1] << ", " << val_f[2] << ", " << val_f[3] << std::endl;
-    std::cout << "b = " << b << std::endl; */
-
     if (b==0)
     {
         x1 = (val_f[0]+val_f[1])/(val_f[1]-val_f[0]);
@@ -82,7 +79,7 @@ void trgboundary(int b, std::vector<Point<2> > &boundary_pts, std::vector<Point<
     }
     boundary_pts[0]=pt1;
     boundary_pts[1]=pt2;
-    /* std::cout << "triongle(s)" << std::endl; */
+
     // the points of intersection are returned in the vector boundary_pts, and are in the right order if there is only one summit in the fluid
     // if there are 3 summits in the fluid, you have to change the order so that the triangles that will be created can be described in the trigonometrical order
 }
@@ -97,7 +94,7 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
 
     // We calculate the coordinates of the intersections between the element and the boundary by interpolating the distance function with the Lagrange functions
     // We first determine the coordinates of this point in the reference square [-1, 1]x[-1, 1]
-    if (i==1)
+    if (i==0)
     {
         x1 = -1.0;
         y1 = (val_f[1]+val_f[2])/(val_f[2]-val_f[1]);
@@ -105,7 +102,7 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
         y2 = (val_f[0]+val_f[3])/(val_f[3]-val_f[0]);
     }
 
-    else if (i==3)
+    else if (i==2)
     {
         x1 = 1.0;
         y1 = (val_f[0]+val_f[3])/(val_f[3]-val_f[0]);
@@ -113,7 +110,7 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
         y2 = (val_f[1]+val_f[2])/(val_f[2]-val_f[1]);
     }
 
-    else if (i==2)
+    else if (i==1)
     {
         x1 = (val_f[3]+val_f[2])/(val_f[2]-val_f[3]);
         y1 = -1.0;
@@ -121,7 +118,7 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
         y2 = 1.0;
     }
 
-    else if (i==4)
+    else if (i==3)
     {
         x1 = (val_f[0]+val_f[1])/(val_f[1]-val_f[0]);
         y1 = 1.0;
@@ -129,7 +126,6 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
         y2 = -1.0;
     }
 
-    /* std::cout << "point 1 " << x1 << ", " << y1 << " point 2 " << x2 << ", " << y2 << std::endl; */
     // we then apply the transformation to get the coordinates in the element we're considering
 
     double xx1 = coor_elem[0][0] ;
@@ -162,15 +158,10 @@ void quadboundary(int i, std::vector<Point<2> > &decomp_elem, std::vector<Point<
     decomp_elem[3]=pt2;
     Doing this the returned quadrilateral wouldn't have its summits in the right order*/
 
-    /// i varie entre 1 et 4 !!!!!! d'où le fait qu'on prenne i-1 % 4 et i % 4
-    decomp_elem[3]=coor_elem[(i-1) % 4];
-    decomp_elem[2]=coor_elem[(i) % 4];
+    decomp_elem[3]=coor_elem[(i) % 4];
+    decomp_elem[2]=coor_elem[(i+1) % 4];
     decomp_elem[0]=pt1;
     decomp_elem[1]=pt2;
-    /*std::cout <<"coor elem " << coor_elem[0] << ", " << coor_elem[1] << ", " <<coor_elem[2] << ", " <<coor_elem[3] << std::endl;
-    std::cout <<"fct dist " << val_f[0] << ", " << val_f[1] << ", " <<val_f[2] << ", " <<val_f[3] << std::endl;
-    std::cout <<"Nouvel élément " << decomp_elem[0] << ", " << decomp_elem[1] << ", " << decomp_elem[2] << ", " << decomp_elem[3] << "\n \n" << std::endl;
-    */
 }
 
 void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_solid, std::vector<Point<2> > &num_elem, std::vector<Point<2> > &decomp_elem, int* nb_poly, std::vector<Point<2> > coor_elem1, std::vector<double> val_f1)
@@ -231,7 +222,6 @@ void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
     for (int jj = 0; jj < 4; ++jj) { // changing the coordinates
         coor_elem[jj]  = coor_elem1[vec_change_coor[jj]];
         val_f[jj] = val_f1[vec_change_coor[jj]];
-        //std::cout << coor_elem[jj] << std::endl;
     }
 
     // Calculate size of element to establish tolerance
@@ -274,7 +264,7 @@ void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
             {
                 if ((i==0) && (a[3]>0)) // this case exists just to have always the same order in the summits of the sub-elements
                 {
-                    quadboundary(4, decomp_elem, coor_elem, val_f);
+                    quadboundary(3, decomp_elem, coor_elem, val_f);
 
                     corresp = {4, 5, vec_change_coor[3], vec_change_coor[0],-1,-1,-1,-1,-1};
                     num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], decomp_elem[0], decomp_elem[1]};
@@ -285,7 +275,7 @@ void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
 
                 else
                 {
-                    quadboundary(i+1, decomp_elem, coor_elem, val_f);
+                    quadboundary(i, decomp_elem, coor_elem, val_f);
 
                     corresp = {4, 5, vec_change_coor[(i+1) % 4], vec_change_coor[i],-1,-1,-1,-1,-1};
                     num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], decomp_elem[0], decomp_elem[1]};
@@ -312,16 +302,6 @@ void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
             decomp_elem[0]=coor_elem[b];
             decomp_elem[1]=boundary_pts[0];
             decomp_elem[2]=boundary_pts[1];
-
-
-//            for (int i = 0; i < 3; ++i) {
-//                if (i%3==0) std::cout << "\n" << std::endl;
-//                std::cout << decomp_elem[i] << std::endl;
-
-//            }
-//            std::cout << "\n" << std::endl;
-
-
 
             num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[0], boundary_pts[1]};
             corresp = {vec_change_coor[b], 4, 5, -1,-1,-1,-1,-1};
@@ -357,15 +337,6 @@ void decomposition(std::vector<int> &corresp, std::vector<node_status> &No_pts_s
                 decomp_elem [6] = coor_elem[(b+3)%4];
                 decomp_elem [7] = boundary_pts[1];
                 decomp_elem [8] = coor_elem[(b+2)%4];
-
-
-//                for (int i = 0; i < 9; ++i) {
-//                    if (i%3==0) std::cout << "\n" << std::endl;
-//                    std::cout << decomp_elem[i] << std::endl;
-
-//                }
-//                std::cout << "\n" << std::endl;
-
 
                 corresp = {vec_change_coor[(b+1)%4], vec_change_coor[(b+2)%4], 5, vec_change_coor[(b+2)%4], 4, 5, vec_change_coor[(b+3)%4],4 , vec_change_coor[(b+2)%4] };
                 num_elem = {coor_elem1[0], coor_elem1[1], coor_elem1[2], coor_elem1[3], boundary_pts[1], boundary_pts[0]}; // boundary points are sorte differently because of the way the function trgboundary works
