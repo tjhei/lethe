@@ -667,7 +667,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
     std::vector<double>           phi_p                     (dofs_per_cell);
     std::vector<Tensor<1, dim> >  grad_phi_p                (dofs_per_cell);
 
-    std::vector<double>   vertices_vp(dofs_per_cell); //only in 2D, stores the velocity and the pressure on each vertex of the square element considered
+    Vector<double>   vertices_vp(dofs_per_cell); //only in 2D, stores the velocity and the pressure on each vertex of the square element considered
 
     std::map< types::global_dof_index, Point< 2 > > support_points;
     DoFTools::map_dofs_to_support_points ( mapping, dof_handler,support_points );
@@ -704,6 +704,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             dofs_points[dof_index] = support_points[local_dof_indices[dof_index]];
             distance[dof_index]    = ib_combiner.value(dofs_points[dof_index]);
             vertices_vp[dof_index] = evaluation_point[local_dof_indices[dof_index]];
+          //  std::cout << vertices_vp[dof_index] << std::endl;
           }
 
           // We get the coordinates and the distance associated to the vertices of the element
@@ -722,6 +723,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
 
         if (ib_combiner.size()<1 || (nb_poly==0 && (distance[0]>0)) )
         {
+          std::cout << " Fluid element" << std::endl;
           if (dim==2) h = std::sqrt(4.* cell->measure() / M_PI) ;
           else if (dim==3) h = pow(6*cell->measure()/M_PI,1./3.) ;
 
@@ -822,7 +824,23 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                                       * fe_values.JxW(q);
                 }
             }
-        }
+            if (assemble_matrix){
+
+                std::cout << " \n system matrix for pure fluid elements : " << std::endl;
+                for (int i = 0; i < 12; ++i) {
+                    std::cout << local_matrix(i,0) << " "  << local_matrix(i,1) << " " << local_matrix(i,2) << " "
+                              << local_matrix(i,3) << " "  << local_matrix(i,4) << " " << local_matrix(i,5) << " "
+                              << local_matrix(i,6) << " "  << local_matrix(i,7) << " " << local_matrix(i,8) << " "
+                              << local_matrix(i,9) << " "  << local_matrix(i,10) << " " << local_matrix(i,11)
+                              << std::endl;}}
+                std::cout << " \n system rhs for pure fluid elements : " << std::endl;
+                std::cout << local_rhs(0) << " "  << local_rhs(1) << " " << local_rhs(2) << " "
+                          << local_rhs(3) << " "  << local_rhs(4) << " " << local_rhs(5) << " "
+                          << local_rhs(6) << " "  << local_rhs(7) << " " << local_rhs(8) << " "
+                          << local_rhs(9) << " "  << local_rhs(10) << " " << local_rhs(11)
+                          << std::endl;}
+
+
 
         // Pure solid elements
         else if ((nb_poly==0 && (distance[0]<0)) )
@@ -858,7 +876,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           std::vector<Point<dim> > triangulation_points(GeometryInfo<dim>::vertices_per_cell);
           // Create 4 points for triangulation:
           for (unsigned int i_pt =0 ; i_pt < 4 ; ++i_pt)
-            triangulation_points[i_pt]=decomp_elem[i_pt];
+//            triangulation_points[i_pt]=decomp_elem[i_pt];
+              triangulation_points[i_pt]=dofs_points[3*i_pt];
 
           // Prepare cell data
           std::vector<CellData<dim> > cells (1);
@@ -882,7 +901,40 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           sub_system_matrix.reinit (sub_dof_handler.n_dofs(),sub_dof_handler.n_dofs());
           sub_system_rhs.reinit (sub_dof_handler.n_dofs());
           sub_system_dofs.reinit((sub_dof_handler.n_dofs()));
-          integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs,sub_system_dofs);
+          std::vector<Tensor<1, dim>>   vertices_v(4);
+          std::vector<double>           vertices_p(4);
+
+          // get the values of u,v and p on the vertices of the sub-element
+          for (unsigned int vertex_index = 0; vertex_index < 4; ++vertex_index) {
+
+              for (int i = 0; i < dim; ++i) { // i is the component of the velocity
+                  vertices_v[vertex_index][i] = vertices_vp[3*vertex_index+i];
+              }
+              if (vertices_vp[3*vertex_index+dim] < 1e3)
+                  vertices_p[vertex_index] = vertices_vp[3*vertex_index+dim];
+              else {
+                  vertices_p[vertex_index] = 0;
+              }
+          }
+
+          std::vector<Tensor<1,dim>>        local_v(4);
+          std::vector<double>               local_p(4);
+          for (int i = 0; i < 4; ++i) {
+              if (corresp[i]>3)
+              {
+                  ib_combiner.velocity(num_elem[i], local_v[i]);
+                  local_p[i] = 1./4*(vertices_p[0]+vertices_p[1]+vertices_p[2]+vertices_p[3]);
+              }
+              else {
+                  local_v[i] = vertices_v[corresp[i]];
+                  local_p[i] = vertices_p[corresp[i]];
+              }
+              sub_system_dofs[3*i] = local_v[i][0];
+              sub_system_dofs[3*i+1] = local_v[i][1];
+              sub_system_dofs[3*i+2] = local_p[i];
+          }
+
+          integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs, vertices_vp /*sub_system_dofs*/);
 
           // Create a vector in order to know on which dof we apply the boundary conditions
           // the definition of decomp_elem for a quad element (nb_poly== -1) is that the first 2 points are the boundary points, and the 2 others are the vertices in the fluid
@@ -930,17 +982,18 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           loc_mat=0;
           loc_rhs=0;
 
-//          std::cout << " \n system matrix before sorting : " << std::endl;
-//          for (int i = 0; i < 12; ++i) {
-//              std::cout << sub_system_matrix(i,0) << " "  << sub_system_matrix(i,1) << " " << sub_system_matrix(i,2) << " "
-//                        << sub_system_matrix(i,3) << " "  << sub_system_matrix(i,4) << " " << sub_system_matrix(i,5) << " "
-//                        << sub_system_matrix(i,6) << " "  << sub_system_matrix(i,7) << " " << sub_system_matrix(i,8) << " "
-//                        << sub_system_matrix(i,9) << " "  << sub_system_matrix(i,10) << " " << sub_system_matrix(i,11) << " "
-//                        << std::endl;
-//          }
-//          for (int i = 0; i < 12; ++i) {
-//              std::cout << "rhs " << i << " : " << sub_system_rhs[i] << std::endl;
-//          }
+          if (assemble_matrix){
+          std::cout << " \n system matrix to be compared : " << std::endl;
+          for (int i = 0; i < 12; ++i) {
+              std::cout << sub_system_matrix(i,0) << " "  << sub_system_matrix(i,1) << " " << sub_system_matrix(i,2) << " "
+                        << sub_system_matrix(i,3) << " "  << sub_system_matrix(i,4) << " " << sub_system_matrix(i,5) << " "
+                        << sub_system_matrix(i,6) << " "  << sub_system_matrix(i,7) << " " << sub_system_matrix(i,8) << " "
+                        << sub_system_matrix(i,9) << " "  << sub_system_matrix(i,10) << " " << sub_system_matrix(i,11) << " "
+                        << std::endl;
+          }}
+          for (int i = 0; i < 12; ++i) {
+              std::cout << "rhs " << i << " : " << sub_system_rhs[i] << std::endl;
+          }
           for (int i = 0; i < 12; ++i) {
               for (int j = 0; j < 12; ++j) {
                   loc_mat(corresp_dofs[i],corresp_dofs[j]) = sub_system_matrix(i,j);
@@ -989,25 +1042,45 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                   loc_rhs[i] = v_solid[i%3];
               }
           }
-          std::cout << " \n system matrix after sorting and applying boundary conditions : " << std::endl;
-          for (int i = 0; i < 18; ++i) {
-              std::cout << loc_mat(i,0) << " "  << loc_mat(i,1) << " " << loc_mat(i,2) << " "
-                        << loc_mat(i,3) << " "  << loc_mat(i,4) << " " << loc_mat(i,5) << " "
-                        << loc_mat(i,6) << " "  << loc_mat(i,7) << " " << loc_mat(i,8) << " "
-                        << loc_mat(i,9) << " "  << loc_mat(i,10) << " " << loc_mat(i,11) << " "
-                        << loc_mat(i,12) << " "  << loc_mat(i,13) << " " << loc_mat(i,14) << " "
-                        << loc_mat(i,15) << " "  << loc_mat(i,16) << " " << loc_mat(i,17) << " "
-                        << std::endl;}
-          std::cout << " \n system rhs after sorting and applying boundary conditions : " << std::endl;
-          std::cout << loc_rhs(0) << " "  << loc_rhs(1) << " " << loc_rhs(2) << " "
-                    << loc_rhs(3) << " "  << loc_rhs(4) << " " << loc_rhs(5) << " "
-                    << loc_rhs(6) << " "  << loc_rhs(7) << " " << loc_rhs(8) << " "
-                    << loc_rhs(9) << " "  << loc_rhs(10) << " " << loc_rhs(11) << " "
-                    << loc_rhs(12) << " "  << loc_rhs(13) << " " << loc_rhs(14) << " "
-                    << loc_rhs(15) << " "  << loc_rhs(16) << " " << loc_rhs(17) << " "
-                    << std::endl;
+//          std::cout << " \n system matrix after sorting and applying boundary conditions : " << std::endl;
+//          for (int i = 0; i < 18; ++i) {
+//              std::cout << loc_mat(i,0) << " "  << loc_mat(i,1) << " " << loc_mat(i,2) << " "
+//                        << loc_mat(i,3) << " "  << loc_mat(i,4) << " " << loc_mat(i,5) << " "
+//                        << loc_mat(i,6) << " "  << loc_mat(i,7) << " " << loc_mat(i,8) << " "
+//                        << loc_mat(i,9) << " "  << loc_mat(i,10) << " " << loc_mat(i,11) << " "
+//                        << loc_mat(i,12) << " "  << loc_mat(i,13) << " " << loc_mat(i,14) << " "
+//                        << loc_mat(i,15) << " "  << loc_mat(i,16) << " " << loc_mat(i,17) << " "
+//                        << std::endl;}
+//          std::cout << " \n system rhs after sorting and applying boundary conditions : " << std::endl;
+//          std::cout << loc_rhs(0) << " "  << loc_rhs(1) << " " << loc_rhs(2) << " "
+//                    << loc_rhs(3) << " "  << loc_rhs(4) << " " << loc_rhs(5) << " "
+//                    << loc_rhs(6) << " "  << loc_rhs(7) << " " << loc_rhs(8) << " "
+//                    << loc_rhs(9) << " "  << loc_rhs(10) << " " << loc_rhs(11) << " "
+//                    << loc_rhs(12) << " "  << loc_rhs(13) << " " << loc_rhs(14) << " "
+//                    << loc_rhs(15) << " "  << loc_rhs(16) << " " << loc_rhs(17) << " "
+//                    << std::endl;
 
           condensate(18, 12, loc_mat, local_matrix, loc_rhs, local_rhs);
+
+          if (assemble_matrix){
+
+              std::cout << " \n system matrix after condensation : " << std::endl;
+              for (int i = 0; i < 12; ++i) {
+                  std::cout << local_matrix(i,0) << " "  << local_matrix(i,1) << " " << local_matrix(i,2) << " "
+                            << local_matrix(i,3) << " "  << local_matrix(i,4) << " " << local_matrix(i,5) << " "
+                            << local_matrix(i,6) << " "  << local_matrix(i,7) << " " << local_matrix(i,8) << " "
+                            << local_matrix(i,9) << " "  << local_matrix(i,10) << " " << local_matrix(i,11)
+                            << std::endl;}
+              std::cout << " \n system rhs after condensation : " << std::endl;
+              std::cout << local_rhs(0) << " "  << local_rhs(1) << " " << local_rhs(2) << " "
+                        << local_rhs(3) << " "  << local_rhs(4) << " " << local_rhs(5) << " "
+                        << local_rhs(6) << " "  << local_rhs(7) << " " << local_rhs(8) << " "
+                        << local_rhs(9) << " "  << local_rhs(10) << " " << local_rhs(11)
+                        << std::endl;
+
+          }
+
+
         }
 
         else if (nb_poly>0) { // this part is implemented for 2D problems only !! //
@@ -1032,9 +1105,9 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             for (unsigned int vertex_index = 0; vertex_index < nb_of_vertices; ++vertex_index) {
 
                 for (int i = 0; i < dim; ++i) { // i is the component of the velocity
-                    local_v[vertex_index][i] = vertices_vp[vertex_index+i];
+                    local_v[vertex_index][i] = vertices_vp[3*vertex_index+i];
                 }
-                local_p[vertex_index] = vertices_vp[vertex_index+dim];
+                local_p[vertex_index] = vertices_vp[3*vertex_index+dim];
             }
 
 
@@ -1310,7 +1383,7 @@ void DirectSteadyNavierStokes<dim>::newton_iteration(const double tolerance,
               evaluation_point = present_solution;
               assemble_system(first_step);
               current_res = system_rhs.l2_norm();
-              std::cout  << "Newton iteration: " << outer_iteration << "  - Residual:  " << current_res << std::endl;
+              std::cout  << "Newton iteration: " << outer_iteration << "  - Residual:  " << current_res << "\n\n\n\n\n\n" << std::endl;
               solve(first_step);
               present_solution = newton_update;
               nonzero_constraints.distribute(present_solution);
@@ -1322,7 +1395,7 @@ void DirectSteadyNavierStokes<dim>::newton_iteration(const double tolerance,
             }
           else
             {
-              std::cout  << "Newton iteration: " << outer_iteration << "  - Residual:  " << current_res << std::endl;
+              std::cout  << "Newton iteration: " << outer_iteration << "  - Residual:  " << current_res  << "\n\n\n\n\n\n" << std::endl;
               evaluation_point = present_solution;
               assemble_system(first_step);
               solve(first_step);
@@ -1492,7 +1565,7 @@ void DirectSteadyNavierStokes<dim>::runCouetteX()
   simulationCase_=CouetteX;
   GridGenerator::hyper_cube (triangulation, 0, 1,true);
   forcing_function = new NoForce<dim>;
-  triangulation.refine_global (3);
+  triangulation.refine_global (2);
   exact_solution = new ExactSolutionCouetteX<dim>;
   viscosity_=1.;
   setup_dofs();
@@ -1571,7 +1644,7 @@ void DirectSteadyNavierStokes<dim>::runCouetteIBX()
   simulationCase_=CouetteX;
   GridGenerator::hyper_cube (triangulation, 0, 1,true);
   forcing_function = new NoForce<dim>;
-  triangulation.refine_global (2);
+  triangulation.refine_global (1);
 
   // Generate the IB composer
   Point<2> center1(0.55,0);
@@ -1590,7 +1663,7 @@ void DirectSteadyNavierStokes<dim>::runCouetteIBX()
   viscosity_=1.;
   setup_dofs();
 
-  newton_iteration(1.e-6, 5, true, true);
+  newton_iteration(1.e-6, 1, true, true);
   output_results ("Couette-X-IB-",0);
   calculateL2Error();
 }
