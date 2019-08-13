@@ -619,6 +619,17 @@ void DirectSteadyNavierStokes<dim>::GLS_residual_trg(
         }
 
     }
+    std::cout << " \n system matrix in gls trg : " << std::endl;
+    for (int i = 0; i < 9; ++i) {
+        std::cout << local_mat(i,0) << " "  << local_mat(i,1) << " " << local_mat(i,2) << " "
+                  << local_mat(i,3) << " "  << local_mat(i,4) << " " << local_mat(i,5) << " "
+                  << local_mat(i,6) << " "  << local_mat(i,7) << " " << local_mat(i,8) << " "
+                  << std::endl;}
+    std::cout << " \n system rhs in gls trg : " << std::endl;
+    std::cout << local_rhs(0) << " "  << local_rhs(1) << " " << local_rhs(2) << " "
+              << local_rhs(3) << " "  << local_rhs(4) << " " << local_rhs(5) << " "
+              << local_rhs(6) << " "  << local_rhs(7) << " " << local_rhs(8) << " "
+              << std::endl;
 }
 
 
@@ -862,8 +873,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
             if (i%3==0) ib_combiner.velocity(dofs_points[i],ib_velocity);
 
             // Impose X, Y velocity and pressure depending on dof index
-            if (i%3==0) local_rhs[i]=ib_velocity[0];
-            else if (i%3==1) local_rhs[i]=ib_velocity[1];
+            if (i%3==0) local_rhs[i]=ib_velocity[0]-vertices_vp[i];
+            else if (i%3==1) local_rhs[i]=ib_velocity[1]-vertices_vp[i];
             else local_rhs[i]=0;
           }
         }
@@ -876,8 +887,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
           std::vector<Point<dim> > triangulation_points(GeometryInfo<dim>::vertices_per_cell);
           // Create 4 points for triangulation:
           for (unsigned int i_pt =0 ; i_pt < 4 ; ++i_pt)
-//            triangulation_points[i_pt]=decomp_elem[i_pt];
-              triangulation_points[i_pt]=dofs_points[3*i_pt];
+            triangulation_points[i_pt]=decomp_elem[i_pt];
+//              triangulation_points[i_pt]=dofs_points[3*i_pt];
 
           // Prepare cell data
           std::vector<CellData<dim> > cells (1);
@@ -934,7 +945,7 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
               sub_system_dofs[3*i+2] = local_p[i];
           }
 
-          integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs, vertices_vp /*sub_system_dofs*/);
+          integrate_sub_quad_element(sub_triangulation, sub_dof_handler, sub_fe, sub_system_matrix, sub_system_rhs, /*vertices_vp */sub_system_dofs);
 
           // Create a vector in order to know on which dof we apply the boundary conditions
           // the definition of decomp_elem for a quad element (nb_poly== -1) is that the first 2 points are the boundary points, and the 2 others are the vertices in the fluid
@@ -1022,8 +1033,8 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                   // we get the value of the velocity at the considered point
                   ib_combiner.velocity(dofs_points[i], v_solid);
 
-                  loc_rhs(3*i) = v_solid[0];
-                  loc_rhs(3*i+1) = v_solid[1];
+                  loc_rhs(3*i) = v_solid[0]-vertices_vp[3*i];
+                  loc_rhs(3*i+1) = v_solid[1]-vertices_vp[3*i+1];
               }
           }
 
@@ -1038,8 +1049,12 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                       loc_mat(i,j) = 0;
                   }
                   loc_mat(i,i) = 1;
-                  ib_combiner.velocity(num_elem[i/3], v_solid);
-                  loc_rhs[i] = v_solid[i%3];
+                  if (initial_step)
+                  {ib_combiner.velocity(num_elem[i/3], v_solid);
+                  loc_rhs[i] = v_solid[i%3];}
+                  else {
+                      loc_rhs[i] = 0;
+                  }
               }
           }
 //          std::cout << " \n system matrix after sorting and applying boundary conditions : " << std::endl;
@@ -1210,17 +1225,34 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                 trg_.set_V_on_vertices(local_v);
 
                 // the following function calculates the values of the coefficient of the matrix and the rhs for the considered triangle
-                GLS_residual_trg(loc_mat, local_rhs);
+                GLS_residual_trg(loc_mat, loc_rhs);
 
                 for (int i = 0; i < 3; ++i) {
                     for (int j = 0; j < 3; ++j) {
+                        std::cout << loc_mat(i,j) << " " << corresp_loc[i] << " " << corresp_loc[j] << std::endl;
                         cell_mat(corresp_loc[i],corresp_loc[j]) += loc_mat(i,j);
                     }
-                    cell_rhs(corresp_loc[i]) += local_rhs[i];
+                    cell_rhs(corresp_loc[i]) += loc_rhs[i];
                 }
             }
 
-
+//                      std::cout << " \n system matrix for triangles : " << std::endl;
+//                      for (int i = 0; i < 18; ++i) {
+//                          std::cout << cell_mat(i,0) << " "  << cell_mat(i,1) << " " << cell_mat(i,2) << " "
+//                                    << cell_mat(i,3) << " "  << cell_mat(i,4) << " " << cell_mat(i,5) << " "
+//                                    << cell_mat(i,6) << " "  << cell_mat(i,7) << " " << cell_mat(i,8) << " "
+//                                    << cell_mat(i,9) << " "  << cell_mat(i,10) << " " << cell_mat(i,11) << " "
+//                                    << cell_mat(i,12) << " "  << cell_mat(i,13) << " " << cell_mat(i,14) << " "
+//                                    << cell_mat(i,15) << " "  << cell_mat(i,16) << " " << cell_mat(i,17) << " "
+//                                    << std::endl;}
+//                      std::cout << " \n system rhs for triangles : " << std::endl;
+//                      std::cout << cell_rhs(0) << " "  << cell_rhs(1) << " " << cell_rhs(2) << " "
+//                                << cell_rhs(3) << " "  << cell_rhs(4) << " " << cell_rhs(5) << " "
+//                                << cell_rhs(6) << " "  << cell_rhs(7) << " " << cell_rhs(8) << " "
+//                                << cell_rhs(9) << " "  << cell_rhs(10) << " " << cell_rhs(11) << " "
+//                                << cell_rhs(12) << " "  << cell_rhs(13) << " " << cell_rhs(14) << " "
+//                                << cell_rhs(15) << " "  << cell_rhs(16) << " " << cell_rhs(17) << " "
+//                                << std::endl;
 
             // We now apply the boundary conditions to the points that are on the boundary or in the solid //
 
@@ -1247,7 +1279,11 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                         cell_rhs(i) = 0; // in the solid, there is no pressure
                     }
                     else {
-                        cell_rhs(i) = v_solid[i%dofs_per_vertex]; // i%dofs_per_vertex is here the component of the speed we want to get
+                        if (initial_step)
+                            cell_rhs(i) = v_solid[i%dofs_per_vertex]; // i%dofs_per_vertex is here the component of the speed we want to get
+                        else {
+                            cell_rhs(i) = 0;
+                        }
                     }
                 }
             }
@@ -1271,8 +1307,11 @@ void DirectSteadyNavierStokes<dim>::assemble(const bool initial_step,
                     }
 
                 }
-                if (!(dof_index%dofs_per_vertex==dim)) // we only set the velocity on the boundary, we dont set any value for the pressure on the boundary
+                if (!(dof_index%dofs_per_vertex==dim)&&(initial_step)) // we only set the velocity on the boundary, we dont set any value for the pressure on the boundary
                     cell_rhs(dof_index) = v_solid[dof_index%dofs_per_vertex];
+                else {
+                    cell_rhs(dof_index) = 0;
+                }
             }
 
             // We then condensate the system to make the boundary points not explicitly appear in the system //
@@ -1585,6 +1624,20 @@ void DirectSteadyNavierStokes<dim>::runCouetteXPerturbedMesh()
   GridGenerator::hyper_cube (triangulation, 0, 1,true);
   forcing_function = new NoForce<dim>;
   triangulation.refine_global (3);
+
+  // Generate the IB composer
+  Point<2> center1(0.751,0);
+  Tensor<1,2> velocity;
+  velocity[0]=0.; velocity[1]=1.;
+  Tensor<1,2> normal;
+  normal[0]=-1; normal[1]=0;
+  double T_scal=1;
+  // Add a shape to it
+  IBLevelSetPlane<2> plane(center1, normal,velocity, T_scal);
+  std::vector<IBLevelSetFunctions<2> *> ib_functions;
+  ib_functions.push_back(&plane);
+  ib_combiner.setFunctions(ib_functions);
+
   GridTools::distort_random(0.3,triangulation);
   exact_solution = new ExactSolutionCouetteX<dim>;
   viscosity_=1.;
@@ -1647,7 +1700,7 @@ void DirectSteadyNavierStokes<dim>::runCouetteIBX()
   triangulation.refine_global (1);
 
   // Generate the IB composer
-  Point<2> center1(0.55,0);
+  Point<2> center1(0.751,0);
   Tensor<1,2> velocity;
   velocity[0]=0.; velocity[1]=1.;
   Tensor<1,2> normal;
@@ -1663,7 +1716,7 @@ void DirectSteadyNavierStokes<dim>::runCouetteIBX()
   viscosity_=1.;
   setup_dofs();
 
-  newton_iteration(1.e-6, 1, true, true);
+  newton_iteration(1.e-6, 5, true, true);
   output_results ("Couette-X-IB-",0);
   calculateL2Error();
 }
@@ -1679,14 +1732,14 @@ int main ()
 //        DirectSteadyNavierStokes<2> problem_2d(1,1);
 //        problem_2d.runCouetteX();
 //      }
-//      {
-//        DirectSteadyNavierStokes<2> problem_2d(1,1);
-//        problem_2d.runCouetteXPerturbedMesh();
-//      }
       {
         DirectSteadyNavierStokes<2> problem_2d(1,1);
-        problem_2d.runCouetteIBX();
+        problem_2d.runCouetteXPerturbedMesh();
       }
+//      {
+//        DirectSteadyNavierStokes<2> problem_2d(1,1);
+//        problem_2d.runCouetteIBX();
+//      }
 //      {
 //      DirectSteadyNavierStokes<2> problem_2d(1,1);
 //      problem_2d.runMMS();
