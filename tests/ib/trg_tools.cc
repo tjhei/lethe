@@ -276,6 +276,7 @@ void test_shape_build()
         err_p += std::pow(phi_p[i] - phi_p_th[i], 2);
 
         if (std::abs(div_phi_u_[i] - div_phi_u_th[i])>1e-10) throw std::runtime_error("Failed to build the shape function vector for div u");
+        //std::cout << div_phi_u_[i] << std::endl;
         err_div += std::pow(div_phi_u_[i] - div_phi_u_th[i],2);
 
         for (int j = 0; j < 2; ++j) {
@@ -305,7 +306,7 @@ int main()
 {
   try
   {
-    test_interpolate();
+    //test_interpolate();
     test_shape_build();
   }
   catch (std::exception &exc)
