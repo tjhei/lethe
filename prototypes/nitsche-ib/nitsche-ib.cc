@@ -183,6 +183,9 @@ namespace Step60
 
       // A flag to keep track if we were initialized or not
       bool initialized = false;
+
+      // Beta for the Nitsche method
+      double beta = 10.;
     };
 
     DistributedLagrangeProblem(const Parameters &parameters);
@@ -270,8 +273,6 @@ namespace Step60
     Vector<double> solution;
     Vector<double> rhs;
 
-    Vector<double> lambda;
-    Vector<double> embedded_rhs;
     Vector<double> embedded_value;
 
     // The TimerOutput class is used to provide some statistics on
@@ -310,6 +311,9 @@ namespace Step60
     add_parameter("Coupling quadrature order", coupling_quadrature_order);
 
     add_parameter("Verbosity level", verbosity_level);
+
+    add_parameter("Beta", beta);
+
 
     // Once the parameter file has been parsed, then the parameters are good to
     // go. Set the internal variable `initialized` to true.
@@ -501,8 +505,6 @@ namespace Step60
 
     // By definition the rhs of the system we're solving involves only a zero
     // vector and $G$, which is computed using only $\Gamma$'s DoFs
-    lambda.reinit(immersed_dh->n_dofs());
-    embedded_rhs.reinit(immersed_dh->n_dofs());
     embedded_value.reinit(immersed_dh->n_dofs());
 
     deallog << "Embedded dofs: " << immersed_dh->n_dofs() << std::endl;
@@ -523,7 +525,7 @@ namespace Step60
                                  immersed_fe,
                                  quad,
                                  update_JxW_values | update_quadrature_points |
-                                   update_values);
+                                   update_normal_vectors | update_values);
 
     const unsigned int n_q_points = quad.size();
     const unsigned int n_active_c =
@@ -623,18 +625,18 @@ namespace Step60
       cell = immersed_dh->begin_active(),
       endc = immersed_dh->end();
 
-    for (unsigned int j = 0; cell != endc; ++cell, ++j)
+    for (unsigned int c_j = 0; cell != endc; ++cell, ++c_j)
       {
         // Reinitialize the cell and the fe_values
         fe_v.reinit(cell);
         cell->get_dof_indices(dofs);
 
-
         // Get a list of outer cells, qpoints and maps.
-        const auto &cells   = cell_container[j];
-        const auto &qpoints = qpoints_container[j];
-        const auto &maps    = maps_container[j];
+        const auto &cells   = cell_container[c_j];
+        const auto &qpoints = qpoints_container[c_j];
+        const auto &maps    = maps_container[c_j];
 
+        auto immersed_quad_points = fe_v.get_quadrature_points();
         for (unsigned int c = 0; c < cells.size(); ++c)
           {
             cell_matrix = 0;
@@ -652,7 +654,7 @@ namespace Step60
                   space_grid_tools_cache->get_mapping(),
                   space_dh->get_fe(),
                   qps,
-                  update_values);
+                  update_values | update_gradients);
                 o_fe_v.reinit(ocell);
                 ocell->get_dof_indices(odofs);
 
@@ -664,22 +666,43 @@ namespace Step60
                          ++oq)
                       {
                         // Get the corresponding q point
-                        const unsigned int q = ids[oq];
+                        const unsigned int q   = ids[oq];
+                        double dirichlet_value = embedded_value_function.value(
+                          immersed_quad_points[oq]);
+                        auto normal_vector = -fe_v.normal_vector(oq);
+                        //                        std::cout
+                        //                          << " Normal vecgtor : " <<
+                        //                          normal_vector
+                        //                          << " Quadrature point : " <<
+                        //                          immersed_quad_points[oq]
+                        //                          << std::endl;
 
                         for (unsigned int j = 0; j < space_fe.dofs_per_cell;
                              ++j)
 
                           {
-                            // Get the corresponding q point
-                            const unsigned int q = ids[oq];
-
                             cell_matrix(i, j) +=
-                              500 * (o_fe_v.shape_value(j, oq) *
-                                     o_fe_v.shape_value(i, oq) * fe_v.JxW(q));
+                              parameters.beta *
+                              (o_fe_v.shape_value(j, oq) *
+                               o_fe_v.shape_value(i, oq) * fe_v.JxW(q));
+
+                            // Gradient term
+                            cell_matrix(i, j) += o_fe_v.shape_value(j, oq) *
+                                                 o_fe_v.shape_grad(i, oq) *
+                                                 normal_vector * fe_v.JxW(q);
+
+                            // Gradient term
+                            cell_matrix(i, j) -=
+                              o_fe_v.shape_grad(j, oq) * normal_vector *
+                              o_fe_v.shape_value(i, oq) * fe_v.JxW(q);
                           }
 
-                        local_rhs(i) +=
-                          500 * o_fe_v.shape_value(i, oq) * fe_v.JxW(q);
+                        local_rhs(i) += parameters.beta * dirichlet_value *
+                                        o_fe_v.shape_value(i, oq) * fe_v.JxW(q);
+
+                        local_rhs(i) += dirichlet_value *
+                                        o_fe_v.shape_grad(i, oq) *
+                                        normal_vector * fe_v.JxW(q);
                       }
                   }
               }
@@ -707,12 +730,13 @@ namespace Step60
         static_cast<const Function<spacedim> *>(nullptr),
         constraints);
 
-      VectorTools::create_right_hand_side(*embedded_mapping,
-                                          *immersed_dh,
-                                          QGauss<dim>(2 * embedded_fe->degree +
-                                                      1),
-                                          embedded_value_function,
-                                          embedded_rhs);
+      //      VectorTools::create_right_hand_side(*embedded_mapping,
+      //                                          *immersed_dh,
+      //                                          QGauss<dim>(2 *
+      //                                          embedded_fe->degree +
+      //                                                      1),
+      //                                          embedded_value_function,
+      //                                          embedded_rhs);
     }
     {
       TimerOutput::Scope timer_section(monitor, "Assemble Nitsche BC");
@@ -771,7 +795,6 @@ namespace Step60
     std::ofstream embedded_out_file("embedded.vtu");
 
     embedded_out.attach_dof_handler(*immersed_dh);
-    embedded_out.add_data_vector(lambda, "lambda");
     embedded_out.add_data_vector(embedded_value, "g");
     embedded_out.build_patches(*embedded_mapping,
                                parameters.embedded_space_finite_element_degree);
