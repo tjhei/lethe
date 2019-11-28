@@ -658,6 +658,8 @@ namespace Step60
                 o_fe_v.reinit(ocell);
                 ocell->get_dof_indices(odofs);
 
+                const double h = std::pow(ocell->measure(), 1. / dim);
+
                 for (unsigned int i = 0; i < space_fe.dofs_per_cell; ++i)
                   {
                     const auto comp_i =
@@ -682,7 +684,7 @@ namespace Step60
 
                           {
                             cell_matrix(i, j) +=
-                              parameters.beta *
+                              parameters.beta / h *
                               (o_fe_v.shape_value(j, oq) *
                                o_fe_v.shape_value(i, oq) * fe_v.JxW(q));
 
@@ -697,7 +699,7 @@ namespace Step60
                               o_fe_v.shape_value(i, oq) * fe_v.JxW(q);
                           }
 
-                        local_rhs(i) += parameters.beta * dirichlet_value *
+                        local_rhs(i) += parameters.beta / h * dirichlet_value *
                                         o_fe_v.shape_value(i, oq) * fe_v.JxW(q);
 
                         local_rhs(i) += dirichlet_value *
