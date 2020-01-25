@@ -1071,7 +1071,7 @@ GDNavierStokesSolver<dim>::solve()
 
   while (this->simulationControl.integrate())
     {
-      printTime(this->pcout, this->simulationControl);
+      this->simulationControl.printTime(this->pcout);
       if (!this->simulationControl.firstIter())
         {
           NavierStokesBase<dim,

@@ -1,13 +1,11 @@
 #include "core/simulation_control.h"
-
 #include <fstream>
-
 #include "core/parameters.h"
 
 void
-printTime(ConditionalOStream pcout, SimulationControl control)
+SimulationControl::printTime(ConditionalOStream pcout)
 {
-  if (control.getMethod() ==
+  if (getMethod() ==
       Parameters::SimulationControl::TimeSteppingMethod::steady)
     {
       pcout << std::endl;
@@ -16,7 +14,7 @@ printTime(ConditionalOStream pcout, SimulationControl control)
            "******************"
         << std::endl;
       pcout << "Steady iteration : " << std::setw(8) << std::right
-            << control.getIter() << "/" << control.getNbMeshAdapt() + 1
+            << getIter() << "/" << getNbMeshAdapt() + 1
             << std::endl;
       pcout
         << "*****************************************************************"
@@ -31,53 +29,15 @@ printTime(ConditionalOStream pcout, SimulationControl control)
            "******************"
         << std::endl;
       pcout << "Transient iteration : " << std::setw(8) << std::left
-            << control.getIter() << " Time : " << std::setw(8) << std::left
-            << control.getTime() << " Time step : " << std::setw(8) << std::left
-            << control.getCurrentTimeStep() << " CFL : " << std::setw(8)
-            << std::left << control.getCFL() << std::endl;
+            << getIter() << " Time : " << std::setw(8) << std::left
+            << getTime() << " Time step : " << std::setw(8) << std::left
+            << getCurrentTimeStep() << " CFL : " << std::setw(8)
+            << std::left << getCFL() << std::endl;
       pcout
         << "*****************************************************************"
            "******************"
         << std::endl;
     }
-}
-
-void
-SimulationControl::addTimeStep(double p_timestep)
-{
-  // Store previous time step in table
-  for (unsigned int i_time = dt.size() - 1; i_time > 0; --i_time)
-    dt[i_time] = dt[i_time - 1];
-
-  // Calculate time step, right now this is a dummy function
-  dt[0] = p_timestep;
-}
-
-bool
-SimulationControl::integrate()
-{
-  if ((parameterControl.method ==
-         Parameters::SimulationControl::TimeSteppingMethod::steady &&
-       iter >= (nbMeshAdapt + 1)) ||
-      (parameterControl.method !=
-         Parameters::SimulationControl::TimeSteppingMethod::steady &&
-       time >= (endTime - 1e-6 * dt[0])))
-    return false;
-  else
-    {
-      iter++;
-      addTimeStep(calculateTimeStep());
-      // Increment time
-      time += dt[0];
-      return true;
-    }
-}
-
-// Calculate the time step depending on the time stepping control parameters
-double
-SimulationControl::calculateTimeStep()
-{
-  return parameterControl.dt;
 }
 
 void
@@ -142,4 +102,42 @@ SimulationControl::read(std::string prefix)
   input >> buffer >> CFL;
   input >> buffer >> time;
   input >> buffer >> iter;
+}
+
+// Calculate the time step depending on the time stepping control parameters
+double
+SimulationControl::calculateTimeStep()
+{
+  return parameterControl.dt;
+}
+
+void
+SimulationControl::addTimeStep(double p_timestep)
+{
+  // Store previous time step in table
+  for (unsigned int i_time = dt.size() - 1; i_time > 0; --i_time)
+    dt[i_time] = dt[i_time - 1];
+
+  // Calculate time step, right now this is a dummy function
+  dt[0] = p_timestep;
+}
+
+bool
+SimulationControl::integrate()
+{
+  if ((parameterControl.method ==
+         Parameters::SimulationControl::TimeSteppingMethod::steady &&
+       iter >= (nbMeshAdapt + 1)) ||
+      (parameterControl.method !=
+         Parameters::SimulationControl::TimeSteppingMethod::steady &&
+       time >= (endTime - 1e-6 * dt[0])))
+    return false;
+  else
+    {
+      iter++;
+      addTimeStep(calculateTimeStep());
+      // Increment time
+      time += dt[0];
+      return true;
+    }
 }

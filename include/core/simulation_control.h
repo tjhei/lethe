@@ -6,40 +6,6 @@
 
 class SimulationControl
 {
-  // Time step
-  std::vector<double> dt;
-  // CFL
-  double CFL;
-  // Maximal CFL condition
-  double maxCFL;
-  // Time
-  double time;
-  // Simulation end time
-  double endTime;
-  // Iteration number
-  unsigned int iter;
-
-  // Number of mesh adaptation iteration
-  unsigned int nbMeshAdapt;
-
-  // number of time steps stored
-  static const unsigned int numberTimeStepStored = 4;
-
-  // Calculate time step based on either CFL or fixed;
-  double
-  calculateTimeStep();
-
-  // Add a time step and stores the previous one in a list
-  void
-  addTimeStep(double p_timestep);
-
-  // Time stepping method
-  Parameters::SimulationControl::TimeSteppingMethod method;
-
-  // Parameters from the parser that do not change during the simulation (names,
-  // etc.)
-  Parameters::SimulationControl parameterControl;
-
 public:
   void
   initialize(ParameterHandler &prm);
@@ -79,21 +45,25 @@ public:
   {
     addTimeStep(p_timestep);
   }
+
   double
   getCurrentTimeStep()
   {
     return dt[0];
   }
+
   std::vector<double>
   getTimeSteps()
   {
     return dt;
   }
+
   double
   getTime() const
   {
     return time;
   }
+
   double
   getEndTime() const
   {
@@ -110,21 +80,25 @@ public:
   {
     return iter == 1;
   }
+
   double
   getCFL()
   {
     return CFL;
   }
+
   void
   setCFL(double p_CFL)
   {
     CFL = p_CFL;
   }
+
   double
   getMaxCFL()
   {
     return maxCFL;
   }
+
   Parameters::SimulationControl
   getParameters()
   {
@@ -136,6 +110,7 @@ public:
   {
     return nbMeshAdapt;
   }
+
   unsigned int
   getSubdivision()
   {
@@ -155,10 +130,48 @@ public:
   save(std::string filename);
   void
   read(std::string filename);
+
+  void
+  printTime(ConditionalOStream pcout);
+
+private:
+  // Time step
+  std::vector<double> dt;
+  // CFL
+  double CFL;
+  // Maximal CFL condition
+  double maxCFL;
+  // Time
+  double time;
+  // Simulation end time
+  double endTime;
+  // Iteration number
+  unsigned int iter;
+
+  // Number of mesh adaptation iteration
+  unsigned int nbMeshAdapt;
+
+  // number of time steps stored
+  static const unsigned int numberTimeStepStored = 4;
+
+  // Calculate time step based on either CFL or fixed;
+  double
+  calculateTimeStep();
+
+  // Add a time step and stores the previous one in a list
+  void
+  addTimeStep(double p_timestep);
+
+  // Time stepping method
+  Parameters::SimulationControl::TimeSteppingMethod method;
+
+  // Parameters from the parser that do not change during the simulation (names,
+  // etc.)
+  Parameters::SimulationControl parameterControl;
+
 };
 
-void
-printTime(ConditionalOStream pcout, SimulationControl control);
+
 
 inline bool
 is_sdirk(Parameters::SimulationControl::TimeSteppingMethod method)
