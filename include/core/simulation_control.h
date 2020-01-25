@@ -17,6 +17,7 @@ public:
   {
     return method;
   }
+
   void
   setMethod(Parameters::SimulationControl::TimeSteppingMethod p_method)
   {
@@ -28,6 +29,7 @@ public:
   {
     return parameterControl.output_name;
   }
+
   std::string
   getOutputFolder()
   {
@@ -52,7 +54,7 @@ public:
     return dt[0];
   }
 
-  std::vector<double>
+  const std::vector<double>&
   getTimeSteps()
   {
     return dt;
@@ -99,7 +101,7 @@ public:
     return maxCFL;
   }
 
-  Parameters::SimulationControl
+  const Parameters::SimulationControl&
   getParameters()
   {
     return parameterControl;

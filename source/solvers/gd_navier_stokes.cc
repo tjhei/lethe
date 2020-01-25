@@ -143,7 +143,7 @@ GDNavierStokesSolver<dim>::assembleGD()
   // Get the BDF coefficients
   Vector<double> alpha_bdf;
 
-  std::vector<double> time_steps = this->simulationControl.getTimeSteps();
+  const std::vector<double>& time_steps = this->simulationControl.getTimeSteps();
 
   if (scheme == Parameters::SimulationControl::TimeSteppingMethod::bdf1)
     alpha_bdf = bdf_coefficients(1, time_steps);

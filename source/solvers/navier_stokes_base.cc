@@ -844,16 +844,18 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
   // This is the first iteration and we are using a BDF scheme
   else
     {
+      const Parameters::SimulationControl& timeParameters =
+        this->simulationControl.getParameters();
+
       if (this->simulationControl.getMethod() ==
           Parameters::SimulationControl::TimeSteppingMethod::bdf1)
-        PhysicsSolver<VectorType>::solve_non_linear_system(
-          this->simulationControl.getMethod(), false, true);
-
+        {
+          PhysicsSolver<VectorType>::solve_non_linear_system(
+            this->simulationControl.getMethod(), false, true);
+        }
       else if (this->simulationControl.getMethod() ==
                Parameters::SimulationControl::TimeSteppingMethod::bdf2)
         {
-          Parameters::SimulationControl timeParameters =
-            this->simulationControl.getParameters();
 
           // Start the BDF2 with a single Euler time step with a lower time step
           this->simulationControl.setTimeStep(
@@ -870,7 +872,7 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
           this->simulationControl.setMethod(
             Parameters::SimulationControl::TimeSteppingMethod::bdf2);
           this->simulationControl.setTimeStep(
-            timeParameters.dt * (1. - timeParameters.startup_timestep_scaling));
+            timeParameters.dt * (1.0 - timeParameters.startup_timestep_scaling));
           PhysicsSolver<VectorType>::solve_non_linear_system(
             this->simulationControl.getMethod(), false, true);
         }
@@ -878,8 +880,6 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
       else if (this->simulationControl.getMethod() ==
                Parameters::SimulationControl::TimeSteppingMethod::bdf3)
         {
-          Parameters::SimulationControl timeParameters =
-            this->simulationControl.getParameters();
 
           // Start the BDF2 with a single Euler time step with a lower time step
           this->simulationControl.setTimeStep(
