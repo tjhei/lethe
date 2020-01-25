@@ -232,7 +232,7 @@ NavierStokesBase<dim, VectorType, DofsType>::calculate_CFL(
   const unsigned int                   dofs_per_cell = this->fe.dofs_per_cell;
   const unsigned int                   n_q_points = quadrature_formula.size();
   std::vector<Vector<double>>          initial_velocity(n_q_points,
-                                                        Vector<double>(dim + 1));
+                                               Vector<double>(dim + 1));
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
   const FEValuesExtractors::Vector     velocities(0);
   const FEValuesExtractors::Scalar     pressure(dim);
@@ -844,7 +844,7 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
   // This is the first iteration and we are using a BDF scheme
   else
     {
-      const Parameters::SimulationControl& timeParameters =
+      const Parameters::SimulationControl &timeParameters =
         this->simulationControl.getParameters();
 
       if (this->simulationControl.getMethod() ==
@@ -856,7 +856,6 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
       else if (this->simulationControl.getMethod() ==
                Parameters::SimulationControl::TimeSteppingMethod::bdf2)
         {
-
           // Start the BDF2 with a single Euler time step with a lower time step
           this->simulationControl.setTimeStep(
             timeParameters.dt * timeParameters.startup_timestep_scaling);
@@ -872,7 +871,8 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
           this->simulationControl.setMethod(
             Parameters::SimulationControl::TimeSteppingMethod::bdf2);
           this->simulationControl.setTimeStep(
-            timeParameters.dt * (1.0 - timeParameters.startup_timestep_scaling));
+            timeParameters.dt *
+            (1.0 - timeParameters.startup_timestep_scaling));
           PhysicsSolver<VectorType>::solve_non_linear_system(
             this->simulationControl.getMethod(), false, true);
         }
@@ -880,7 +880,6 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate(bool firstIteration)
       else if (this->simulationControl.getMethod() ==
                Parameters::SimulationControl::TimeSteppingMethod::bdf3)
         {
-
           // Start the BDF2 with a single Euler time step with a lower time step
           this->simulationControl.setTimeStep(
             timeParameters.dt * timeParameters.startup_timestep_scaling);

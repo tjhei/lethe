@@ -54,7 +54,7 @@ public:
     return dt[0];
   }
 
-  const std::vector<double>&
+  const std::vector<double> &
   getTimeSteps()
   {
     return dt;
@@ -101,7 +101,7 @@ public:
     return maxCFL;
   }
 
-  const Parameters::SimulationControl&
+  const Parameters::SimulationControl &
   getParameters()
   {
     return parameterControl;
@@ -170,7 +170,6 @@ private:
   // Parameters from the parser that do not change during the simulation (names,
   // etc.)
   Parameters::SimulationControl parameterControl;
-
 };
 
 

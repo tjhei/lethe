@@ -1,5 +1,7 @@
 #include "core/simulation_control.h"
+
 #include <fstream>
+
 #include "core/parameters.h"
 
 void
@@ -69,17 +71,15 @@ SimulationControl::read(std::string prefix)
 void
 SimulationControl::printTime(ConditionalOStream pcout)
 {
-  if (getMethod() ==
-      Parameters::SimulationControl::TimeSteppingMethod::steady)
+  if (getMethod() == Parameters::SimulationControl::TimeSteppingMethod::steady)
     {
       pcout << std::endl;
       pcout
         << "*****************************************************************"
            "******************"
         << std::endl;
-      pcout << "Steady iteration : " << std::setw(8) << std::right
-            << getIter() << "/" << getNbMeshAdapt() + 1
-            << std::endl;
+      pcout << "Steady iteration : " << std::setw(8) << std::right << getIter()
+            << "/" << getNbMeshAdapt() + 1 << std::endl;
       pcout
         << "*****************************************************************"
            "******************"
@@ -93,10 +93,10 @@ SimulationControl::printTime(ConditionalOStream pcout)
            "******************"
         << std::endl;
       pcout << "Transient iteration : " << std::setw(8) << std::left
-            << getIter() << " Time : " << std::setw(8) << std::left
-            << getTime() << " Time step : " << std::setw(8) << std::left
-            << getCurrentTimeStep() << " CFL : " << std::setw(8)
-            << std::left << getCFL() << std::endl;
+            << getIter() << " Time : " << std::setw(8) << std::left << getTime()
+            << " Time step : " << std::setw(8) << std::left
+            << getCurrentTimeStep() << " CFL : " << std::setw(8) << std::left
+            << getCFL() << std::endl;
       pcout
         << "*****************************************************************"
            "******************"

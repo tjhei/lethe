@@ -1207,7 +1207,7 @@ GLSNavierStokesSolver<dim>::solve()
 
   while (this->simulationControl.integrate())
     {
-       this->simulationControl.printTime(this->pcout);
+      this->simulationControl.printTime(this->pcout);
       if (!this->simulationControl.firstIter())
         {
           NavierStokesBase<dim, TrilinosWrappers::MPI::Vector, IndexSet>::
