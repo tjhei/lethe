@@ -3,44 +3,6 @@
 #include "core/parameters.h"
 
 void
-SimulationControl::printTime(ConditionalOStream pcout)
-{
-  if (getMethod() ==
-      Parameters::SimulationControl::TimeSteppingMethod::steady)
-    {
-      pcout << std::endl;
-      pcout
-        << "*****************************************************************"
-           "******************"
-        << std::endl;
-      pcout << "Steady iteration : " << std::setw(8) << std::right
-            << getIter() << "/" << getNbMeshAdapt() + 1
-            << std::endl;
-      pcout
-        << "*****************************************************************"
-           "******************"
-        << std::endl;
-    }
-  else
-    {
-      pcout << std::endl;
-      pcout
-        << "*****************************************************************"
-           "******************"
-        << std::endl;
-      pcout << "Transient iteration : " << std::setw(8) << std::left
-            << getIter() << " Time : " << std::setw(8) << std::left
-            << getTime() << " Time step : " << std::setw(8) << std::left
-            << getCurrentTimeStep() << " CFL : " << std::setw(8)
-            << std::left << getCFL() << std::endl;
-      pcout
-        << "*****************************************************************"
-           "******************"
-        << std::endl;
-    }
-}
-
-void
 SimulationControl::initialize(ParameterHandler &prm)
 {
   parameterControl.parse_parameters(prm);
@@ -102,6 +64,44 @@ SimulationControl::read(std::string prefix)
   input >> buffer >> CFL;
   input >> buffer >> time;
   input >> buffer >> iter;
+}
+
+void
+SimulationControl::printTime(ConditionalOStream pcout)
+{
+  if (getMethod() ==
+      Parameters::SimulationControl::TimeSteppingMethod::steady)
+    {
+      pcout << std::endl;
+      pcout
+        << "*****************************************************************"
+           "******************"
+        << std::endl;
+      pcout << "Steady iteration : " << std::setw(8) << std::right
+            << getIter() << "/" << getNbMeshAdapt() + 1
+            << std::endl;
+      pcout
+        << "*****************************************************************"
+           "******************"
+        << std::endl;
+    }
+  else
+    {
+      pcout << std::endl;
+      pcout
+        << "*****************************************************************"
+           "******************"
+        << std::endl;
+      pcout << "Transient iteration : " << std::setw(8) << std::left
+            << getIter() << " Time : " << std::setw(8) << std::left
+            << getTime() << " Time step : " << std::setw(8) << std::left
+            << getCurrentTimeStep() << " CFL : " << std::setw(8)
+            << std::left << getCFL() << std::endl;
+      pcout
+        << "*****************************************************************"
+           "******************"
+        << std::endl;
+    }
 }
 
 // Calculate the time step depending on the time stepping control parameters
