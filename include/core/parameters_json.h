@@ -23,12 +23,17 @@
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/parsed_function.h>
 
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+
+#include <unordered_set>
+
 #ifndef LETHE_GLS_PARAMETERS_H
 #  define LETHE_GLS_PARAMETERS_H
 
 using namespace dealii;
 
-namespace Parameters
+namespace ParametersJson
 {
   enum class Verbosity
   {
@@ -94,10 +99,8 @@ namespace Parameters
     // Subdivisions of the results in the output
     unsigned int group_files;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct PhysicalProperties
@@ -105,10 +108,8 @@ namespace Parameters
     // Kinematic viscosity (mu/rho)
     double viscosity;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Timer
@@ -120,12 +121,10 @@ namespace Parameters
       none,
       iteration,
       end
-    };
-    Type type;
-    static void
-    declare_parameters(ParameterHandler &prm);
+    } type;
+
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Forces
@@ -158,10 +157,8 @@ namespace Parameters
     // Prefix for the torque output
     std::string torque_output_name;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct PostProcessing
@@ -186,10 +183,8 @@ namespace Parameters
     // Prefix for the enstrophy output
     std::string enstrophy_output_name;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct FEM
@@ -206,10 +201,8 @@ namespace Parameters
     // Apply high order mapping everywhere
     bool qmapping_all;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct NonLinearSolver
@@ -239,10 +232,8 @@ namespace Parameters
     // Iterations to skip in the non-linear solver
     unsigned int skip_iterations;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct LinearSolver
@@ -303,10 +294,8 @@ namespace Parameters
     // AMG Smoother overalp
     unsigned int amg_smoother_overlap;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Mesh
@@ -350,10 +339,8 @@ namespace Parameters
     // Initial refinement level of primitive mesh
     unsigned int initialRefinement;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct MeshAdaptation
@@ -397,10 +384,8 @@ namespace Parameters
     // Coarsening fraction
     double fractionCoarsening;
 
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Testing
@@ -422,11 +407,10 @@ namespace Parameters
     bool         restart;
     bool         checkpoint;
     unsigned int frequency;
-    static void
-    declare_parameters(ParameterHandler &prm);
+
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
-} // namespace Parameters
+} // namespace ParametersJson
 #endif
