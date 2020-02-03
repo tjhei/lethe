@@ -223,12 +223,6 @@ namespace BoundaryConditions
         declareDefaultEntry(prm, 3);
       }
       prm.leave_subsection();
-
-      prm.enter_subsection("bc 3");
-      {
-        declareDefaultEntry(prm, 3);
-      }
-      prm.leave_subsection();
     }
     prm.leave_subsection();
   }
