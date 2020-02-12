@@ -315,8 +315,7 @@ namespace ParametersJson
       hyper_cube,
       hyper_shell,
       cylinder
-    };
-    PrimitiveType primitiveType;
+    } primitiveType;
 
     bool colorize;
 
@@ -393,10 +392,8 @@ namespace ParametersJson
     // Time measurement in the simulation. None, at each iteration, only at the
     // end
     bool enabled;
-    static void
-    declare_parameters(ParameterHandler &prm);
     void
-    parse_parameters(ParameterHandler &prm);
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Restart

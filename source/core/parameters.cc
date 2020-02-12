@@ -304,7 +304,7 @@ namespace Parameters
   PostProcessing::parse_parameters(ParameterHandler &prm)
   {
     prm.enter_subsection("post-processing");
-    {
+    { 
       const std::string op = prm.get("verbosity");
       if (op == "verbose")
         verbosity = Verbosity::verbose;
@@ -534,6 +534,7 @@ namespace Parameters
     }
     prm.leave_subsection();
   }
+
   void
   LinearSolver::parse_parameters(ParameterHandler &prm)
   {
@@ -574,6 +575,7 @@ namespace Parameters
     }
     prm.leave_subsection();
   }
+
   void
   MeshAdaptation::declare_parameters(ParameterHandler &prm)
   {
