@@ -26,10 +26,8 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
-#include <unordered_set>
-
-#ifndef LETHE_GLS_PARAMETERS_H
-#  define LETHE_GLS_PARAMETERS_H
+#ifndef LETHE_GLS_PARAMETERSJSON_H
+#define LETHE_GLS_PARAMETERSJSON_H
 
 using namespace dealii;
 
