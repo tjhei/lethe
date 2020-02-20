@@ -113,9 +113,9 @@ GLSNavierStokesSolver<dim>::setup_dofs()
               this->dof_handler,
               this->nsparam.boundaryConditions.id[i_bc],
               FunctionDefined<dim>(
-                &this->nsparam.boundaryConditions.bcFunctions[i_bc].u,
-                &this->nsparam.boundaryConditions.bcFunctions[i_bc].v,
-                &this->nsparam.boundaryConditions.bcFunctions[i_bc].w),
+                this->nsparam.boundaryConditions.bcFunctions[i_bc].u,
+                this->nsparam.boundaryConditions.bcFunctions[i_bc].v,
+                this->nsparam.boundaryConditions.bcFunctions[i_bc].w),
               this->nonzero_constraints,
               this->fe.component_mask(velocities));
           }

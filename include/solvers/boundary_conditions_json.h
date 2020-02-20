@@ -14,7 +14,7 @@
  * ---------------------------------------------------------------------
 
  *
- * Author: Bruno Blais, Polytechnique Montreal, 2019 -
+ * Authors: Bruno Blais & Simon Gauvin, Polytechnique Montreal, 2019 -
  */
 
 #ifndef LETHE_BOUNDARYCONDITIONSJSON_H
@@ -22,6 +22,7 @@
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/parsed_function.h>
+#include <deal.II/base/function_parser.h>
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -109,9 +110,9 @@ namespace BoundaryConditionsJSON
 
     std::string default_vnames = get_default_vnames();
     const unsigned int n_components = 1;
-    std::strin expr;
+    std::string expr;
     for (unsigned int i = 0; i < n_components; i++)
-      expr += "; 0;";
+      expr += "; 0";
 
     switch(type.back())
     {

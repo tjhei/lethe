@@ -22,6 +22,7 @@
 
 #include <deal.II/base/function.h>
 #include <deal.II/base/parsed_function.h>
+#include <deal.II/base/auto_derivative_function.h>
 
 using namespace dealii;
 
@@ -40,9 +41,9 @@ namespace BoundaryConditions
   {
   public:
     // Velocity components
-    Functions::ParsedFunction<dim> u;
-    Functions::ParsedFunction<dim> v;
-    Functions::ParsedFunction<dim> w;
+    std::shared_ptr<AutoDerivativeFunction<dim>> u;
+    std::shared_ptr<AutoDerivativeFunction<dim>> v;
+    std::shared_ptr<AutoDerivativeFunction<dim>> w;
 
     // Point for the center of rotation
     Point<dim> cor;
@@ -59,7 +60,7 @@ namespace BoundaryConditions
     std::vector<BoundaryType> type;
 
     // Functions for (u,v,w) for all boundaries
-    BoundaryFunction<dim> *bcFunctions;
+    std::vector<BoundaryFunction<dim>> bcFunctions;
 
     // Number of boundary conditions
     unsigned int size;
@@ -119,17 +120,23 @@ namespace BoundaryConditions
                       "Direction for periodic boundary condition");
 
     prm.enter_subsection("u");
-    bcFunctions[i_bc].u.declare_parameters(prm, 1);
+    std::shared_ptr<Functions::ParsedFunction<dim>> u_function = std::make_shared<Functions::ParsedFunction<dim>>();
+    u_function->declare_parameters(prm, 1);
+    bcFunctions[i_bc].u = u_function;
     prm.set("Function expression", "0");
     prm.leave_subsection();
 
     prm.enter_subsection("v");
-    bcFunctions[i_bc].v.declare_parameters(prm, 1);
+    std::shared_ptr<Functions::ParsedFunction<dim>> v_function = std::make_shared<Functions::ParsedFunction<dim>>();
+    v_function->declare_parameters(prm, 1);
+    bcFunctions[i_bc].v = v_function;
     prm.set("Function expression", "0");
     prm.leave_subsection();
 
     prm.enter_subsection("w");
-    bcFunctions[i_bc].w.declare_parameters(prm, 1);
+    std::shared_ptr<Functions::ParsedFunction<dim>> w_function = std::make_shared<Functions::ParsedFunction<dim>>();
+    w_function->declare_parameters(prm, 1);
+    bcFunctions[i_bc].w = w_function;
     prm.set("Function expression", "0");
     prm.leave_subsection();
 
@@ -154,15 +161,15 @@ namespace BoundaryConditions
       {
         type[i_bc] = BoundaryType::function;
         prm.enter_subsection("u");
-        bcFunctions[i_bc].u.parse_parameters(prm);
+        dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].u.get())->parse_parameters(prm);
         prm.leave_subsection();
 
         prm.enter_subsection("v");
-        bcFunctions[i_bc].v.parse_parameters(prm);
+        dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].v.get())->parse_parameters(prm);
         prm.leave_subsection();
 
         prm.enter_subsection("w");
-        bcFunctions[i_bc].w.parse_parameters(prm);
+        dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].w.get())->parse_parameters(prm);
         prm.leave_subsection();
 
         prm.enter_subsection("cor");
@@ -198,7 +205,7 @@ namespace BoundaryConditions
       periodic_id.resize(max_size);
       periodic_direction.resize(max_size);
       type.resize(max_size);
-      bcFunctions = new BoundaryFunction<dim>[max_size];
+      bcFunctions.resize(max_size);
 
       prm.enter_subsection("bc 0");
       {
@@ -280,14 +287,14 @@ template <int dim>
 class FunctionDefined : public Function<dim>
 {
 private:
-  Functions::ParsedFunction<dim> *u;
-  Functions::ParsedFunction<dim> *v;
-  Functions::ParsedFunction<dim> *w;
+  std::shared_ptr<AutoDerivativeFunction<dim>> u;
+  std::shared_ptr<AutoDerivativeFunction<dim>> v;
+  std::shared_ptr<AutoDerivativeFunction<dim>> w;
 
 public:
-  FunctionDefined(Functions::ParsedFunction<dim> *p_u,
-                  Functions::ParsedFunction<dim> *p_v,
-                  Functions::ParsedFunction<dim> *p_w)
+  FunctionDefined(std::shared_ptr<AutoDerivativeFunction<dim>> p_u,
+                  std::shared_ptr<AutoDerivativeFunction<dim>> p_v,
+                  std::shared_ptr<AutoDerivativeFunction<dim>> p_w)
     : Function<dim>(dim + 1)
     , u(p_u)
     , v(p_v)

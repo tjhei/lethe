@@ -14,7 +14,7 @@
  * ---------------------------------------------------------------------
 
  *
- * Author: Simon Gauvin, Polytechnique Montreal, 2019
+ * Authors: Bruno Blais & Simon Gauvin, Polytechnique Montreal, 2019
  */
 
 #include <deal.II/base/conditional_ostream.h>
