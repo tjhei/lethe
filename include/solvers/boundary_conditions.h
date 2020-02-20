@@ -159,17 +159,28 @@ namespace BoundaryConditions
       type[i_bc] = BoundaryType::slip;
     if (op == "function")
       {
+        static auto throw_error = [](){throw std::runtime_error("Could not convert boundary function to a ParsedFunction");};
+
         type[i_bc] = BoundaryType::function;
         prm.enter_subsection("u");
-        dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].u.get())->parse_parameters(prm);
+        if (auto function = dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].u.get()))
+          function->parse_parameters(prm);
+        else
+          throw_error();
         prm.leave_subsection();
 
         prm.enter_subsection("v");
-        dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].v.get())->parse_parameters(prm);
+        if (auto function = dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].v.get()))
+          function->parse_parameters(prm);
+        else
+          throw_error();
         prm.leave_subsection();
 
         prm.enter_subsection("w");
-        dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].w.get())->parse_parameters(prm);
+        if (auto function = dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].w.get()))
+          function->parse_parameters(prm);
+        else
+          throw_error();
         prm.leave_subsection();
 
         prm.enter_subsection("cor");
