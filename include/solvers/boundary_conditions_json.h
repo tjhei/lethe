@@ -21,39 +21,73 @@
 #define LETHE_BOUNDARYCONDITIONSJSON_H
 
 #include <deal.II/base/function.h>
-#include <deal.II/base/parsed_function.h>
 #include <deal.II/base/function_parser.h>
+#include <deal.II/base/numbers.h>
+#include <deal.II/base/parsed_function.h>
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 
+#include "boundary_conditions.h"
 #include "core/parameter_translator.h"
 
 using namespace dealii;
 
+namespace
+{
+  template <int dim>
+  std::shared_ptr<FunctionParser<dim>>
+  parse_function(boost::property_tree::ptree &root,
+                 const std::string &          default_vnames,
+                 const std::string &          expr,
+                 const std::string &          section)
+  {
+    std::string vnames = root.get(section + ".Variable names", default_vnames);
+    std::string expression = root.get(section + ".Function expression", expr);
+
+    std::map<std::string, float>                 constants;
+    boost::optional<boost::property_tree::ptree> child =
+      root.get_child_optional(section + ".Function constants");
+    if (child)
+      {
+        for (auto it = child->begin(); it != child->end(); ++it)
+          {
+            constants[it->first] = it->second.data();
+          }
+      }
+
+    constants["pi"] = numbers::PI;
+    constants["Pi"] = numbers::PI;
+
+    auto function_object = std::make_shared<FunctionParser<dim>()>;
+
+    const unsigned int nn = (Utilities::split_string_list(vnames)).size();
+    switch (nn)
+      {
+        case dim:
+          // Time independent function
+          function_object->initialize(vnames, expression, constants);
+          break;
+        case dim + 1:
+          // Time dependent function
+          function_object->initialize(vnames, expression, constants, true);
+          break;
+        default:
+          AssertThrow(false,
+                      ExcMessage(
+                        "The list of variables specified is <" + vnames +
+                        "> which is a list of length " +
+                        Utilities::int_to_string(nn) +
+                        " but it has to be a list of length equal to" +
+                        " either dim (for a time-independent function)" +
+                        " or dim+1 (for a time-dependent function)."));
+      }
+    return function_object;
+  }
+} // namespace
+
 namespace BoundaryConditionsJSON
 {
-  enum class BoundaryType
-  {
-    noslip,
-    slip,
-    function,
-    periodic
-  };
-
-  template <int dim>
-  class BoundaryFunction
-  {
-  public:
-    // Velocity components
-    Functions::ParsedFunction<dim> u;
-    Functions::ParsedFunction<dim> v;
-    Functions::ParsedFunction<dim> w;
-
-    // Point for the center of rotation
-    Point<dim> cor;
-  };
-
   template <int dim>
   class NSBoundaryConditions
   {
@@ -62,10 +96,10 @@ namespace BoundaryConditionsJSON
     std::vector<unsigned int> id;
 
     // List of boundary type for each number
-    std::vector<BoundaryType> type;
+    std::vector<BoundaryConditions::BoundaryType> type;
 
     // Functions for (u,v,w) for all boundaries
-    BoundaryFunction<dim> *bcFunctions;
+    std::vector<BoundaryConditions::BoundaryFunction<dim>> bcFunctions;
 
     // Number of boundary conditions
     unsigned int size;
@@ -92,7 +126,7 @@ namespace BoundaryConditionsJSON
     id.resize(1);
     id[0] = 0;
     type.resize(1);
-    type[0] = BoundaryType::noslip;
+    type[0] = BoundaryConditions::BoundaryType::noslip;
     size    = 1;
   }
 
@@ -100,100 +134,56 @@ namespace BoundaryConditionsJSON
   void
   NSBoundaryConditions<dim>::parse_parameters(boost::property_tree::ptree &root)
   {
-    std::unordered_map<std::string, BoundaryType> boundaryTypes = {
-      {"noslip", BoundaryType::noslip},
-      {"slip", BoundaryType::slip},
-      {"function", BoundaryType::function},
-      {"periodic", BoundaryType::periodic}};
+    std::unordered_map<std::string, BoundaryConditions::BoundaryType>
+      boundaryTypes = {{"noslip", BoundaryConditions::BoundaryType::noslip},
+                       {"slip", BoundaryConditions::BoundaryType::slip},
+                       {"function", BoundaryConditions::BoundaryType::function},
+                       {"periodic",
+                        BoundaryConditions::BoundaryType::periodic}};
 
-    type.push_back(root.get("type", BoundaryType::noslip, ParameterTranslator(boundaryTypes)));
-
-    std::string default_vnames = get_default_vnames();
-    const unsigned int n_components = 1;
-    std::string expr;
+    std::string        default_vnames = get_default_vnames();
+    const unsigned int n_components   = 1;
+    std::string        expr;
     for (unsigned int i = 0; i < n_components; i++)
       expr += "; 0";
 
-    switch(type.back())
-    {
-      case BoundaryType::function:
-        // TODO:
-        // get: Variable names, Function expression, Function constants
-        // bcFunctions.back().u = Functions::ParsedFunction<dim>(var_names, func_expr, func_const)
-        break;
-    }
+    auto child = root.get_child_optional("boundary conditions");
+    if (!child)
+      {
+        // boundary conditions subsection doesn't exist. Do we want to throw an
+        // error?
+        throw std::runtime_error(
+          "boundary conditions subsection doesn't exist");
+      }
+
+    // Loop through all boundary conditions!
+    for (auto it = child->begin(); it != child->end(); ++it)
+      {
+        auto child_function = it->second;
+        type.push_back(
+          child_function.get("type",
+                             BoundaryConditions::BoundaryType::noslip,
+                             ParameterTranslator(boundaryTypes)));
+
+        switch (type.back())
+          {
+              case BoundaryConditions::BoundaryType::function: {
+                bcFunctions.back().u = parse_function<dim>(child_function, default_vnames, expr, "u");
+                bcFunctions.back().v = parse_function<dim>(child_function, default_vnames, expr, "v");
+                bcFunctions.back().w = parse_function<dim>(child_function, default_vnames, expr, "w");
+              }
+              break;
+          }
+      }
   }
 
   template <int dim>
   std::string
   NSBoundaryConditions<dim>::get_default_vnames()
   {
-    std::string vnames;
-    switch (dim)
-      {
-        case 1:
-          vnames = "x,t";
-          break;
-        case 2:
-          vnames = "x,y,t";
-          break;
-        case 3:
-          vnames = "x,y,z,t";
-          break;
-        default:
-          AssertThrow(false, ExcNotImplemented());
-          break;
-      }
-    return vnames;
+    return FunctionParser<dim>::default_variable_names() + ",t";
   }
 } // namespace BoundaryConditionsJSON
-
-// TODO: when replacing boundary_conditions with JSON, change the following:
-
-#include "boundary_conditions.h"
-// template <int dim>
-// class FunctionDefined : public Function<dim>
-// {
-// private:
-//   Functions::ParsedFunction<dim> *u;
-//   Functions::ParsedFunction<dim> *v;
-//   Functions::ParsedFunction<dim> *w;
-
-// public:
-//   FunctionDefined(Functions::ParsedFunction<dim> *p_u,
-//                   Functions::ParsedFunction<dim> *p_v,
-//                   Functions::ParsedFunction<dim> *p_w)
-//     : Function<dim>(dim + 1)
-//     , u(p_u)
-//     , v(p_v)
-//     , w(p_w)
-//   {}
-
-//   virtual double
-//   value(const Point<dim> &p, const unsigned int component) const;
-// };
-
-// template <int dim>
-// double
-// FunctionDefined<dim>::value(const Point<dim> & p,
-//                             const unsigned int component) const
-// {
-//   Assert(component < this->n_components,
-//          ExcIndexRange(component, 0, this->n_components));
-//   if (component == 0)
-//     {
-//       return u->value(p);
-//     }
-//   else if (component == 1)
-//     {
-//       return v->value(p);
-//     }
-//   else if (component == 2)
-//     {
-//       return w->value(p);
-//     }
-//   return 0.;
-// }
 
 
 #endif

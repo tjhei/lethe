@@ -20,9 +20,9 @@
 #ifndef LETHE_BOUNDARYCONDITIONS_H
 #define LETHE_BOUNDARYCONDITIONS_H
 
+#include <deal.II/base/auto_derivative_function.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/parsed_function.h>
-#include <deal.II/base/auto_derivative_function.h>
 
 using namespace dealii;
 
@@ -120,21 +120,24 @@ namespace BoundaryConditions
                       "Direction for periodic boundary condition");
 
     prm.enter_subsection("u");
-    std::shared_ptr<Functions::ParsedFunction<dim>> u_function = std::make_shared<Functions::ParsedFunction<dim>>();
+    std::shared_ptr<Functions::ParsedFunction<dim>> u_function =
+      std::make_shared<Functions::ParsedFunction<dim>>();
     u_function->declare_parameters(prm, 1);
     bcFunctions[i_bc].u = u_function;
     prm.set("Function expression", "0");
     prm.leave_subsection();
 
     prm.enter_subsection("v");
-    std::shared_ptr<Functions::ParsedFunction<dim>> v_function = std::make_shared<Functions::ParsedFunction<dim>>();
+    std::shared_ptr<Functions::ParsedFunction<dim>> v_function =
+      std::make_shared<Functions::ParsedFunction<dim>>();
     v_function->declare_parameters(prm, 1);
     bcFunctions[i_bc].v = v_function;
     prm.set("Function expression", "0");
     prm.leave_subsection();
 
     prm.enter_subsection("w");
-    std::shared_ptr<Functions::ParsedFunction<dim>> w_function = std::make_shared<Functions::ParsedFunction<dim>>();
+    std::shared_ptr<Functions::ParsedFunction<dim>> w_function =
+      std::make_shared<Functions::ParsedFunction<dim>>();
     w_function->declare_parameters(prm, 1);
     bcFunctions[i_bc].w = w_function;
     prm.set("Function expression", "0");
@@ -159,25 +162,31 @@ namespace BoundaryConditions
       type[i_bc] = BoundaryType::slip;
     if (op == "function")
       {
-        static auto throw_error = [](){throw std::runtime_error("Could not convert boundary function to a ParsedFunction");};
+        static auto throw_error = []() {
+          throw std::runtime_error(
+            "Could not convert boundary function to a ParsedFunction");
+        };
 
         type[i_bc] = BoundaryType::function;
         prm.enter_subsection("u");
-        if (auto function = dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].u.get()))
+        if (auto function = dynamic_cast<Functions::ParsedFunction<dim> *>(
+              bcFunctions[i_bc].u.get()))
           function->parse_parameters(prm);
         else
           throw_error();
         prm.leave_subsection();
 
         prm.enter_subsection("v");
-        if (auto function = dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].v.get()))
+        if (auto function = dynamic_cast<Functions::ParsedFunction<dim> *>(
+              bcFunctions[i_bc].v.get()))
           function->parse_parameters(prm);
         else
           throw_error();
         prm.leave_subsection();
 
         prm.enter_subsection("w");
-        if (auto function = dynamic_cast<Functions::ParsedFunction<dim>*>(bcFunctions[i_bc].w.get()))
+        if (auto function = dynamic_cast<Functions::ParsedFunction<dim> *>(
+              bcFunctions[i_bc].w.get()))
           function->parse_parameters(prm);
         else
           throw_error();
