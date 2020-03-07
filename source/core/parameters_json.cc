@@ -26,7 +26,7 @@ namespace ParametersJson
 
     method  = root.get("simulation control.method",
                       TimeSteppingMethod::steady,
-                      ParameterTranslator(methods));
+                      ParameterTranslator<TimeSteppingMethod>(methods));
     dt      = root.get("simulation control.time step", 1.0);
     timeEnd = root.get("simulation control.time end", 1.0);
     adapt   = root.get("simulation control.adapt", false);
@@ -52,7 +52,7 @@ namespace ParametersJson
   {
     std::unordered_map<std::string, Type> types = {
       {"none", Type::none}, {"iteration", Type::iteration}, {"end", Type::end}};
-    type = root.get("timer.type", Type::none, ParameterTranslator(types));
+    type = root.get("timer.type", Type::none, ParameterTranslator<Type>(types));
   }
 
   void
@@ -60,7 +60,7 @@ namespace ParametersJson
   {
     verbosity = root.get("forces.verbosity",
                          Verbosity::quiet,
-                         ParameterTranslator(verbosities));
+                         ParameterTranslator<Verbosity>(verbosities));
 
     calculate_force       = root.get("forces.calculate forces", false);
     calculate_torque      = root.get("forces.calculate torques", false);
@@ -77,7 +77,7 @@ namespace ParametersJson
   {
     verbosity = root.get("post-processing.verbosity",
                          Verbosity::quiet,
-                         ParameterTranslator(verbosities));
+                         ParameterTranslator<Verbosity>(verbosities));
 
     calculate_kinetic_energy =
       root.get("post-pocessing.calculate kinetic energy", false);
@@ -104,14 +104,14 @@ namespace ParametersJson
   {
     verbosity = root.get("non-linear solver.verbosity",
                          Verbosity::quiet,
-                         ParameterTranslator(verbosities));
+                         ParameterTranslator<Verbosity>(verbosities));
 
     std::unordered_map<std::string, SolverType> solverTypes = {
       {"newton", SolverType::newton}, {"skip_newton", SolverType::skip_newton}};
 
     solver = root.get("non-linear solver.solver",
                       SolverType::newton,
-                      ParameterTranslator(solverTypes));
+                      ParameterTranslator<SolverType>(solverTypes));
 
     tolerance         = root.get("non-linear solver.tolerance", 1e-6);
     max_iterations    = root.get("non-linear solver.max iterations", 10);
@@ -124,7 +124,7 @@ namespace ParametersJson
   {
     verbosity = root.get("linear solver.verbosity",
                          Verbosity::quiet,
-                         ParameterTranslator(verbosities));
+                         ParameterTranslator<Verbosity>(verbosities));
 
     std::unordered_map<std::string, SolverType> solverTypes = {
       {"amg", SolverType::amg},
@@ -164,8 +164,9 @@ namespace ParametersJson
   {
     std::unordered_map<std::string, Type> types = {{"gmsh", Type::gmsh},
                                                    {"dealii", Type::dealii}};
-    type      = root.get("mesh.type", Type::dealii, ParameterTranslator(types));
-    file_name = root.get("mesh.file name", "none");
+    type =
+      root.get("mesh.type", Type::dealii, ParameterTranslator<Type>(types));
+    file_name         = root.get("mesh.file name", "none");
     initialRefinement = root.get("mesh.initial refinement", 0);
     grid_type         = root.get("mesh.grid type", "hyper_cube");
     grid_arguments    = root.get("mesh.grid arguments", "-1 : 1 : false");
@@ -185,18 +186,18 @@ namespace ParametersJson
       {"velocity", Variable::velocity}, {"pressure", Variable::pressure}};
     variable = root.get("mesh adaptation.variable",
                         Variable::velocity,
-                        ParameterTranslator(variables));
+                        ParameterTranslator<Variable>(variables));
 
     std::unordered_map<std::string, FractionType> fractionTypes = {
       {"number", FractionType::number}, {"fraction", FractionType::fraction}};
     fractionType = root.get("mesh adaptation.fraction type",
                             FractionType::number,
-                            ParameterTranslator(fractionTypes));
+                            ParameterTranslator<FractionType>(fractionTypes));
 
     maxNbElements = root.get("mesh adaptation.max number elements", 100000000);
-    maxRefLevel = root.get("mesh adaptation.max refinement level", 10);
-    minRefLevel = root.get("mesh adaptation.min refinement level", 0);
-    frequency = root.get("mesh adaptation.frequency", 1);
+    maxRefLevel   = root.get("mesh adaptation.max refinement level", 10);
+    minRefLevel   = root.get("mesh adaptation.min refinement level", 0);
+    frequency     = root.get("mesh adaptation.frequency", 1);
     fractionCoarsening = root.get("mesh adaptation.fraction coarsening", 0.05);
     fractionRefinement = root.get("mesh adaptation.fraction refinement", 0.1);
   }
@@ -210,9 +211,9 @@ namespace ParametersJson
   void
   Restart::parse_parameters(boost::property_tree::ptree &root)
   {
-    filename = root.get("restart.filename", "restart");
+    filename   = root.get("restart.filename", "restart");
     checkpoint = root.get("restart.checkpoint", false);
-    restart = root.get("restart.restart", false);
-    frequency = root.get("restart.frequency", 1);
+    restart    = root.get("restart.restart", false);
+    frequency  = root.get("restart.frequency", 1);
   }
 } // namespace ParametersJson

@@ -17,6 +17,10 @@
  * Authors: Bruno Blais & Simon Gauvin, Polytechnique Montreal, 2019 -
  */
 
+// Possibly refactor this class with an std::variant depending on the function
+// type and having one class per type instead of multiple vectors that have to
+// be the same size
+
 #ifndef LETHE_BOUNDARYCONDITIONSJSON_H
 #define LETHE_BOUNDARYCONDITIONSJSON_H
 
@@ -103,7 +107,6 @@ namespace BoundaryConditionsJSON
 
     // Number of boundary conditions
     unsigned int size;
-    unsigned int max_size;
 
     // Periodic boundary condition matching
     std::vector<unsigned int> periodic_id;
@@ -127,7 +130,7 @@ namespace BoundaryConditionsJSON
     id[0] = 0;
     type.resize(1);
     type[0] = BoundaryConditions::BoundaryType::noslip;
-    size    = 1;
+    size             = 1;
   }
 
   template <int dim>
@@ -160,20 +163,48 @@ namespace BoundaryConditionsJSON
     for (auto it = child->begin(); it != child->end(); ++it)
       {
         auto child_function = it->second;
-        type.push_back(
-          child_function.get("type",
-                             BoundaryConditions::BoundaryType::noslip,
-                             ParameterTranslator(boundaryTypes)));
+        type.push_back(child_function.get(
+          "type",
+          BoundaryConditions::BoundaryType::noslip,
+          ParameterTranslator<BoundaryConditions::BoundaryType>(
+            boundaryTypes)));
+        bcFunctions.push_back({});
+        periodic_id.push_back({});
+        periodic_direction.push_back({});
+        id.push_back({});
 
         switch (type.back())
           {
               case BoundaryConditions::BoundaryType::function: {
-                bcFunctions.back().u = parse_function<dim>(child_function, default_vnames, expr, "u");
-                bcFunctions.back().v = parse_function<dim>(child_function, default_vnames, expr, "v");
-                bcFunctions.back().w = parse_function<dim>(child_function, default_vnames, expr, "w");
+                bcFunctions.back().u = parse_function<dim>(child_function,
+                                                           default_vnames,
+                                                           expr,
+                                                           "u");
+                bcFunctions.back().v = parse_function<dim>(child_function,
+                                                           default_vnames,
+                                                           expr,
+                                                           "v");
+                bcFunctions.back().w = parse_function<dim>(child_function,
+                                                           default_vnames,
+                                                           expr,
+                                                           "w");
+
+                bcFunctions.back().cor[0] = child_function.get("x", 0);
+                bcFunctions.back().cor[1] = child_function.get("y", 0);
+                if (dim == 3)
+                  {
+                    bcFunctions.back().cor[2] = child_function.get("z", 0);
+                  }
+                break;
               }
-              break;
+              case BoundaryConditions::BoundaryType::periodic: {
+                periodic_id.back() = child_function.get("periodic_id", 0);
+                periodic_direction.back() =
+                  child_function.get("periodic_direction", 0);
+              }
           }
+        id.back() = child_function.get("id", size);
+        size++;
       }
   }
 
