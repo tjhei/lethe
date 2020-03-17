@@ -46,11 +46,18 @@ public:
   Parameters::Restart                             restartParameters;
   Parameters::Manifolds                           manifoldsParameters;
   BoundaryConditions::NSBoundaryConditions<dim>   boundaryConditions;
-  Parameters::InitialConditions<dim> *            initialCondition;
-  AnalyticalSolutions::NSAnalyticalSolution<dim> *analyticalSolution;
-  SourceTerms::NSSourceTerm<dim> *                sourceTerm;
+
+  std::shared_ptr<Parameters::InitialConditions<dim>>            initialCondition;
+  std::shared_ptr<AnalyticalSolutions::NSAnalyticalSolution<dim>> analyticalSolution;
+  std::shared_ptr<SourceTerms::NSSourceTerm<dim>>                sourceTerm;
 
   SimulationControl simulationControl;
+
+  NavierStokesSolverParameters()
+  : initialCondition(std::make_shared<Parameters::InitialConditions<dim>>())
+  , analyticalSolution(std::make_shared<AnalyticalSolutions::NSAnalyticalSolution<dim>>())
+  , sourceTerm(std::make_shared<SourceTerms::NSSourceTerm<dim>>())
+  {}
 
   void
   declare(ParameterHandler &prm)
@@ -61,7 +68,7 @@ public:
     Parameters::Restart::declare_parameters(prm);
     boundaryConditions.declare_parameters(prm);
 
-    initialCondition = new Parameters::InitialConditions<dim>;
+    
     initialCondition->declare_parameters(prm);
 
     Parameters::FEM::declare_parameters(prm);
@@ -73,10 +80,8 @@ public:
     Parameters::PostProcessing::declare_parameters(prm);
     manifoldsParameters.declare_parameters(prm);
 
-    analyticalSolution = new AnalyticalSolutions::NSAnalyticalSolution<dim>;
     analyticalSolution->declare_parameters(prm);
 
-    sourceTerm = new SourceTerms::NSSourceTerm<dim>;
     sourceTerm->declare_parameters(prm);
     Parameters::Testing::declare_parameters(prm);
   }
