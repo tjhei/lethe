@@ -88,51 +88,17 @@ namespace
       }
     return function_object;
   }
+
+  template <int dim>
+  std::string
+  get_default_vnames()
+  {
+    return FunctionParser<dim>::default_variable_names() + ",t";
+  }
 } // namespace
 
-namespace BoundaryConditionsJSON
+namespace BoundaryConditions
 {
-  template <int dim>
-  class NSBoundaryConditions
-  {
-  public:
-    // ID of boundary condition
-    std::vector<unsigned int> id;
-
-    // List of boundary type for each number
-    std::vector<BoundaryConditions::BoundaryType> type;
-
-    // Functions for (u,v,w) for all boundaries
-    std::vector<BoundaryConditions::BoundaryFunction<dim>> bcFunctions;
-
-    // Number of boundary conditions
-    unsigned int size;
-
-    // Periodic boundary condition matching
-    std::vector<unsigned int> periodic_id;
-    std::vector<unsigned int> periodic_direction;
-
-    void
-    parse_parameters(boost::property_tree::ptree &root);
-    void
-    createDefaultNoSlip();
-
-  private:
-    std::string
-    get_default_vnames();
-  };
-
-  template <int dim>
-  void
-  NSBoundaryConditions<dim>::createDefaultNoSlip()
-  {
-    id.resize(1);
-    id[0] = 0;
-    type.resize(1);
-    type[0] = BoundaryConditions::BoundaryType::noslip;
-    size             = 1;
-  }
-
   template <int dim>
   void
   NSBoundaryConditions<dim>::parse_parameters(boost::property_tree::ptree &root)
@@ -144,7 +110,7 @@ namespace BoundaryConditionsJSON
                        {"periodic",
                         BoundaryConditions::BoundaryType::periodic}};
 
-    std::string        default_vnames = get_default_vnames();
+    std::string        default_vnames = get_default_vnames<dim>();
     const unsigned int n_components   = 1;
     std::string        expr;
     for (unsigned int i = 0; i < n_components; i++)
@@ -207,14 +173,7 @@ namespace BoundaryConditionsJSON
         size++;
       }
   }
-
-  template <int dim>
-  std::string
-  NSBoundaryConditions<dim>::get_default_vnames()
-  {
-    return FunctionParser<dim>::default_variable_names() + ",t";
-  }
-} // namespace BoundaryConditionsJSON
+} // namespace BoundaryConditions
 
 
 #endif

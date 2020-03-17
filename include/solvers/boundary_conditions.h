@@ -79,6 +79,8 @@ namespace BoundaryConditions
     void
     parse_parameters(ParameterHandler &prm);
     void
+    parse_parameters(boost::property_tree::ptree &root);
+    void
     createDefaultNoSlip();
   };
 

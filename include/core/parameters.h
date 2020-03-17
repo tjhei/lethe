@@ -98,6 +98,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct PhysicalProperties
@@ -109,6 +112,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Timer
@@ -126,6 +132,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Forces
@@ -162,6 +171,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct PostProcessing
@@ -190,6 +202,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct FEM
@@ -210,6 +225,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct NonLinearSolver
@@ -243,6 +261,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct LinearSolver
@@ -307,6 +328,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Mesh
@@ -354,6 +378,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct MeshAdaptation
@@ -401,6 +428,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Testing
@@ -412,6 +442,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
   struct Restart
@@ -426,6 +459,9 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+    
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
 } // namespace Parameters

@@ -1,15 +1,15 @@
-#include "core/parameters_json.h"
+#include "core/parameters.h"
 
 #include "core/parameter_translator.h"
 
 namespace
 {
-  const std::unordered_map<std::string, ParametersJson::Verbosity> verbosities =
-    {{"verbose", ParametersJson::Verbosity::verbose},
-     {"quiet", ParametersJson::Verbosity::quiet}};
+  const std::unordered_map<std::string, Parameters::Verbosity> verbosities =
+    {{"verbose", Parameters::Verbosity::verbose},
+     {"quiet", Parameters::Verbosity::quiet}};
 } // namespace
 
-namespace ParametersJson
+namespace Parameters
 {
   void
   SimulationControl::parse_parameters(boost::property_tree::ptree &root)
@@ -216,4 +216,4 @@ namespace ParametersJson
     restart    = root.get("restart.restart", false);
     frequency  = root.get("restart.frequency", 1);
   }
-} // namespace ParametersJson
+} // namespace Parameters
