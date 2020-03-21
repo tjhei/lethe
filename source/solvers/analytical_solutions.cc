@@ -19,6 +19,15 @@
 
 #include "solvers/analytical_solutions.h"
 
+#include "core/parameter_translator.h"
+
+namespace
+{
+  const std::unordered_map<std::string, Parameters::Verbosity> verbosities = {
+    {"verbose", Parameters::Verbosity::verbose},
+    {"quiet", Parameters::Verbosity::quiet}};
+} // namespace
+
 namespace AnalyticalSolutions
 {
   template <int dim>
@@ -63,12 +72,28 @@ namespace AnalyticalSolutions
 
   template <int dim>
   void
+  AnalyticalSolution<dim>::parse_parameters(boost::property_tree::ptree &root)
+  {
+    enable   = root.get("analytical solution.enable", false);
+    filename = root.get("analytical solution.filename", "L2Error");
+    verbosity =
+      root.get("analytical solution.verbosity",
+               Parameters::Verbosity::quiet,
+               ParameterTranslator<Parameters::Verbosity>(verbosities));
+  }
+
+  template <int dim>
+  void
   NSAnalyticalSolution<dim>::declare_parameters(ParameterHandler &prm)
   {
     this->AnalyticalSolution<dim>::declare_parameters(prm);
     prm.enter_subsection("analytical solution");
     prm.enter_subsection("uvw");
-    velocity.declare_parameters(prm, dim);
+
+    auto velocity_function =
+      std::make_shared<Functions::ParsedFunction<dim>>(dim + 1);
+    velocity_function->declare_parameters(prm, dim);
+    velocity = velocity_function;
     if (dim == 2)
       prm.set("Function expression", "0; 0; 0;");
     if (dim == 3)
@@ -84,9 +109,37 @@ namespace AnalyticalSolutions
     this->AnalyticalSolution<dim>::parse_parameters(prm);
     prm.enter_subsection("analytical solution");
     prm.enter_subsection("uvw");
-    velocity.parse_parameters(prm);
+    if (auto velocity_function =
+          dynamic_cast<Functions::ParsedFunction<dim> *>(velocity.get()))
+      {
+        velocity_function->parse_parameters(prm);
+      }
+    else
+      {
+        throw std::runtime_error(
+          "Could not convert velocity function in analytical solutions");
+      }
     prm.leave_subsection();
     prm.leave_subsection();
+  }
+
+  template <int dim>
+  void
+  NSAnalyticalSolution<dim>::parse_parameters(boost::property_tree::ptree &root)
+  {
+    this->AnalyticalSolution<dim>::parse_parameters(root);
+    auto child = root.get_child_optional("analytical solution");
+    if (!child)
+      {
+        // Throw an error?
+        throw std::runtime_error("Analytical subsection does not exist");
+      }
+
+    // enable = root.get("analytical solution.enable", false);
+    // filename = root.get("analytical solution.filename", "L2Error");
+    // verbosity = root.get("analytical solution.verbosity",
+    //                      Parameters::Verbosity::quiet,
+    //                      ParameterTranslator<Parameters::Verbosity>(verbosities));
   }
 } // namespace AnalyticalSolutions
 // Pre-compile the 2D and 3D

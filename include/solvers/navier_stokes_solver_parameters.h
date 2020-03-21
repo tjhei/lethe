@@ -33,30 +33,32 @@ template <int dim>
 class NavierStokesSolverParameters
 {
 public:
-  Parameters::Testing                             test;
-  Parameters::LinearSolver                        linearSolver;
-  Parameters::NonLinearSolver                     nonLinearSolver;
-  Parameters::MeshAdaptation                      meshAdaptation;
-  Parameters::Mesh                                mesh;
-  Parameters::PhysicalProperties                  physicalProperties;
-  Parameters::Timer                               timer;
-  Parameters::FEM                                 femParameters;
-  Parameters::Forces                              forcesParameters;
-  Parameters::PostProcessing                      postProcessingParameters;
-  Parameters::Restart                             restartParameters;
-  Parameters::Manifolds                           manifoldsParameters;
-  BoundaryConditions::NSBoundaryConditions<dim>   boundaryConditions;
+  Parameters::Testing                           test;
+  Parameters::LinearSolver                      linearSolver;
+  Parameters::NonLinearSolver                   nonLinearSolver;
+  Parameters::MeshAdaptation                    meshAdaptation;
+  Parameters::Mesh                              mesh;
+  Parameters::PhysicalProperties                physicalProperties;
+  Parameters::Timer                             timer;
+  Parameters::FEM                               femParameters;
+  Parameters::Forces                            forcesParameters;
+  Parameters::PostProcessing                    postProcessingParameters;
+  Parameters::Restart                           restartParameters;
+  Parameters::Manifolds                         manifoldsParameters;
+  BoundaryConditions::NSBoundaryConditions<dim> boundaryConditions;
 
-  std::shared_ptr<Parameters::InitialConditions<dim>>            initialCondition;
-  std::shared_ptr<AnalyticalSolutions::NSAnalyticalSolution<dim>> analyticalSolution;
-  std::shared_ptr<SourceTerms::NSSourceTerm<dim>>                sourceTerm;
+  std::shared_ptr<Parameters::InitialConditions<dim>> initialCondition;
+  std::shared_ptr<AnalyticalSolutions::NSAnalyticalSolution<dim>>
+                                                  analyticalSolution;
+  std::shared_ptr<SourceTerms::NSSourceTerm<dim>> sourceTerm;
 
   SimulationControl simulationControl;
 
   NavierStokesSolverParameters()
-  : initialCondition(std::make_shared<Parameters::InitialConditions<dim>>())
-  , analyticalSolution(std::make_shared<AnalyticalSolutions::NSAnalyticalSolution<dim>>())
-  , sourceTerm(std::make_shared<SourceTerms::NSSourceTerm<dim>>())
+    : initialCondition(std::make_shared<Parameters::InitialConditions<dim>>())
+    , analyticalSolution(
+        std::make_shared<AnalyticalSolutions::NSAnalyticalSolution<dim>>())
+    , sourceTerm(std::make_shared<SourceTerms::NSSourceTerm<dim>>())
   {}
 
   void
@@ -68,7 +70,7 @@ public:
     Parameters::Restart::declare_parameters(prm);
     boundaryConditions.declare_parameters(prm);
 
-    
+
     initialCondition->declare_parameters(prm);
 
     Parameters::FEM::declare_parameters(prm);
@@ -106,6 +108,28 @@ public:
     analyticalSolution->parse_parameters(prm);
     sourceTerm->parse_parameters(prm);
     simulationControl.initialize(prm);
+  }
+
+  void
+  parse(boost::property_tree::ptree &root)
+  {
+    test.parse_parameters(root);
+    linearSolver.parse_parameters(root);
+    nonLinearSolver.parse_parameters(root);
+    meshAdaptation.parse_parameters(root);
+    mesh.parse_parameters(root);
+    physicalProperties.parse_parameters(root);
+    timer.parse_parameters(root);
+    femParameters.parse_parameters(root);
+    forcesParameters.parse_parameters(root);
+    postProcessingParameters.parse_parameters(root);
+    restartParameters.parse_parameters(root);
+    boundaryConditions.parse_parameters(root);
+    // manifoldsParameters.parse_parameters(root);
+    // initialCondition->parse_parameters(root);
+    // analyticalSolution->parse_parameters(root);
+    // sourceTerm->parse_parameters(root);
+    // simulationControl.initialize(root);
   }
 };
 

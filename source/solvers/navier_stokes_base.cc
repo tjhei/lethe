@@ -69,7 +69,7 @@ NavierStokesBase<dim, VectorType, DofsType>::NavierStokesBase(
   torques_tables.resize(nsparam.boundaryConditions.size);
 
   // Get the exact solution from the parser
-  exact_solution = &nsparam.analyticalSolution->velocity;
+  exact_solution = nsparam.analyticalSolution->velocity.get();
 
   // If there is a forcing function, get it from the parser
   if (nsparam.sourceTerm->source_term())

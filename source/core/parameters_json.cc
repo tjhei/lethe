@@ -1,12 +1,11 @@
-#include "core/parameters.h"
-
 #include "core/parameter_translator.h"
+#include "core/parameters.h"
 
 namespace
 {
-  const std::unordered_map<std::string, Parameters::Verbosity> verbosities =
-    {{"verbose", Parameters::Verbosity::verbose},
-     {"quiet", Parameters::Verbosity::quiet}};
+  const std::unordered_map<std::string, Parameters::Verbosity> verbosities = {
+    {"verbose", Parameters::Verbosity::verbose},
+    {"quiet", Parameters::Verbosity::quiet}};
 } // namespace
 
 namespace Parameters

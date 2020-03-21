@@ -304,7 +304,7 @@ namespace Parameters
   PostProcessing::parse_parameters(ParameterHandler &prm)
   {
     prm.enter_subsection("post-processing");
-    { 
+    {
       const std::string op = prm.get("verbosity");
       if (op == "verbose")
         verbosity = Verbosity::verbose;

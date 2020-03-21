@@ -112,7 +112,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -132,7 +132,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -171,7 +171,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -202,7 +202,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -225,7 +225,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -261,7 +261,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -328,7 +328,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -378,7 +378,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -428,7 +428,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -442,7 +442,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };
@@ -459,7 +459,7 @@ namespace Parameters
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
-    
+
     void
     parse_parameters(boost::property_tree::ptree &root);
   };

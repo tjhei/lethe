@@ -53,6 +53,8 @@ namespace AnalyticalSolutions
     declare_parameters(ParameterHandler &prm);
     virtual void
     parse_parameters(ParameterHandler &prm);
+    void
+    parse_parameters(boost::property_tree::ptree &root);
 
     bool
     calculate_error()
@@ -79,16 +81,17 @@ namespace AnalyticalSolutions
   {
   public:
     NSAnalyticalSolution()
-      : velocity(dim + 1)
     {}
 
     // Velocity components
-    Functions::ParsedFunction<dim> velocity;
+    std::shared_ptr<AutoDerivativeFunction<dim>> velocity;
 
     virtual void
     declare_parameters(ParameterHandler &prm);
     virtual void
     parse_parameters(ParameterHandler &prm);
+    void
+    parse_parameters(boost::property_tree::ptree &root);
   };
 
 } // namespace AnalyticalSolutions
