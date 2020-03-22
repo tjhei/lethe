@@ -1,0 +1,37 @@
+FEM
+velocityOrder: 2
+pressureOrder: 1
+quadraturePoints: 0
+qmapping_all: true
+
+physicalProperties
+viscosity: 1
+
+forces
+verbosity: verbose
+calculate_force: false
+calculate_torque: true
+calculation_frequency: 1
+output_frequency: 1
+output_precision: 10
+display_precision: 3
+force_output_name: force
+torque_output_name: torque
+
+mesh
+type: dealii
+file_name: none
+initialRefinement: 2
+grid_type: hyper_shell
+grid_arguments: 0, 0 : 0.25 : 1 : 4:  true
+
+mesh adaptation
+type: uniform
+variable: velocity
+fraction type: number
+maxNbElements: 100000000
+maxRefLevel: 10
+minRefLevel: 0
+frequency: 1
+fractionRefinement: 0.1
+fractionCoarsening: 0.05

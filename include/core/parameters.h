@@ -341,8 +341,7 @@ namespace Parameters
       gmsh,
       dealii,
       primitive
-    };
-    Type type;
+    } type;
 
     // Primitive types
     enum class PrimitiveType
@@ -350,8 +349,7 @@ namespace Parameters
       hyper_cube,
       hyper_shell,
       cylinder
-    };
-    PrimitiveType primitiveType;
+    } primitiveType;
 
     bool colorize;
 

@@ -145,3 +145,5 @@ namespace AnalyticalSolutions
 // Pre-compile the 2D and 3D
 template class AnalyticalSolutions::NSAnalyticalSolution<2>;
 template class AnalyticalSolutions::NSAnalyticalSolution<3>;
+template class AnalyticalSolutions::AnalyticalSolution<2>;
+template class AnalyticalSolutions::AnalyticalSolution<3>;
