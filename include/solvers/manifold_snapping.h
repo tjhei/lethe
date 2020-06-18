@@ -31,6 +31,9 @@
 
 // Lac
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/precondition.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/sparsity_tools.h>
 #include <deal.II/lac/vector.h>
@@ -57,6 +60,8 @@
 
 // Numerics
 #include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/vector_tools.h>
+
 
 // Lethe Includes
 #include <core/parameters.h>
@@ -82,6 +87,9 @@ public:
   ~ManifoldSnapping();
 
   void
+  solve_manual_snapping();
+
+  void
   solve();
 
 private:
@@ -95,11 +103,19 @@ private:
 
   // Calculates the required displacement to match the mesh on the manifold
   void
-  calculate_displacement();
+  manual_displacement();
 
   // Displaces the mesh to match manifold
   void
   snap();
+
+  // Assemble system of equation for linear elasticity
+  void
+  assemble_system();
+
+  // Solve linear system for linear elasticity problem
+  void
+  solve_linear_system();
 
   // Writes the snapped mesh
   void
@@ -114,6 +130,16 @@ private:
   Triangulation<dim> triangulation;
   DoFHandler<dim>    dof_handler;
   FESystem<dim>      fe;
+
+  AffineConstraints<double> constraints;
+
+  SparsityPattern      sparsity_pattern;
+  SparseMatrix<double> system_matrix;
+
+  Vector<double> solution;
+  Vector<double> system_rhs;
+  Vector<int>    dof_snapped;
+
 
 
   Vector<double> nodal_displacement;

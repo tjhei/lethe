@@ -19,12 +19,35 @@
 
 #include "solvers/manifold_snapping.h"
 
-#include <deal.II/dofs/dof_tools.h>
-
-#include <deal.II/grid/grid_tools.h>
-
 #include "core/parameters.h"
 
+template <int dim>
+class DeformToClosestSphere : public Function<dim>
+{
+public:
+  DeformToClosestSphere()
+    : Function<dim>(dim)
+  {}
+  virtual void
+  vector_value(const Point<dim> &point, Vector<double> &values) const override;
+};
+
+template <int dim>
+void
+DeformToClosestSphere<dim>::vector_value(const Point<dim> &point,
+                                         Vector<double> &  values) const
+{
+  Point<dim> center_point({0.5, 0.5, 0.5});
+  double     radius = 0.25;
+
+  Tensor<1, dim> radial_vector   = point - center_point;
+  double         radial_distance = radial_vector.norm();
+  double         displacement    = radius - radial_distance;
+  Tensor<1, dim> displacement_vector =
+    displacement * (radial_vector) / radial_vector.norm();
+  for (unsigned int d = 0; d < dim; ++d)
+    values[d] = displacement_vector[d];
+}
 
 
 // Constructor for class ManifoldSnapping
@@ -49,6 +72,34 @@ ManifoldSnapping<dim>::setup_dofs()
   std::cout << "Number of degrees of freedom : " << dof_handler.n_dofs()
             << std::endl;
   nodal_displacement.reinit(dof_handler.n_dofs());
+
+  solution.reinit(dof_handler.n_dofs());
+  system_rhs.reinit(dof_handler.n_dofs());
+  dof_snapped.reinit(dof_handler.n_dofs());
+
+
+  constraints.clear();
+
+  VectorTools::interpolate_boundary_values(dof_handler,
+                                           0,
+                                           DeformToClosestSphere<dim>(),
+                                           constraints);
+
+  for (unsigned int i_bc = 1; i_bc < 6; ++i_bc)
+    VectorTools::interpolate_boundary_values(dof_handler,
+                                             i_bc,
+                                             Functions::ZeroFunction<dim>(dim),
+                                             constraints);
+  constraints.close();
+
+  DynamicSparsityPattern dsp(dof_handler.n_dofs(), dof_handler.n_dofs());
+  DoFTools::make_sparsity_pattern(dof_handler,
+                                  dsp,
+                                  constraints,
+                                  /*keep_constrained_dofs = */ false);
+  sparsity_pattern.copy_from(dsp);
+
+  system_matrix.reinit(sparsity_pattern);
 }
 
 
@@ -78,12 +129,101 @@ ManifoldSnapping<dim>::write()
   std::string   file_name("modified.msh");
   std::ofstream output_stream(file_name.c_str());
 
+  GridOutFlags::Msh flags(true);
+
+  output_grid.set_flags(flags);
+
   output_grid.write_msh(triangulation, output_stream);
+}
+
+
+template <int dim>
+void
+ManifoldSnapping<dim>::assemble_system()
+{
+  QGauss<dim> quadrature_formula(fe.degree + 1);
+
+  FEValues<dim> fe_values(fe,
+                          quadrature_formula,
+                          update_values | update_gradients |
+                            update_quadrature_points | update_JxW_values);
+
+  const unsigned int dofs_per_cell = fe.dofs_per_cell;
+  const unsigned int n_q_points    = quadrature_formula.size();
+
+  FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+  Vector<double>     cell_rhs(dofs_per_cell);
+
+  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+  std::vector<double> lambda_values(n_q_points);
+  std::vector<double> mu_values(n_q_points);
+
+  Functions::ConstantFunction<dim> lambda(1.), mu(1.);
+
+  std::vector<Tensor<1, dim>> rhs_values(n_q_points);
+
+  for (const auto &cell : dof_handler.active_cell_iterators())
+    {
+      cell_matrix = 0;
+      cell_rhs    = 0;
+
+      fe_values.reinit(cell);
+
+      lambda.value_list(fe_values.get_quadrature_points(), lambda_values);
+      mu.value_list(fe_values.get_quadrature_points(), mu_values);
+
+      for (const unsigned int i : fe_values.dof_indices())
+        {
+          const unsigned int component_i =
+            fe.system_to_component_index(i).first;
+
+          for (const unsigned int j : fe_values.dof_indices())
+            {
+              const unsigned int component_j =
+                fe.system_to_component_index(j).first;
+
+              for (const unsigned int q_point :
+                   fe_values.quadrature_point_indices())
+                {
+                  cell_matrix(i, j) +=
+                    ((fe_values.shape_grad(i, q_point)[component_i] *
+                      fe_values.shape_grad(j, q_point)[component_j] *
+                      lambda_values[q_point]) +
+                     (fe_values.shape_grad(i, q_point)[component_j] *
+                      fe_values.shape_grad(j, q_point)[component_i] *
+                      mu_values[q_point]) +
+                     ((component_i == component_j) ?
+                        (fe_values.shape_grad(i, q_point) *
+                         fe_values.shape_grad(j, q_point) *
+                         mu_values[q_point]) :
+                        0)) *
+                    fe_values.JxW(q_point);
+                }
+            }
+        }
+
+      // Assembling the right hand side is also just as discussed in the
+      // introduction:
+      for (const unsigned int i : fe_values.dof_indices())
+        {
+          const unsigned int component_i =
+            fe.system_to_component_index(i).first;
+        }
+
+      // The transfer from local degrees of freedom into the global matrix
+      // and right hand side vector does not depend on the equation under
+      // consideration, and is thus the same as in all previous
+      // examples.
+      cell->get_dof_indices(local_dof_indices);
+      constraints.distribute_local_to_global(
+        cell_matrix, cell_rhs, local_dof_indices, system_matrix, system_rhs);
+    }
 }
 
 template <int dim>
 void
-ManifoldSnapping<dim>::calculate_displacement()
+ManifoldSnapping<dim>::manual_displacement()
 {
   Point<dim>              center_point({0.5, 0.5, 0.5});
   double                  radius        = 0.25;
@@ -189,7 +329,79 @@ ManifoldSnapping<dim>::output(unsigned int iter)
 template <int dim>
 void
 ManifoldSnapping<dim>::snap()
-{}
+{
+  const unsigned int      dofs_per_cell = fe.dofs_per_cell;
+  std::vector<Point<dim>> support_points(dof_handler.n_dofs());
+
+  DoFTools::map_dofs_to_support_points(MappingQ1<dim>(),
+                                       dof_handler,
+                                       support_points);
+
+  dof_snapped = 0;
+
+
+  std::vector<types::global_dof_index> cell_dof_indices(dofs_per_cell);
+
+  for (const auto &cell : dof_handler.active_cell_iterators())
+    {
+      cell->get_dof_indices(cell_dof_indices);
+
+      for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_cell; ++v)
+        {
+          std::cout << "vertex " << v << std::endl;
+          Point<dim> &dof_position = cell->vertex(v);
+          std::cout << "vertex position " << dof_position << std::endl;
+          std::cout << "vertex position " << cell->vertex_dof_index(v, 0)
+                    << std::endl;
+          std::cout << "vertex position " << cell->vertex_dof_index(v, 1)
+                    << std::endl;
+          std::cout << "vertex position " << cell->vertex_dof_index(v, 2)
+                    << std::endl;
+
+          for (unsigned int d = 0; d < dim; ++d)
+            {
+              unsigned int dof_index = cell->vertex_dof_index(v, d);
+              if (dof_snapped[dof_index] == 0)
+                {
+                  dof_position[d] +=
+                    nodal_displacement[cell->vertex_dof_index(v, d)];
+                  dof_snapped[dof_index] = 1;
+                }
+            }
+        }
+    }
+}
+
+template <int dim>
+void
+ManifoldSnapping<dim>::solve_manual_snapping()
+{
+  read();
+  setup_dofs();
+  output(0);
+
+  manual_displacement();
+  snap();
+  output(1);
+  write();
+}
+
+template <int dim>
+void
+ManifoldSnapping<dim>::solve_linear_system()
+{
+  SolverControl            solver_control(1000, 1e-12);
+  SolverCG<Vector<double>> cg(solver_control);
+
+  PreconditionSSOR<SparseMatrix<double>> preconditioner;
+  preconditioner.initialize(system_matrix, 1.2);
+
+  cg.solve(system_matrix, solution, system_rhs, preconditioner);
+
+  constraints.distribute(solution);
+
+  nodal_displacement = solution;
+}
 
 template <int dim>
 void
@@ -199,11 +411,13 @@ ManifoldSnapping<dim>::solve()
   setup_dofs();
   output(0);
 
-  calculate_displacement();
+  assemble_system();
+  solve_linear_system();
   snap();
   output(1);
   write();
 }
+
 
 
 // Pre-compile the 2D and 3D version with the types that can occur
