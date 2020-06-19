@@ -188,6 +188,8 @@ private:
   void
   output(unsigned int iter);
 
+  bool size_stiffness;
+
   const Parameters::Mesh mesh_parameters;
 
   Triangulation<dim> triangulation;

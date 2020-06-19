@@ -184,6 +184,9 @@ SphereSnapping<dim>::assemble_system()
       cell_matrix = 0;
       cell_rhs    = 0;
 
+      double stiffness_scaling =
+        size_stiffness ? std::sqrt(cell->measure()) : 1.;
+
       fe_values.reinit(cell);
 
       lambda.value_list(fe_values.get_quadrature_points(), lambda_values);
@@ -214,7 +217,7 @@ SphereSnapping<dim>::assemble_system()
                          fe_values.shape_grad(j, q_point) *
                          mu_values[q_point]) :
                         0)) *
-                    fe_values.JxW(q_point);
+                    fe_values.JxW(q_point) / stiffness_scaling;
                 }
             }
         }
@@ -415,6 +418,7 @@ void
 SphereSnapping<dim>::solve()
 {
   relaxation_iteration = 3;
+  size_stiffness       = true;
 
   read();
   read_spheres_information("particles.dat");
