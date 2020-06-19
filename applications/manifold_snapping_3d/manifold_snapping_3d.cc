@@ -36,7 +36,7 @@ main(int argc, char *argv[])
       mesh_parameters.type      = Parameters::Mesh::Type::gmsh;
       mesh_parameters.file_name = "single_sphere.msh";
 
-      ManifoldSnapping<3> problem_3d(mesh_parameters);
+      SphereSnapping<3> problem_3d(mesh_parameters);
       problem_3d.solve();
     }
   catch (std::exception &exc)

@@ -19,53 +19,27 @@
 
 #include "solvers/manifold_snapping.h"
 
+#include <string>
+
 #include "core/parameters.h"
 
-template <int dim>
-class DeformToClosestSphere : public Function<dim>
-{
-public:
-  DeformToClosestSphere()
-    : Function<dim>(dim)
-  {}
-  virtual void
-  vector_value(const Point<dim> &point, Vector<double> &values) const override;
-};
-
-template <int dim>
-void
-DeformToClosestSphere<dim>::vector_value(const Point<dim> &point,
-                                         Vector<double> &  values) const
-{
-  Point<dim> center_point({0.5, 0.5, 0.5});
-  double     radius = 0.25;
-
-  Tensor<1, dim> radial_vector   = point - center_point;
-  double         radial_distance = radial_vector.norm();
-  double         displacement    = radius - radial_distance;
-  Tensor<1, dim> displacement_vector =
-    displacement * (radial_vector) / radial_vector.norm();
-  for (unsigned int d = 0; d < dim; ++d)
-    values[d] = displacement_vector[d];
-}
 
 
 // Constructor for class ManifoldSnapping
 template <int dim>
-ManifoldSnapping<dim>::ManifoldSnapping(
-  const Parameters::Mesh p_mesh_parameters)
+SphereSnapping<dim>::SphereSnapping(const Parameters::Mesh p_mesh_parameters)
   : mesh_parameters(p_mesh_parameters)
   , dof_handler(triangulation)
   , fe(FE_Q<dim>(1), 3)
 {}
 
 template <int dim>
-ManifoldSnapping<dim>::~ManifoldSnapping()
+SphereSnapping<dim>::~SphereSnapping()
 {}
 
 template <int dim>
 void
-ManifoldSnapping<dim>::setup_dofs()
+SphereSnapping<dim>::setup_dofs()
 {
   dof_handler.distribute_dofs(fe);
 
@@ -76,13 +50,17 @@ ManifoldSnapping<dim>::setup_dofs()
   solution.reinit(dof_handler.n_dofs());
   system_rhs.reinit(dof_handler.n_dofs());
   dof_snapped.reinit(dof_handler.n_dofs());
+}
 
-
+template <int dim>
+void
+SphereSnapping<dim>::setup_bcs()
+{
   constraints.clear();
 
   VectorTools::interpolate_boundary_values(dof_handler,
                                            0,
-                                           DeformToClosestSphere<dim>(),
+                                           *deformation_function,
                                            constraints);
 
   for (unsigned int i_bc = 1; i_bc < 6; ++i_bc)
@@ -105,7 +83,7 @@ ManifoldSnapping<dim>::setup_dofs()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::read()
+SphereSnapping<dim>::read()
 {
   if (mesh_parameters.type == Parameters::Mesh::Type::gmsh)
     {
@@ -122,7 +100,45 @@ ManifoldSnapping<dim>::read()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::write()
+SphereSnapping<dim>::read_spheres_information(std::string filename)
+{
+  std::ifstream infile(filename.c_str());
+
+  std::string line;
+
+  // skip first line for header
+  std::getline(infile, line);
+
+  while (std::getline(infile, line))
+    {
+      std::istringstream iss(line);
+
+      Point<dim> sphere_center;
+
+      double x, y, z, r;
+
+      if (dim == 2)
+        {
+          iss >> x >> y >> r;
+          std::cout << "Snapping to circle " << x << " " << y << " " << r
+                    << std::endl;
+          spheres_location.push_back(Point<dim>(x, y));
+        }
+
+      else if (dim == 3)
+        {
+          iss >> x >> y >> z >> r;
+          std::cout << "Snapping to sphere " << x << " " << y << " " << z << " "
+                    << r << std::endl;
+          spheres_location.push_back(Point<dim>(x, y, z));
+        }
+      spheres_radii.push_back(r);
+    }
+}
+
+template <int dim>
+void
+SphereSnapping<dim>::write()
 {
   GridOut output_grid;
 
@@ -139,7 +155,7 @@ ManifoldSnapping<dim>::write()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::assemble_system()
+SphereSnapping<dim>::assemble_system()
 {
   QGauss<dim> quadrature_formula(fe.degree + 1);
 
@@ -223,7 +239,7 @@ ManifoldSnapping<dim>::assemble_system()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::manual_displacement()
+SphereSnapping<dim>::manual_displacement()
 {
   Point<dim>              center_point({0.5, 0.5, 0.5});
   double                  radius        = 0.25;
@@ -299,7 +315,7 @@ ManifoldSnapping<dim>::manual_displacement()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::output(unsigned int iter)
+SphereSnapping<dim>::output(unsigned int iter)
 {
   std::vector<std::string> solution_names(dim, "displacement");
   std::vector<DataComponentInterpretation::DataComponentInterpretation>
@@ -328,7 +344,7 @@ ManifoldSnapping<dim>::output(unsigned int iter)
 
 template <int dim>
 void
-ManifoldSnapping<dim>::snap()
+SphereSnapping<dim>::snap()
 {
   const unsigned int      dofs_per_cell = fe.dofs_per_cell;
   std::vector<Point<dim>> support_points(dof_handler.n_dofs());
@@ -348,16 +364,7 @@ ManifoldSnapping<dim>::snap()
 
       for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_cell; ++v)
         {
-          std::cout << "vertex " << v << std::endl;
           Point<dim> &dof_position = cell->vertex(v);
-          std::cout << "vertex position " << dof_position << std::endl;
-          std::cout << "vertex position " << cell->vertex_dof_index(v, 0)
-                    << std::endl;
-          std::cout << "vertex position " << cell->vertex_dof_index(v, 1)
-                    << std::endl;
-          std::cout << "vertex position " << cell->vertex_dof_index(v, 2)
-                    << std::endl;
-
           for (unsigned int d = 0; d < dim; ++d)
             {
               unsigned int dof_index = cell->vertex_dof_index(v, d);
@@ -374,7 +381,7 @@ ManifoldSnapping<dim>::snap()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::solve_manual_snapping()
+SphereSnapping<dim>::solve_manual_snapping()
 {
   read();
   setup_dofs();
@@ -388,7 +395,7 @@ ManifoldSnapping<dim>::solve_manual_snapping()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::solve_linear_system()
+SphereSnapping<dim>::solve_linear_system()
 {
   SolverControl            solver_control(1000, 1e-12);
   SolverCG<Vector<double>> cg(solver_control);
@@ -405,21 +412,35 @@ ManifoldSnapping<dim>::solve_linear_system()
 
 template <int dim>
 void
-ManifoldSnapping<dim>::solve()
+SphereSnapping<dim>::solve()
 {
+  relaxation_iteration = 3;
+
   read();
+  read_spheres_information("particles.dat");
+
+  deformation_function =
+    std::make_shared<DeformToClosestSphere<dim>>(spheres_location,
+                                                 spheres_radii,
+                                                 relaxation_iteration);
   setup_dofs();
+  setup_bcs();
   output(0);
 
-  assemble_system();
-  solve_linear_system();
-  snap();
-  output(1);
+  for (unsigned int it = 0; it < relaxation_iteration; ++it)
+    {
+      deformation_function->set_time(it + 1);
+      setup_bcs();
+      assemble_system();
+      solve_linear_system();
+      snap();
+      output(it + 1);
+    }
   write();
 }
 
 
 
 // Pre-compile the 2D and 3D version with the types that can occur
-template class ManifoldSnapping<2>;
-template class ManifoldSnapping<3>;
+template class SphereSnapping<2>;
+template class SphereSnapping<3>;

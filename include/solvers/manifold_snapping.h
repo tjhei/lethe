@@ -69,6 +69,56 @@
 
 using namespace dealii;
 
+template <int dim>
+class DeformToClosestSphere : public Function<dim>
+{
+public:
+  DeformToClosestSphere(std::vector<Point<dim>> spheres_loc,
+                        std::vector<double>     spheres_radii,
+                        unsigned                iteration_number = 1)
+    : Function<dim>(dim)
+    , spheres_location(spheres_loc)
+    , spheres_radii(spheres_radii)
+    , iteration_number(iteration_number)
+  {}
+  virtual void
+  vector_value(const Point<dim> &point, Vector<double> &values) const override;
+
+private:
+  std::vector<Point<dim>> spheres_location;
+  std::vector<double>     spheres_radii;
+  unsigned                iteration_number;
+};
+
+template <int dim>
+void
+DeformToClosestSphere<dim>::vector_value(const Point<dim> &point,
+                                         Vector<double> &  values) const
+{
+  const double step = this->get_time();
+  double       relaxation_factor =
+    step == iteration_number ? 1 : 1. / iteration_number;
+  double smallest_displacement = DBL_MAX;
+  for (unsigned int pt = 0; pt < spheres_location.size(); ++pt)
+    {
+      Point<dim>     center_point    = spheres_location[pt];
+      double         radius          = spheres_radii[pt];
+      Tensor<1, dim> radial_vector   = point - center_point;
+      double         radial_distance = radial_vector.norm();
+      double         displacement    = radius - radial_distance;
+      if (std::abs(displacement) < smallest_displacement)
+        {
+          smallest_displacement              = std::abs(displacement);
+          Tensor<1, dim> displacement_vector = displacement * (radial_vector) /
+                                               radial_vector.norm() *
+                                               relaxation_factor;
+
+          for (unsigned int d = 0; d < dim; ++d)
+            values[d] = displacement_vector[d];
+        }
+    }
+}
+
 /**
  * A mesh modification class that snaps boundary nodes to the nearest manifold
  *
@@ -80,11 +130,11 @@ using namespace dealii;
  */
 
 template <int dim>
-class ManifoldSnapping
+class SphereSnapping
 {
 public:
-  ManifoldSnapping(const Parameters::Mesh p_mesh_parameters);
-  ~ManifoldSnapping();
+  SphereSnapping(const Parameters::Mesh p_mesh_parameters);
+  ~SphereSnapping();
 
   void
   solve_manual_snapping();
@@ -97,6 +147,10 @@ private:
   void
   setup_dofs();
 
+  // Allocate the memory for the dofs
+  void
+  setup_bcs();
+
   // Reads the mesh to be snapped
   void
   read();
@@ -104,6 +158,15 @@ private:
   // Calculates the required displacement to match the mesh on the manifold
   void
   manual_displacement();
+
+  // Read location and radii of spheres
+  // Expect format is
+  // x y z r
+  // d d d d
+  // d d d d
+  // ...
+  void
+  read_spheres_information(std::string filename);
 
   // Displaces the mesh to match manifold
   void
@@ -136,9 +199,14 @@ private:
   SparsityPattern      sparsity_pattern;
   SparseMatrix<double> system_matrix;
 
-  Vector<double> solution;
-  Vector<double> system_rhs;
-  Vector<int>    dof_snapped;
+  Vector<double>                              solution;
+  Vector<double>                              system_rhs;
+  Vector<int>                                 dof_snapped;
+  std::shared_ptr<DeformToClosestSphere<dim>> deformation_function;
+
+  std::vector<Point<dim>> spheres_location;
+  std::vector<double>     spheres_radii;
+  unsigned int            relaxation_iteration;
 
 
 
