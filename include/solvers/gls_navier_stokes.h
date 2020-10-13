@@ -140,11 +140,11 @@ private:
    */
 protected:
   TrilinosWrappers::SparseMatrix system_matrix;
-
-private:
-  SparsityPattern                                    sparsity_pattern;
   std::shared_ptr<TrilinosWrappers::PreconditionILU> ilu_preconditioner;
   std::shared_ptr<TrilinosWrappers::PreconditionAMG> amg_preconditioner;
+private:
+  SparsityPattern                                    sparsity_pattern;
+
 
   const bool   SUPG        = true;
   const double GLS_u_scale = 1;

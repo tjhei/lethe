@@ -54,6 +54,8 @@ private:
             Parameters::VelocitySource::VelocitySourceType    velocity_source>
   void
   assembleGLS();
+  void
+  setup_dofs();
 
 
   // BB - TODO This explanation needs to be made clearer. Adjacent, Adjacent_2
@@ -79,9 +81,16 @@ private:
   sharp_edge();
 
   void
+  integrate_particles();
+
+  void
   write_force_ib();
 
-
+  void
+  make_ib_sparsity_pattern(const DoFHandler<dim>            &dof,
+                           DynamicSparsityPattern             &sparsity,
+                           const AffineConstraints<double> &constraints,
+                           const bool                keep_constrained_dofs);
 
   double
   calculate_L2_error_particles();

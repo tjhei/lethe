@@ -1327,7 +1327,17 @@ GLSSharpNavierStokesSolver<dim>::calculate_L2_error_particles()
 
   return std::sqrt(l2errorU);
 }
+template <int dim>
+void
+GLSSharpNavierStokesSolver<dim>::integrate_particles()
+{
+    double dt=this->simulationControl->get_time_steps_vector()[0];
+    for (unsigned int p = 0; p < particles.size(); ++p) {
 
+        particles[p].position=particles[p].position+particles[p].velocity*dt;
+    }
+
+}
 
 template <int dim>
 void
@@ -1372,6 +1382,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
   std::vector<types::global_dof_index> local_dof_indices_2(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices_3(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices_4(dofs_per_cell);
+  std::vector<types::global_dof_index> local_dof_indices_second_stencil(dofs_per_cell);
   std::set<unsigned int>               clear_line;
 
   // Define minimal cell length
@@ -1526,6 +1537,20 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                 center_immersed)
                                  .norm());
 
+                          Tensor<1, dim, double> normal_vect =
+                                    (support_points[local_dof_indices[i]] -
+                                     center_immersed)/(support_points[local_dof_indices[i]] -
+                            center_immersed).norm() ;
+                          if (dim==2) {
+                              if ((normal_vect[0] * vect_dist[0] + normal_vect[1] * vect_dist[1])<0){
+                                  normal_vect=-1*normal_vect;
+                              }
+                          }
+                          else if (dim==3) {
+                              if ((normal_vect[0] * vect_dist[0] + normal_vect[1] * vect_dist[1]+ normal_vect[2] * vect_dist[2])<0){
+                                  normal_vect=-1*normal_vect;
+                              }
+                          }
                           // Define the length ratio that represent the
                           // zone used for the stencil. The length is
                           // defined as the length between the dof and
@@ -1564,6 +1589,11 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                           Point<dim, double> fifth_point(
                             support_points[local_dof_indices[i]] +
                             vect_dist * length_fraction * 1 / 4);
+
+
+                          //this->pcout << "  first_point"<< first_point<< std::endl;
+                          //this->pcout << "  second_point"<< second_point<< std::endl;
+
 
                           double dof_2;
                           double sp_2;
@@ -1705,7 +1735,11 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                             }
 
                           auto &cell_2       = active_neighbors[cell_found];
-                          bool  skip_stencil = false;
+
+
+
+
+                            bool  skip_stencil = false;
 
                           if (break_bool == false)
                             {
@@ -1723,9 +1757,65 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                 << support_points[global_index_overwrite]
                                 << std::endl;
                             }
+                          double step_ratio=dr*1.4;
+
+                            unsigned int     nb_step    = 0;
+                            bool             cell_found_2 = false;
+                            const Point<dim> eval_point_2(
+                                    second_point[0] + normal_vect[0] * (nb_step + 1) * step_ratio,
+                                    second_point[1] + normal_vect[1] * (nb_step + 1) * step_ratio);
+
+                            // step in the normal direction to the surface until the point
+                            // used for the ib stencil is not in a cell that is cut by the
+                            // boundary.
+                            while (cell_found == false)
+                            {
+                                // define the new point
+                                Point<dim> eval_point_iter(
+                                        second_point[0] + normal_vect[0] * (nb_step + 1) * step_ratio,
+                                        second_point[1] + normal_vect[1] * (nb_step + 1) * step_ratio);
+                                /*const auto &cell_iter =
+                                  GridTools::find_active_cell_around_point(this->dof_handler,
+                                                                           eval_point_iter);*/
+                                // std::cout << "before cell found " << i << std::endl;
+                                const auto &cell_iter =
+                                        find_cell_around_point_with_tree(this->dof_handler,
+                                                                         eval_point_iter);
+                                // std::cout << "cell found " << i<< std::endl;
+                                // std::cout << "cell found v index " << cell_vertex_map.first
+                                // << std::endl; std::cout << "cell found map " <<
+                                // cell_vertex_map.second << std::endl;
 
 
 
+                                if (cell_iter->is_artificial() == false)
+                                {
+
+
+                                    if (cell_iter==cell_2)
+                                    {
+                                        cell_found = false;
+                                    }
+                                    else
+                                    {
+                                        cell_found = true;
+                                    }
+
+                                    // step a bit further away from the boundary.
+                                    if (cell_found == false)
+                                        nb_step += 1;
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                            Point<dim> second_point_2(
+                                    second_point[0] + normal_vect[0] * (nb_step + 1) * step_ratio,
+                                    second_point[1] + normal_vect[1] * (nb_step + 1) * step_ratio);
+                            const auto &cell_second_stencil = find_cell_around_point_with_tree(this->dof_handler,
+                                                                                               second_point_2);
+                           // this->pcout << "  second_point_2"<< second_point_2<< std::endl;
                           // We have or next cell needed to complete the
                           // stencil
 
@@ -1747,7 +1837,18 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                             immersed_map.transform_real_to_unit_cell(
                               cell_2, fifth_point);
 
+                          Point<dim> first_point_v_cut_cell =
+                                    immersed_map.transform_real_to_unit_cell(
+                                            cell, first_point);
+                          Point<dim> first_point_v_second_stencil =
+                                    immersed_map.transform_real_to_unit_cell(
+                                            cell_second_stencil, first_point);
+
                           cell_2->get_dof_indices(local_dof_indices_2);
+                          cell_second_stencil->get_dof_indices(local_dof_indices_second_stencil);
+                          /*this->pcout << "  first_point_v_second_stencil    "<< first_point_v_second_stencil<< std::endl;
+                          this->pcout << "  first_point_v_cut_cell    "<< first_point_v_cut_cell<< std::endl;
+                          this->pcout << "  nb   "<< nb_step<< std::endl;*/
 
                           // Clear the current line of this dof  by
                           // looping on the neighbors cell of this dof
@@ -1780,6 +1881,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                     }
                                 }
                             }
+
 
                           // Check if the DOF intersect the IB
                           bool do_rhs = false;
@@ -1825,7 +1927,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                   if (component_j == component_i)
                                     {
                                       if (global_index_overwrite ==
-                                          local_dof_indices_2[j])
+                                          local_dof_indices_second_stencil[j])
                                         {
                                           // Define the solution at each
                                           // point used for the stencil and
@@ -1932,18 +2034,25 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                           if (this->nsparam.particlesParameters
                                                 .order > 4)
                                             {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                  sum_line);
-                                              local_interp_sol +=
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
+                                                this->system_matrix.set(
+                                                        global_index_overwrite,
+                                                        local_dof_indices_2[j],this->system_matrix.el(global_index_overwrite,local_dof_indices_2[j])+
+                                                                               this->fe.shape_value(
+                                                                                       j, first_point_v) *
+                                                                               sum_line*(2));
+                                                this->system_matrix.set(
+                                                        global_index_overwrite,
+                                                        local_dof_indices_second_stencil[j],this->system_matrix.el(global_index_overwrite,local_dof_indices_second_stencil[j])+
+                                                                                            this->fe.shape_value(
+                                                                                                    j, first_point_v_second_stencil) *
+                                                                                            sum_line*(-1));
+
+                                                local_interp_sol +=this->fe.shape_value(j, first_point_v) *
+                                                                   sum_line *(2)*
+                                                                   this->evaluation_point(
+                                                                           local_dof_indices_2[j])+this->fe.shape_value(j, first_point_v_second_stencil) *
+                                                                                                   sum_line *(-1)*this->evaluation_point(local_dof_indices_second_stencil[j]);
+
                                             }
 
                                           if (this->nsparam.particlesParameters
@@ -2099,18 +2208,26 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                           if (this->nsparam.particlesParameters
                                                 .order > 4)
                                             {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                  sum_line);
-                                              local_interp_sol +=
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
+                                                this->system_matrix.set(
+                                                        global_index_overwrite,
+                                                        local_dof_indices_2[j],this->system_matrix.el(global_index_overwrite,local_dof_indices_2[j])+
+                                                                               this->fe.shape_value(
+                                                                                       j, first_point_v) *
+                                                                               sum_line*(2));
+                                                this->system_matrix.set(
+                                                        global_index_overwrite,
+                                                        local_dof_indices_second_stencil[j],this->system_matrix.el(global_index_overwrite,local_dof_indices_second_stencil[j])+
+                                                                                            this->fe.shape_value(
+                                                                                                    j, first_point_v_second_stencil) *
+                                                                                            sum_line*(-1));
+
+                                                local_interp_sol +=this->fe.shape_value(j, first_point_v) *
+                                                                   sum_line *(2)*
+                                                                   this->evaluation_point(
+                                                                           local_dof_indices_2[j])+this->fe.shape_value(j, first_point_v_second_stencil) *
+                                                                                                   sum_line *(-1)*this->evaluation_point(local_dof_indices_second_stencil[j]);
+
+
                                             }
                                           if (this->nsparam.particlesParameters
                                                 .order == 4)
@@ -3293,6 +3410,388 @@ GLSSharpNavierStokesSolver<dim>::assemble_rhs(
 
 template <int dim>
 void
+GLSSharpNavierStokesSolver<dim>::setup_dofs()
+{
+    TimerOutput::Scope t(this->computing_timer, "setup_dofs");
+
+    // Clear the preconditioner before the matrix they are associated with is
+    // cleared
+    this->amg_preconditioner.reset();
+    this->ilu_preconditioner.reset();
+
+    // Now reset system matrix
+    this->system_matrix.clear();
+
+    this->dof_handler.distribute_dofs(this->fe);
+    DoFRenumbering::Cuthill_McKee(this->dof_handler);
+
+    this->locally_owned_dofs = this->dof_handler.locally_owned_dofs();
+    DoFTools::extract_locally_relevant_dofs(this->dof_handler,
+                                            this->locally_relevant_dofs);
+
+    const MappingQ<dim>        mapping(this->velocity_fem_degree,
+                                       this->nsparam.fem_parameters.qmapping_all);
+    FEValuesExtractors::Vector velocities(0);
+
+    // Non-zero constraints
+    {
+        this->nonzero_constraints.clear();
+
+        DoFTools::make_hanging_node_constraints(this->dof_handler,
+                                                this->nonzero_constraints);
+        for (unsigned int i_bc = 0; i_bc < this->nsparam.boundary_conditions.size;
+             ++i_bc)
+        {
+            if (this->nsparam.boundary_conditions.type[i_bc] ==
+                BoundaryConditions::BoundaryType::noslip)
+            {
+                VectorTools::interpolate_boundary_values(
+                        mapping,
+                        this->dof_handler,
+                        this->nsparam.boundary_conditions.id[i_bc],
+                        dealii::Functions::ZeroFunction<dim>(dim + 1),
+                        this->nonzero_constraints,
+                        this->fe.component_mask(velocities));
+            }
+            else if (this->nsparam.boundary_conditions.type[i_bc] ==
+                     BoundaryConditions::BoundaryType::slip)
+            {
+                std::set<types::boundary_id> no_normal_flux_boundaries;
+                no_normal_flux_boundaries.insert(
+                        this->nsparam.boundary_conditions.id[i_bc]);
+                VectorTools::compute_no_normal_flux_constraints(
+                        this->dof_handler,
+                        0,
+                        no_normal_flux_boundaries,
+                        this->nonzero_constraints);
+            }
+            else if (this->nsparam.boundary_conditions.type[i_bc] ==
+                     BoundaryConditions::BoundaryType::function)
+            {
+                VectorTools::interpolate_boundary_values(
+                        mapping,
+                        this->dof_handler,
+                        this->nsparam.boundary_conditions.id[i_bc],
+                        NavierStokesFunctionDefined<dim>(
+                                &this->nsparam.boundary_conditions.bcFunctions[i_bc].u,
+                                &this->nsparam.boundary_conditions.bcFunctions[i_bc].v,
+                                &this->nsparam.boundary_conditions.bcFunctions[i_bc].w),
+                        this->nonzero_constraints,
+                        this->fe.component_mask(velocities));
+            }
+
+            else if (this->nsparam.boundary_conditions.type[i_bc] ==
+                     BoundaryConditions::BoundaryType::periodic)
+            {
+                DoFTools::make_periodicity_constraints(
+                        this->dof_handler,
+                        this->nsparam.boundary_conditions.id[i_bc],
+                        this->nsparam.boundary_conditions.periodic_id[i_bc],
+                        this->nsparam.boundary_conditions.periodic_direction[i_bc],
+                        this->nonzero_constraints);
+            }
+        }
+    }
+    this->nonzero_constraints.close();
+
+    {
+        this->zero_constraints.clear();
+        DoFTools::make_hanging_node_constraints(this->dof_handler,
+                                                this->zero_constraints);
+
+        for (unsigned int i_bc = 0; i_bc < this->nsparam.boundary_conditions.size;
+             ++i_bc)
+        {
+            if (this->nsparam.boundary_conditions.type[i_bc] ==
+                BoundaryConditions::BoundaryType::slip)
+            {
+                std::set<types::boundary_id> no_normal_flux_boundaries;
+                no_normal_flux_boundaries.insert(
+                        this->nsparam.boundary_conditions.id[i_bc]);
+                VectorTools::compute_no_normal_flux_constraints(
+                        this->dof_handler,
+                        0,
+                        no_normal_flux_boundaries,
+                        this->zero_constraints);
+            }
+            else if (this->nsparam.boundary_conditions.type[i_bc] ==
+                     BoundaryConditions::BoundaryType::periodic)
+            {
+                DoFTools::make_periodicity_constraints(
+                        this->dof_handler,
+                        this->nsparam.boundary_conditions.id[i_bc],
+                        this->nsparam.boundary_conditions.periodic_id[i_bc],
+                        this->nsparam.boundary_conditions.periodic_direction[i_bc],
+                        this->zero_constraints);
+            }
+            else // if(nsparam.boundaryConditions.boundaries[i_bc].type==Parameters::noslip
+                // || Parameters::function)
+            {
+                VectorTools::interpolate_boundary_values(
+                        mapping,
+                        this->dof_handler,
+                        this->nsparam.boundary_conditions.id[i_bc],
+                        dealii::Functions::ZeroFunction<dim>(dim + 1),
+                        this->zero_constraints,
+                        this->fe.component_mask(velocities));
+            }
+        }
+    }
+    this->zero_constraints.close();
+
+    this->present_solution.reinit(this->locally_owned_dofs,
+                                  this->locally_relevant_dofs,
+                                  this->mpi_communicator);
+    this->solution_m1.reinit(this->locally_owned_dofs,
+                             this->locally_relevant_dofs,
+                             this->mpi_communicator);
+    this->solution_m2.reinit(this->locally_owned_dofs,
+                             this->locally_relevant_dofs,
+                             this->mpi_communicator);
+    this->solution_m3.reinit(this->locally_owned_dofs,
+                             this->locally_relevant_dofs,
+                             this->mpi_communicator);
+
+    this->newton_update.reinit(this->locally_owned_dofs, this->mpi_communicator);
+    this->system_rhs.reinit(this->locally_owned_dofs, this->mpi_communicator);
+    this->local_evaluation_point.reinit(this->locally_owned_dofs,
+                                        this->mpi_communicator);
+
+    DynamicSparsityPattern dsp(this->locally_relevant_dofs);
+    vertices_cell_mapping();
+    make_ib_sparsity_pattern(this->dof_handler,
+                                         dsp,
+                                         this->nonzero_constraints,
+                                         false);
+    SparsityTools::distribute_sparsity_pattern(
+            dsp,
+            this->dof_handler.locally_owned_dofs(),
+            this->mpi_communicator,
+            this->locally_relevant_dofs);
+    this->system_matrix.reinit(this->locally_owned_dofs,
+                         this->locally_owned_dofs,
+                         dsp,
+                         this->mpi_communicator);
+
+
+    double global_volume = GridTools::volume(*this->triangulation);
+
+    this->pcout << "   Number of active cells:       "
+                << this->triangulation->n_global_active_cells() << std::endl
+                << "   Number of degrees of freedom: "
+                << this->dof_handler.n_dofs() << std::endl;
+    this->pcout << "   Volume of triangulation:      " << global_volume
+                << std::endl;
+}
+
+
+
+
+
+
+template <int dim>
+void
+GLSSharpNavierStokesSolver<dim>::make_ib_sparsity_pattern(const DoFHandler<dim>            &dof,
+                                                          DynamicSparsityPattern             &sparsity,
+                           const AffineConstraints<double> &constraints,
+                           const bool                keep_constrained_dofs)
+
+// TODO: QA: reduce the indentation level of this method..., Maier 2012
+
+{
+    this->pcout << "   my sparsity pattern    "<< std::endl;
+    const types::global_dof_index n_dofs = dof.n_dofs();
+    (void)n_dofs;
+
+    AssertDimension(sparsity.n_rows(), n_dofs);
+    AssertDimension(sparsity.n_cols(), n_dofs);
+
+    // If we have a distributed::Triangulation only allow locally_owned
+    // subdomain. Not setting a subdomain is also okay, because we skip
+    // ghost cells in the loop below.
+    Assert((dof.get_triangulation().locally_owned_subdomain() ==
+            numbers::invalid_subdomain_id) ||
+           (subdomain_id == numbers::invalid_subdomain_id) ||
+           (subdomain_id ==
+            dof.get_triangulation().locally_owned_subdomain()),
+           ExcMessage(
+                   "For parallel::distributed::Triangulation objects and "
+                   "associated DoF handler objects, asking for any subdomain other "
+                   "than the locally owned one does not make sense."));
+
+    std::vector<types::global_dof_index> dofs_on_this_cell;
+    std::vector<types::global_dof_index> dofs_on_other_cell;
+    dofs_on_this_cell.reserve(DoFTools::max_dofs_per_cell(dof));
+    dofs_on_other_cell.reserve(DoFTools::max_dofs_per_cell(dof));
+    typename DoFHandler<dim>::active_cell_iterator cell = dof.begin_active(),
+            endc = dof.end();
+    unsigned int       vertex_per_cell = GeometryInfo<dim>::vertices_per_cell;
+    std::vector<typename DoFHandler<dim>::active_cell_iterator> active_neighbors_set;
+    // TODO: in an old implementation, we used user flags before to tag
+    // faces that were already touched. this way, we could reduce the work
+    // a little bit. now, we instead add only data from one side. this
+    // should be OK, but we need to actually verify it.
+
+    // In case we work with a distributed sparsity pattern of Trilinos
+    // type, we only have to do the work if the current cell is owned by
+    // the calling processor. Otherwise, just continue.
+    for (; cell != endc; ++cell)
+        if (cell->is_locally_owned())
+        {
+            const unsigned int n_dofs_on_this_cell = cell->get_fe().dofs_per_cell;
+            dofs_on_this_cell.resize(n_dofs_on_this_cell);
+            cell->get_dof_indices(dofs_on_this_cell);
+
+            // make sparsity pattern for this cell. if no constraints pattern
+            // was given, then the following call acts as if simply no
+            // constraints existed
+            constraints.add_entries_local_to_global(dofs_on_this_cell,
+                                                    sparsity,
+                                                    keep_constrained_dofs);
+
+
+            for (const unsigned int face :
+                    GeometryInfo<DoFHandler<dim>::dimension>::face_indices())
+            {
+                typename DoFHandler<dim>::face_iterator cell_face =
+                        cell->face(face);
+                const bool periodic_neighbor = cell->has_periodic_neighbor(face);
+                if (!cell->at_boundary(face) || periodic_neighbor)
+                {
+                    typename DoFHandler<dim>::level_cell_iterator neighbor =
+                            cell->neighbor_or_periodic_neighbor(face);
+
+                    // in 1d, we do not need to worry whether the neighbor
+                    // might have children and then loop over those children.
+                    // rather, we may as well go straight to the cell behind
+                    // this particular cell's most terminal child
+                    if (DoFHandler<dim>::dimension == 1)
+                        while (neighbor->has_children())
+                            neighbor = neighbor->child(face == 0 ? 1 : 0);
+
+                    if (neighbor->has_children())
+                    {
+                        for (unsigned int sub_nr = 0;
+                             sub_nr != cell_face->number_of_children();
+                             ++sub_nr)
+                        {
+                            const typename DoFHandler<dim>::level_cell_iterator
+                                    sub_neighbor =
+                                    periodic_neighbor ?
+                                    cell->periodic_neighbor_child_on_subface(
+                                            face, sub_nr) :
+                                    cell->neighbor_child_on_subface(face, sub_nr);
+
+                            const unsigned int n_dofs_on_neighbor =
+                                    sub_neighbor->get_fe().dofs_per_cell;
+                            dofs_on_other_cell.resize(n_dofs_on_neighbor);
+                            sub_neighbor->get_dof_indices(dofs_on_other_cell);
+
+                            constraints.add_entries_local_to_global(
+                                    dofs_on_this_cell,
+                                    dofs_on_other_cell,
+                                    sparsity,
+                                    keep_constrained_dofs);
+                            constraints.add_entries_local_to_global(
+                                    dofs_on_other_cell,
+                                    dofs_on_this_cell,
+                                    sparsity,
+                                    keep_constrained_dofs);
+                            // only need to add this when the neighbor is not
+                            // owned by the current processor, otherwise we add
+                            // the entries for the neighbor there
+                            if (sub_neighbor->subdomain_id() !=
+                                cell->subdomain_id())
+                                constraints.add_entries_local_to_global(
+                                        dofs_on_other_cell,
+                                        sparsity,
+                                        keep_constrained_dofs);
+                        }
+                    }
+                    else
+                    {
+                        // Refinement edges are taken care of by coarser
+                        // cells
+                        if ((!periodic_neighbor &&
+                             cell->neighbor_is_coarser(face)) ||
+                            (periodic_neighbor &&
+                             cell->periodic_neighbor_is_coarser(face)))
+                            if (neighbor->subdomain_id() == cell->subdomain_id())
+                                continue;
+
+                        const unsigned int n_dofs_on_neighbor =
+                                neighbor->get_fe().dofs_per_cell;
+                        dofs_on_other_cell.resize(n_dofs_on_neighbor);
+
+                        neighbor->get_dof_indices(dofs_on_other_cell);
+
+                        constraints.add_entries_local_to_global(
+                                dofs_on_this_cell,
+                                dofs_on_other_cell,
+                                sparsity,
+                                keep_constrained_dofs);
+
+                        // only need to add these in case the neighbor cell
+                        // is not locally owned - otherwise, we touch each
+                        // face twice and hence put the indices the other way
+                        // around
+                        if (!cell->neighbor_or_periodic_neighbor(face)
+                                ->is_active() ||
+                            (neighbor->subdomain_id() != cell->subdomain_id()))
+                        {
+                            constraints.add_entries_local_to_global(
+                                    dofs_on_other_cell,
+                                    dofs_on_this_cell,
+                                    sparsity,
+                                    keep_constrained_dofs);
+                            if (neighbor->subdomain_id() != cell->subdomain_id())
+                                constraints.add_entries_local_to_global(
+                                        dofs_on_other_cell,
+                                        sparsity,
+                                        keep_constrained_dofs);
+                        }
+                    }
+                }
+            }
+
+            for (unsigned int vi = 0; vi < vertex_per_cell; ++vi)
+            {
+                unsigned int v_index = cell->vertex_index(vi);
+
+                // Get a cell iterator for all the cell
+                // neighbors of that vertex
+                active_neighbors_set =
+                        this->vertices_to_cell[v_index];
+                unsigned int n_active_cells =
+                        active_neighbors_set.size();
+
+                // Loops on those cell to find in which of
+                // them the new point for or sharp edge
+                // stencil is
+                for (unsigned int cell_index = 0;
+                     cell_index < n_active_cells;
+                     ++cell_index)
+                {
+                    auto &cell_neighbors       = active_neighbors_set[cell_index];
+                    const unsigned int n_dofs_on_neighbor =
+                            cell_neighbors ->get_fe().dofs_per_cell;
+                    dofs_on_other_cell.resize(n_dofs_on_neighbor);
+                    cell_neighbors->get_dof_indices(dofs_on_other_cell);
+
+                    constraints.add_entries_local_to_global(
+                            dofs_on_this_cell,
+                            dofs_on_other_cell,
+                            sparsity,
+                            keep_constrained_dofs);
+                }
+            }
+
+
+        }
+}
+
+template <int dim>
+void
 GLSSharpNavierStokesSolver<dim>::solve()
 {
   read_mesh_and_manifolds(this->triangulation,
@@ -3301,7 +3800,7 @@ GLSSharpNavierStokesSolver<dim>::solve()
                           this->nsparam.boundary_conditions);
 
   define_particles();
-  this->setup_dofs();
+  setup_dofs();
 
   // To change once refinement is split into two function
   double temp_refine = this->nsparam.mesh_adaptation.refinement_fraction;
@@ -3327,6 +3826,7 @@ GLSSharpNavierStokesSolver<dim>::solve()
 
   while (this->simulationControl->integrate())
     {
+      integrate_particles();
       this->simulationControl->print_progression(this->pcout);
       if (this->simulationControl->is_at_start())
         this->first_iteration();
