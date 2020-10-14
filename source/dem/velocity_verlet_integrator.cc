@@ -19,11 +19,11 @@ VelocityVerletIntegrator<dim>::integrate(
       auto particle_properties = particle->get_properties();
 
       // Calculate the acceleration of a particle
+      const double inv_mass = 1. / particle_properties[PropertiesIndex::mass];
       for (int d = 0; d < dim; ++d)
         {
           particle_properties[PropertiesIndex::acc_x + d] =
-            g[d] + particle_properties[PropertiesIndex::force_x + d] /
-                     particle_properties[PropertiesIndex::mass];
+            g[d] + particle_properties[PropertiesIndex::force_x + d] * inv_mass;
         }
 
       // Store particle velocity and acceleration in Tensors
