@@ -1,3 +1,4 @@
+#include <dem/pw_contact_force.h>
 #include <dem/pw_nonlinear_force.h>
 
 using namespace dealii;
@@ -50,7 +51,7 @@ PWNonLinearForce<dim>::calculate_pw_contact_force(
           // Here we have used the private function find_projection. Using this
           // projected vector, the particle-wall distance is calculated
           Tensor<1, dim> projected_vector =
-            this->find_projection(point_to_particle_vector, normal_vector);
+            find_projection<dim>(point_to_particle_vector, normal_vector);
           double normal_overlap =
             ((particle_properties[DEM::PropertiesIndex::dp]) / 2) -
             (projected_vector.norm());

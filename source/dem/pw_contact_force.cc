@@ -140,16 +140,5 @@ PWContactForce<dim>::apply_force_and_torque(
     }
 }
 
-template <int dim>
-Tensor<1, dim>
-PWContactForce<dim>::find_projection(const Tensor<1, dim> &vector_a,
-                                     const Tensor<1, dim> &vector_b)
-{
-  Tensor<1, dim> vector_c;
-  vector_c = ((vector_a * vector_b) / (vector_b.norm_square())) * vector_b;
-
-  return vector_c;
-}
-
 template class PWContactForce<2>;
 template class PWContactForce<3>;

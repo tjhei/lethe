@@ -150,6 +150,8 @@ BoundaryCellsInformation<dim>::find_particle_point_and_line_contact_cells(
   std::vector<typename Triangulation<dim>::active_cell_iterator>
     boundary_cells_with_lines_or_points;
 
+  boundary_cells_with_lines_or_points.reserve(1000);
+
   // This map stores the vertex index and position of boundary vertices
   std::map<int, Point<dim>> boundary_vertices;
 

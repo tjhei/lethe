@@ -1,3 +1,4 @@
+#include <dem/pw_contact_force.h>
 #include <dem/pw_linear_force.h>
 
 using namespace dealii;
@@ -50,7 +51,7 @@ PWLinearForce<dim>::calculate_pw_contact_force(
           // Here we have used the private function find_projection. Using this
           // projected vector, the particle-wall distance is calculated
           Tensor<1, dim> projected_vector =
-            this->find_projection(point_to_particle_vector, normal_vector);
+            find_projection<dim>(point_to_particle_vector, normal_vector);
           double normal_overlap =
             ((particle_properties[DEM::PropertiesIndex::dp]) / 2) -
             (projected_vector.norm());
@@ -102,31 +103,31 @@ PWLinearForce<dim>::calculate_linear_contact_force_and_torque(
   // Calculation of effective Young's modulus of the
   // contact
   double effective_youngs_modulus =
-    pow((((1.0 - pow(physical_properties.poisson_ratio_particle, 2.0)) /
+    pow((((1.0 - pow(physical_properties.poisson_ratio_particle, 2)) /
           physical_properties.youngs_modulus_particle) +
-         ((1.0 - pow(physical_properties.poisson_ratio_wall, 2.0)) /
+         ((1.0 - pow(physical_properties.poisson_ratio_wall, 2)) /
           physical_properties.youngs_modulus_wall)),
         -1.0);
 
   // Calculation of normal and tangential spring and dashpot constants
   // using particle properties
   double normal_spring_constant =
-    1.0667 * sqrt((particle_properties[DEM::PropertiesIndex::dp] / 2.0)) *
+    1.0667 * sqrt(0.5 * (particle_properties[DEM::PropertiesIndex::dp])) *
     effective_youngs_modulus *
     pow((1.0667 * particle_properties[DEM::PropertiesIndex::mass] *
          contact_info.normal_relative_velocity *
          contact_info.normal_relative_velocity /
-         (sqrt((particle_properties[DEM::PropertiesIndex::dp] / 2.0)) *
+         (sqrt((0.5 * particle_properties[DEM::PropertiesIndex::dp])) *
           effective_youngs_modulus)),
         0.2);
 
   double tangential_spring_constant =
-    1.0667 * sqrt((particle_properties[DEM::PropertiesIndex::dp] / 2.0)) *
+    1.0667 * sqrt(0.5 * (particle_properties[DEM::PropertiesIndex::dp])) *
       effective_youngs_modulus *
       pow((1.0667 * particle_properties[DEM::PropertiesIndex::mass] *
            contact_info.tangential_relative_velocity *
            contact_info.tangential_relative_velocity /
-           (sqrt((particle_properties[DEM::PropertiesIndex::dp] / 2.0)) *
+           (sqrt((particle_properties[DEM::PropertiesIndex::dp] * 0.5)) *
             effective_youngs_modulus)),
           0.2) +
     DBL_MIN;
@@ -222,7 +223,7 @@ PWLinearForce<dim>::calculate_linear_contact_force_and_torque(
   // Calcualation of rolling resistance torque
   Tensor<1, dim> rolling_resistance_torque =
     -1.0 * physical_properties.rolling_friction_wall *
-    ((particle_properties[DEM::PropertiesIndex::dp]) / 2.0) *
+    ((particle_properties[DEM::PropertiesIndex::dp]) * 0.5) *
     normal_force.norm() * pw_angular_velocity;
 
   return std::make_tuple(normal_force,

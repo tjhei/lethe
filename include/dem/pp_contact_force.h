@@ -28,6 +28,9 @@ using namespace dealii;
 #ifndef particle_particle_contact_force_h
 #  define particle_particle_contact_force_h
 
+using namespace DEM;
+
+
 /**
  * Base interface for classes that carry out the calculation of particle-paricle
  * contact force
@@ -99,13 +102,35 @@ protected:
    * tangential force, 3, tangential torque and 4, rolling resistance torque of
    * a contact pair
    */
-  void
+  inline void
   apply_force_and_torque_real(ArrayView<double> &   particle_one_properties,
                               ArrayView<double> &   particle_two_properties,
                               const Tensor<1, dim> &normal_force,
                               const Tensor<1, dim> &tangential_force,
                               const Tensor<1, dim> &tangential_torque,
-                              const Tensor<1, dim> &rolling_resistance_torque);
+                              const Tensor<1, dim> &rolling_resistance_torque)
+  {
+    // Calculation of total force
+    Tensor<1, dim> total_force = normal_force + tangential_force;
+
+    // Updating the force and torque of particles in the particle handler
+    for (int d = 0; d < dim; ++d)
+      {
+        particle_one_properties[PropertiesIndex::force_x + d] =
+          particle_one_properties[PropertiesIndex::force_x + d] -
+          total_force[d];
+        particle_two_properties[PropertiesIndex::force_x + d] =
+          particle_two_properties[PropertiesIndex::force_x + d] +
+          total_force[d];
+
+        particle_one_properties[PropertiesIndex::M_x + d] =
+          particle_one_properties[PropertiesIndex::M_x + d] -
+          tangential_torque[d] + rolling_resistance_torque[d];
+        particle_two_properties[PropertiesIndex::M_x + d] =
+          particle_two_properties[PropertiesIndex::M_x + d] -
+          tangential_torque[d] - rolling_resistance_torque[d];
+      }
+  }
 
   /**
    * Carries out applying the calculated force and torque on the local-ghost
@@ -118,12 +143,28 @@ protected:
    * tangential force, 3, tangential torque and 4, rolling resistance torque of
    * a contact pair
    */
-  void
+  inline void
   apply_force_and_torque_ghost(ArrayView<double> &   particle_one_properties,
                                const Tensor<1, dim> &normal_force,
                                const Tensor<1, dim> &tangential_force,
                                const Tensor<1, dim> &tangential_torque,
-                               const Tensor<1, dim> &rolling_resistance_torque);
+                               const Tensor<1, dim> &rolling_resistance_torque)
+  {
+    // Calculation of total force
+    Tensor<1, dim> total_force = normal_force + tangential_force;
+
+    // Updating the force and torque acting on particles in the particle handler
+    for (int d = 0; d < dim; ++d)
+      {
+        particle_one_properties[PropertiesIndex::force_x + d] =
+          particle_one_properties[PropertiesIndex::force_x + d] -
+          total_force[d];
+
+        particle_one_properties[PropertiesIndex::M_x + d] =
+          particle_one_properties[PropertiesIndex::M_x + d] -
+          tangential_torque[d] + rolling_resistance_torque[d];
+      }
+  }
 };
 
 #endif /* particle_particle_contact_force_h */

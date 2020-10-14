@@ -92,16 +92,22 @@ protected:
                                           Tensor<1, dim>,
                                           Tensor<1, dim>,
                                           Tensor<1, dim>> &forces_and_torques);
-
-  /** This function is used to find the projection of vector_a on
-   * vector_b
-   * @param vector_a A vector which is going to be projected on vector_b
-   * @param vector_b The projection vector of vector_a
-   * @return The projection of vector_a on vector_b
-   */
-  Tensor<1, dim>
-  find_projection(const Tensor<1, dim> &vector_a,
-                  const Tensor<1, dim> &vector_b);
 };
+
+/** This function is used to find the projection of vector_a on
+ * vector_b
+ * @param vector_a A vector which is going to be projected on vector_b
+ * @param vector_b The projection vector of vector_a
+ * @return The projection of vector_a on vector_b
+ */
+template <int dim>
+inline Tensor<1, dim>
+find_projection(const Tensor<1, dim> &vector_a, const Tensor<1, dim> &vector_b)
+{
+  Tensor<1, dim> vector_c;
+  vector_c = ((vector_a * vector_b) / (vector_b.norm_square())) * vector_b;
+
+  return vector_c;
+}
 
 #endif /* particle_wall_contact_force_h */

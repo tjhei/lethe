@@ -35,7 +35,7 @@ PPContactForce<dim>::update_contact_information(
   const Point<dim> &             particle_two_location,
   const double &                 dt)
 {
-  // Calculation of the contact vector (vector from particle one to particle two
+  // Calculation of the contact vector (vector from particle one to particle
   auto contact_vector = particle_two_location - particle_one_location;
 
   // Using contact_vector, the contact normal vector is obtained
@@ -123,64 +123,6 @@ PPContactForce<dim>::update_contact_information(
   // Updating the contact_info container based on the new calculated values
   contact_info.tangential_overlap           = modified_tangential_overlap;
   contact_info.tangential_relative_velocity = tangential_relative_velocity;
-}
-
-// This function is used to apply calculated forces and torques on the particle
-// pair
-template <int dim>
-void
-PPContactForce<dim>::apply_force_and_torque_real(
-  ArrayView<double> &   particle_one_properties,
-  ArrayView<double> &   particle_two_properties,
-  const Tensor<1, dim> &normal_force,
-  const Tensor<1, dim> &tangential_force,
-  const Tensor<1, dim> &tangential_torque,
-  const Tensor<1, dim> &rolling_resistance_torque)
-{
-  // Calculation of total force
-  Tensor<1, dim> total_force = normal_force + tangential_force;
-
-  // Updating the force and torque of particles in the particle handler
-  for (int d = 0; d < dim; ++d)
-    {
-      particle_one_properties[PropertiesIndex::force_x + d] =
-        particle_one_properties[PropertiesIndex::force_x + d] - total_force[d];
-      particle_two_properties[PropertiesIndex::force_x + d] =
-        particle_two_properties[PropertiesIndex::force_x + d] + total_force[d];
-
-      particle_one_properties[PropertiesIndex::M_x + d] =
-        particle_one_properties[PropertiesIndex::M_x + d] -
-        tangential_torque[d] + rolling_resistance_torque[d];
-      particle_two_properties[PropertiesIndex::M_x + d] =
-        particle_two_properties[PropertiesIndex::M_x + d] -
-        tangential_torque[d] - rolling_resistance_torque[d];
-    }
-}
-
-// This function is used to apply calculated forces and torques on the particle
-// pair
-template <int dim>
-void
-PPContactForce<dim>::apply_force_and_torque_ghost(
-  ArrayView<double> &   particle_one_properties,
-  const Tensor<1, dim> &normal_force,
-  const Tensor<1, dim> &tangential_force,
-  const Tensor<1, dim> &tangential_torque,
-  const Tensor<1, dim> &rolling_resistance_torque)
-{
-  // Calculation of total force
-  Tensor<1, dim> total_force = normal_force + tangential_force;
-
-  // Updating the force and torque acting on particles in the particle handler
-  for (int d = 0; d < dim; ++d)
-    {
-      particle_one_properties[PropertiesIndex::force_x + d] =
-        particle_one_properties[PropertiesIndex::force_x + d] - total_force[d];
-
-      particle_one_properties[PropertiesIndex::M_x + d] =
-        particle_one_properties[PropertiesIndex::M_x + d] -
-        tangential_torque[d] + rolling_resistance_torque[d];
-    }
 }
 
 template class PPContactForce<2>;
