@@ -1328,6 +1328,17 @@ GLSSharpNavierStokesSolver<dim>::calculate_L2_error_particles()
   return std::sqrt(l2errorU);
 }
 
+template <int dim>
+void
+GLSSharpNavierStokesSolver<dim>::integrate_particles()
+{
+    double dt=this->simulationControl->get_time_steps_vector()[0];
+    for (unsigned int p = 0; p < particles.size(); ++p) {
+
+        particles[p].position=particles[p].position+particles[p].velocity*dt;
+    }
+
+}
 
 template <int dim>
 void
@@ -1365,6 +1376,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
 
   unsigned int n_q_points = q_formula.size();
 
+
   // Define multiple local_dof_indices one for the cell iterator one for the
   // cell with the second point for the sharp edge stancil and one for
   // manipulation on the neighbors cell.
@@ -1374,9 +1386,14 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
   std::vector<types::global_dof_index> local_dof_indices_4(dofs_per_cell);
   std::set<unsigned int>               clear_line;
 
-  // Define minimal cell length
-  double dr = GridTools::minimal_cell_diameter(*this->triangulation) / sqrt(2);
+  double weak_formulation_error=0;
 
+  std::set<unsigned int> dof_done;
+
+  // Define minimal cell length
+  double dr = GridTools::minimal_cell_diameter(*this->triangulation) / sqrt(dim);
+  const auto penalty_parameter =1/(dr*dr*dr*dr);
+  double beta= this->simulationControl->get_time_steps_vector()[0]* this->nsparam.nitsche->beta;
   // Define cell iterator
   const auto &cell_iterator = this->dof_handler.active_cell_iterators();
 
@@ -1387,6 +1404,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
         {
           double sum_line = 0;
           fe_values.reinit(cell);
+          local_dof_indices.resize(dofs_per_cell);
           cell->get_dof_indices(local_dof_indices);
           std::vector<int> set_pressure_cell;
           set_pressure_cell.resize(particles.size());
@@ -1480,6 +1498,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                   // set new equation for the first pressure dof of the
                   // cell. this is the new reference pressure inside a
                   // particle
+
                   this->system_matrix.set(inside_index,
                                           local_dof_indices[dim],
                                           sum_line);
@@ -1489,1038 +1508,642 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                 }
 
 
+              std::set<std::vector<unsigned int>> dof_to_do_sup;
+
+              if(count_small == 0 or count_small == local_dof_indices.size()) {
+                  // check if the cell is not cut that  it's not on the bord of the subdomain and if it is that one dof that is owned is not cut in a neighbor cell
+                  bool cell_on_border_of_subdomain = false;
+                  for (unsigned int vi = 0; vi < vertex_per_cell; ++vi) {
+                      unsigned int v_index = cell->vertex_index(vi);
+
+                      // Get a cell iterator for all the cell
+                      // neighbors of that vertex
+                      active_neighbors_set =
+                              this->vertices_to_cell[v_index];
+                      unsigned int n_active_cells =
+                              active_neighbors_set.size();
+
+                      // Loops on those cell to find in which of
+                      // them the new point for or sharp edge
+                      // stencil is
+                      for (unsigned int cell_index = 0;
+                           cell_index < n_active_cells;
+                           ++cell_index) {
+                          if (active_neighbors_set[cell_index]->is_ghost())
+                              cell_on_border_of_subdomain = true;
+                      }
+                  }
+
+
+                  if (cell_on_border_of_subdomain) {
+                      for (unsigned int i = 0; i < local_dof_indices.size(); ++i) {
+                          unsigned int global_index_overwrite =
+                                  local_dof_indices[i];
+
+                          if (this->locally_owned_dofs.is_element(global_index_overwrite)) {
+                              for (unsigned int vi = 0; vi < vertex_per_cell; ++vi) {
+                                  unsigned int v_index = cell->vertex_index(vi);
+                                  active_neighbors_set =
+                                          this->vertices_to_cell[v_index];
+                                  for (unsigned int m = 0;
+                                       m < active_neighbors_set.size();
+                                       m++) {
+                                      const auto &cell_3 = active_neighbors_set[m];
+                                      cell_3->get_dof_indices(local_dof_indices_3);
+                                      for (unsigned int o = 0;
+                                           o < local_dof_indices_3.size();
+                                           ++o) {
+                                          if (global_index_overwrite ==
+                                              local_dof_indices_3[o]) {
+                                              // cell_3 contain the same dof
+                                              // check if this cell is cut if
+                                              // it's not cut this dof must not
+                                              // be overwritten
+                                              unsigned int count_small_1 = 0;
+                                              for (unsigned int q = 0;
+                                                   q < local_dof_indices_3.size();
+                                                   ++q) {
+                                                  // Count the number of dof
+                                                  // that are smaller or
+                                                  // larger then the radius
+                                                  // of the particles if all
+                                                  // the dof are on one side
+                                                  // the cell is not cut by
+                                                  // the boundary meaning we
+                                                  // dont have to do
+                                                  // anything
+                                                  if ((support_points
+                                                       [local_dof_indices_3[q]] -
+                                                       center_immersed)
+                                                              .norm() <=
+                                                      particles[p].radius) {
+                                                      ++count_small_1;
+                                                  }
+                                              }
+
+                                              if (count_small_1 != 0 &&
+                                                  count_small_1 !=
+                                                  local_dof_indices_3.size()) {
+                                                  std::vector<unsigned int> dof_to_add={global_index_overwrite,this->fe.system_to_component_index(i).first};
+                                                  dof_to_do_sup.insert(dof_to_add);
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+
+
 
               // If the cell is cut by the IB the count is not 0 or the
               // number of total dof in a cell
 
-              if (count_small != 0 && count_small != local_dof_indices.size())
-                {
+              if ((count_small != 0 && count_small != local_dof_indices.size()) or dof_to_do_sup.size()>0 ) {
                   // If we are here the cell is cut by the immersed boundary
                   // loops on the dof that reprensant the velocity  component
                   // and pressure separately
-                  for (unsigned int i = 0; i < local_dof_indices.size(); ++i)
-                    {
-                      const unsigned int component_i =
-                        this->fe.system_to_component_index(i).first;
+                  std::vector<unsigned int> local_comp;
+                  local_comp.resize(dof_to_do_sup.size());
+                  if (dof_to_do_sup.size()>0){
+                      local_dof_indices.resize(dof_to_do_sup.size());
+                      unsigned int i=0;
+                      for (std::vector dof_to_add : dof_to_do_sup){
+                          local_dof_indices[i]=dof_to_add[0];
+                          local_comp[i]=dof_to_add[1];
+                          i+=1;
+                      }
+                  }
 
-                      if (component_i < dim)
-                        {
-                          // We are working on the velocity of th
-                          // loops on the dof that are for vx or vy separately
-                          // loops on all the dof of the the cell that represent
-                          // a specific component
-                          // define which dof is going to be redefine
+
+                  for (unsigned int i = 0; i < local_dof_indices.size(); ++i) {
+                      double local_weak_formulation_error=0;
+                      if (this->locally_owned_dofs.is_element(local_dof_indices[i]) and dof_done.find(local_dof_indices[i])==dof_done.end()){
+                          dof_done.insert(local_dof_indices[i]);
+                          unsigned int comp=0;
+                          if (dof_to_do_sup.size())
+                              comp=local_comp[i];
+                          else
+                              comp=this->fe.system_to_component_index(i).first;
+
+                          const unsigned int component_i =comp;
+
+
+
                           unsigned int global_index_overwrite =
-                            local_dof_indices[i];
+                                  local_dof_indices[i];
 
-                          // Define the distance vector between the
-                          // immersed boundary and the dof support point
-                          // for each dof
-                          Tensor<1, dim, double> vect_dist =
-                            (support_points[local_dof_indices[i]] -
-                             center_immersed -
-                             particles[p].radius *
-                               (support_points[local_dof_indices[i]] -
-                                center_immersed) /
-                               (support_points[local_dof_indices[i]] -
-                                center_immersed)
-                                 .norm());
 
-                          // Define the length ratio that represent the
-                          // zone used for the stencil. The length is
-                          // defined as the length between the dof and
-                          // the IB
-                          unsigned int length_ratio    = 8;
-                          double       length_fraction = 1. / length_ratio;
-                          double       tp_ratio        = 1. / 2.;
-                          double       fp_ratio        = 3. / 4.;
+                          if (component_i < dim) {
 
-                          if (this->nsparam.particlesParameters.order == 3)
-                            {
-                              tp_ratio = 1. / 3.;
-                              fp_ratio = 2. / 3.;
-                            }
+                              // We are working on the velocity of th
+                              // loops on the dof that are for vx or vy separately
+                              // loops on all the dof of the the cell that represent
+                              // a specific component
+                              // define which dof is going to be redefine
 
 
 
-                          // Define the other points for the stencil
-                          // (IB point, original dof and the other
-                          // points) this goes up to a 5 point stencil.
-                          Point<dim, double> first_point(
-                            support_points[local_dof_indices[i]] - vect_dist);
+                              // Define the distance vector between the
+                              // immersed boundary and the dof support point
+                              // for each dof
+                              Tensor<1, dim, double> vect_dist =
+                                      (support_points[global_index_overwrite] -
+                                       center_immersed -
+                                       particles[p].radius *
+                                       (support_points[global_index_overwrite] -
+                                        center_immersed) /
+                                       (support_points[global_index_overwrite] -
+                                        center_immersed)
+                                               .norm());
 
-                          Point<dim, double> second_point(
-                            support_points[local_dof_indices[i]] +
-                            vect_dist * length_fraction);
-
-                          Point<dim, double> third_point(
-                            support_points[local_dof_indices[i]] +
-                            vect_dist * length_fraction * tp_ratio);
-
-                          Point<dim, double> fourth_point(
-                            support_points[local_dof_indices[i]] +
-                            vect_dist * length_fraction * fp_ratio);
-
-                          Point<dim, double> fifth_point(
-                            support_points[local_dof_indices[i]] +
-                            vect_dist * length_fraction * 1 / 4);
-
-                          double dof_2;
-                          double sp_2;
-
-                          double dof_3;
-                          double sp_3;
-                          double tp_3;
-
-                          double dof_4;
-                          double sp_4;
-                          double tp_4;
-                          double fp_4;
-
-                          double dof_5;
-                          double fp2_5;
-                          double tp_5;
-                          double fp1_5;
-                          double sp_5;
-
-                          // Define the stencil coefficient in function
-                          // of the length ratio. This will be
-                          // automatically generated in future version
-                          if (length_ratio == 4)
-                            {
-                              dof_2 = 5;
-                              sp_2  = -4;
-
-                              dof_3 = 45;
-                              sp_3  = 36;
-                              tp_3  = -80;
-
-                              dof_4 = 455;
-                              sp_4  = -364;
-                              tp_4  = -1260;
-                              fp_4  = 1170;
-
-                              dof_5 = 4845;
-                              fp2_5 = -18240;
-                              tp_5  = 25840;
-                              fp1_5 = -16320;
-                              sp_5  = 3876;
-                            }
-                          else if (length_ratio == 2)
-                            {
-                              dof_2 = 3;
-                              sp_2  = -2;
-
-                              dof_3 = 15;
-                              sp_3  = 10;
-                              tp_3  = -24;
-
-                              dof_4 = 84;
-                              sp_4  = -56;
-                              tp_4  = -216;
-                              fp_4  = 189;
-
-                              dof_5 = 495;
-                              fp2_5 = -1760;
-                              tp_5  = 2376;
-                              fp1_5 = -1440;
-                              sp_5  = 330;
-                            }
-                          else if (length_ratio == 8)
-                            {
-                              dof_2 = 9;
-                              sp_2  = -8;
-
-                              dof_3 = 153;
-                              sp_3  = 136;
-                              tp_3  = -288;
-
-                              dof_4 = 2925;
-                              sp_4  = -2600;
-                              tp_4  = -8424;
-                              fp_4  = 8100;
-
-                              dof_5 = 58905;
-                              fp2_5 = -228480;
-                              tp_5  = 332640;
-                              fp1_5 = -215424;
-                              sp_5  = 52360;
-                            }
+                              // Define the length ratio that represent the
+                              // zone used for the stencil. The length is
+                              // defined as the length between the dof and
+                              // the IB
+                              unsigned int length_ratio = 8;
+                              double length_fraction = 1. / length_ratio;
 
 
-                          // Define the vertex associated with the dof
-                          unsigned int cell_found = 0;
-                          bool         break_bool = false;
-                          for (unsigned int vi = 0; vi < vertex_per_cell; ++vi)
-                            {
-                              unsigned int v_index = cell->vertex_index(vi);
 
-                              // Get a cell iterator for all the cell
-                              // neighbors of that vertex
-                              active_neighbors_set =
-                                this->vertices_to_cell[v_index];
-                              unsigned int n_active_cells =
-                                active_neighbors_set.size();
 
-                              // Loops on those cell to find in which of
-                              // them the new point for or sharp edge
-                              // stencil is
-                              for (unsigned int cell_index = 0;
-                                   cell_index < n_active_cells;
-                                   ++cell_index)
-                                {
-                                  try
-                                    {
-                                      // Define the cell and check if
-                                      // the point is inside of the cell
-                                      const Point<dim, double> p_cell =
-                                        immersed_map
-                                          .transform_real_to_unit_cell(
-                                            active_neighbors_set[cell_index],
-                                            second_point);
-                                      const double dist_2 = GeometryInfo<
-                                        dim>::distance_to_unit_cell(p_cell);
+                              // Define the other points for the stencil
+                              // (IB point, original dof and the other
+                              // points) this goes up to a 5 point stencil.
+                              Point<dim, double> first_point(
+                                      support_points[global_index_overwrite] - vect_dist);
 
-                                      // define the cell and check if
-                                      // the point is inside of the cell
-                                      if (dist_2 == 0)
-                                        {
-                                          // If the point is in this
-                                          // cell then the dist is equal
-                                          // to 0 and we have found our
-                                          // cell
-                                          cell_found = cell_index;
-                                          break_bool = true;
-                                          active_neighbors =
-                                            active_neighbors_set;
-                                          break;
-                                        }
-                                    }
-                                  // may cause error if the point is not
-                                  // in cell
-                                  catch (const typename MappingQGeneric<
-                                         dim>::ExcTransformationFailed &)
-                                    {}
-                                }
-                            }
+                              Point<dim, double> second_point(
+                                      support_points[global_index_overwrite] +
+                                      vect_dist * length_fraction);
 
-                          auto &cell_2       = active_neighbors[cell_found];
-                          bool  skip_stencil = false;
 
-                          if (break_bool == false)
-                            {
-                              std::cout << "cell not found around point "
-                                        << std::endl;
-                              std::cout << "cell index " << cell_found
-                                        << std::endl;
-                              std::cout << "second point  " << second_point
-                                        << std::endl;
-                              cell_2 = GridTools::find_active_cell_around_point(
-                                this->dof_handler, second_point);
+                              // Define the vertex associated with the dof
+                              unsigned int cell_found = 0;
+                              bool break_bool = false;
+                              for (unsigned int vi = 0; vi < vertex_per_cell; ++vi) {
+                                  unsigned int v_index = cell->vertex_index(vi);
+
+                                  // Get a cell iterator for all the cell
+                                  // neighbors of that vertex
+                                  active_neighbors_set =
+                                          this->vertices_to_cell[v_index];
+                                  unsigned int n_active_cells =
+                                          active_neighbors_set.size();
+
+                                  // Loops on those cell to find in which of
+                                  // them the new point for or sharp edge
+                                  // stencil is
+                                  for (unsigned int cell_index = 0;
+                                       cell_index < n_active_cells;
+                                       ++cell_index) {
+                                      try {
+                                          // Define the cell and check if
+                                          // the point is inside of the cell
+                                          const Point<dim, double> p_cell =
+                                                  immersed_map
+                                                          .transform_real_to_unit_cell(
+                                                                  active_neighbors_set[cell_index],
+                                                                  second_point);
+                                          const double dist_2 = GeometryInfo<
+                                                  dim>::distance_to_unit_cell(p_cell);
+
+                                          // define the cell and check if
+                                          // the point is inside of the cell
+                                          if (dist_2 == 0) {
+                                              // If the point is in this
+                                              // cell then the dist is equal
+                                              // to 0 and we have found our
+                                              // cell
+                                              cell_found = cell_index;
+                                              break_bool = true;
+                                              active_neighbors =
+                                                      active_neighbors_set;
+                                              break;
+                                          }
+                                      }
+                                          // may cause error if the point is not
+                                          // in cell
+                                      catch (const typename MappingQGeneric<
+                                              dim>::ExcTransformationFailed &) {}
+                                  }
+                              }
+
+                              auto &cell_2 = active_neighbors[cell_found];
+                              bool skip_stencil = false;
+
+                              if (break_bool == false) {
+                                  std::cout << "cell not found around point "
+                                            << std::endl;
+                                  std::cout << "cell index " << cell_found
+                                            << std::endl;
+                                  std::cout << "second point  " << second_point
+                                            << std::endl;
+                                  cell_2 = GridTools::find_active_cell_around_point(
+                                          this->dof_handler, second_point);
+                                  cell_2->get_dof_indices(local_dof_indices_2);
+                                  std::cout
+                                          << "dof point  "
+                                          << support_points[global_index_overwrite]
+                                          << std::endl;
+                              }
+
+
+
+                              // We have or next cell needed to complete the
+                              // stencil
+
+                              // Define the unit cell points for the points
+                              // used in the stencil for extrapolation.
+                              Point<dim> first_point_v =
+                                      immersed_map.transform_real_to_unit_cell(
+                                              cell_2, first_point);
+
                               cell_2->get_dof_indices(local_dof_indices_2);
-                              std::cout
-                                << "dof point  "
-                                << support_points[global_index_overwrite]
-                                << std::endl;
-                            }
+
+                              // Clear the current line of this dof  by
+                              // looping on the neighbors cell of this dof
+                              // and clear all the associated dof
+
+
+                              // Check if the DOF intersect the IB
 
 
 
-                          // We have or next cell needed to complete the
-                          // stencil
+                              // Define the variable used for the
+                              // extrapolation of the actual solution at the
+                              // boundary in order to define the correction
+                              double local_interp_sol = 0;
 
-                          // Define the unit cell points for the points
-                          // used in the stencil for extrapolation.
-                          Point<dim> first_point_v =
-                            immersed_map.transform_real_to_unit_cell(
-                              cell_2, first_point);
-                          Point<dim> second_point_v =
-                            immersed_map.transform_real_to_unit_cell(
-                              cell_2, second_point);
-                          Point<dim> third_point_v =
-                            immersed_map.transform_real_to_unit_cell(
-                              cell_2, third_point);
-                          Point<dim> fourth_point_v =
-                            immersed_map.transform_real_to_unit_cell(
-                              cell_2, fourth_point);
-                          Point<dim> fifth_point_v =
-                            immersed_map.transform_real_to_unit_cell(
-                              cell_2, fifth_point);
+                              if (skip_stencil == false) {
+                                  {
+                                      // First the dof itself
+                                      for (unsigned int j = 0;
+                                           j < local_dof_indices_2.size();
+                                           ++j) {
+                                          // First the dof itself
+                                          const unsigned int component_j =
+                                                  this->fe.system_to_component_index(j).first;
+                                          if (component_j == component_i) {
 
-                          cell_2->get_dof_indices(local_dof_indices_2);
+                                              this->system_matrix.set(
+                                                      global_index_overwrite,
+                                                      local_dof_indices_2[j],this->system_matrix.el(global_index_overwrite,local_dof_indices_2[j])+
+                                                      this->fe.shape_value(
+                                                              j, first_point_v) *
+                                                      penalty_parameter * beta * sum_line);
 
-                          // Clear the current line of this dof  by
-                          // looping on the neighbors cell of this dof
-                          // and clear all the associated dof
-                          for (unsigned int vi = 0; vi < vertex_per_cell; ++vi)
-                            {
-                              unsigned int v_index = cell->vertex_index(vi);
-                              active_neighbors_set =
-                                this->vertices_to_cell[v_index];
-                              for (unsigned int m = 0;
-                                   m < active_neighbors_set.size();
-                                   m++)
-                                {
-                                  const auto &cell_3 = active_neighbors_set[m];
-                                  cell_3->get_dof_indices(local_dof_indices_3);
-                                  if (std::find(local_dof_indices_3.begin(),
-                                                local_dof_indices_3.end(),
-                                                global_index_overwrite) !=
-                                      local_dof_indices_3.end())
-                                    {
+                                              local_interp_sol += this->fe.shape_value(j, first_point_v) *
+                                                                  this->evaluation_point(local_dof_indices_2[j]);
+                                          }
+                                      }
+                                  }
+                              }
+
+
+
+                              // Define the RHS of the stencil used for the
+                              // IB
+                              if (skip_stencil == false) {
+                                  // Different boundary condition depending
+                                  // if the dof is vx ,vy or vz and if the
+                                  // problem we solve is 2d or 3d.
+                                  if (component_i == 0) {
+                                      double vx = 0;
+                                      double rhs_add = 0;
+                                      if (dim == 2) {
+                                          vx = -particles[p].omega[2] *
+                                               particles[p].radius *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[1] +
+                                               particles[p].velocity[0];
+                                      }
+                                      if (dim == 3) {
+                                          vx = particles[p].omega[1] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[2] *
+                                               particles[p].radius -
+                                               particles[p].omega[2] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[1] *
+                                               particles[p].radius +
+                                               particles[p].velocity[0];
+                                      }
+
+                                      local_weak_formulation_error=abs(vx - local_interp_sol);
+
+                                      this->system_rhs(global_index_overwrite) =
+                                              this->system_rhs(global_index_overwrite) +
+                                              beta * penalty_parameter * sum_line * (vx - local_interp_sol);
+
+                                  } else if (component_i == 1) {
+                                      double vy = 0;
+                                      double rhs_add = 0;
+                                      if (dim == 2) {
+                                          vy = particles[p].omega[2] *
+                                               particles[p].radius *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[0] +
+                                               particles[p].velocity[1];
+                                      }
+                                      if (dim == 3) {
+                                          vy = particles[p].omega[2] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[0] *
+                                               particles[p].radius -
+                                               particles[p].omega[0] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[2] *
+                                               particles[p].radius +
+                                               particles[p].velocity[2];
+                                      }
+                                      local_weak_formulation_error=abs(vy - local_interp_sol);
+
+                                      this->system_rhs(global_index_overwrite) =
+                                              this->system_rhs(global_index_overwrite) +
+                                              beta * penalty_parameter * sum_line * (vy - local_interp_sol);
+
+
+                                  } else if (component_i == 2 && dim == 3) {
+                                      double vz =
+                                              particles[p].omega[0] *
+                                              ((support_points[global_index_overwrite] -
+                                                center_immersed) /
+                                               (support_points[global_index_overwrite] -
+                                                center_immersed)
+                                                       .norm())[1] *
+                                              particles[p].radius -
+                                              particles[p].omega[1] *
+                                              ((support_points[global_index_overwrite] -
+                                                center_immersed) /
+                                               (support_points[global_index_overwrite] -
+                                                center_immersed)
+                                                       .norm())[0] *
+                                              particles[p].radius +
+                                              particles[p].velocity[2];
+                                      local_weak_formulation_error=abs(vz - local_interp_sol);
+
+                                      this->system_rhs(global_index_overwrite) =
+                                              this->system_rhs(global_index_overwrite) +
+                                              beta * penalty_parameter * sum_line * (vz - local_interp_sol);
+                                  }
+                              }
+                          }
+
+                          if (true) {
+                              // Applied equation on dof that have no equation
+                              // define for them. those DOF become Dummy dof. This
+                              // is usefull for high order cell or when a dof is
+                              // only element of cell that are cut.
+                              unsigned int vertex_per_cell =
+                                      GeometryInfo<dim>::vertices_per_cell;
+
+                              bool dummy_dof = true;
+                              for (unsigned int vi = 0; vi < vertex_per_cell; ++vi) {
+                                  unsigned int v_index = cell->vertex_index(vi);
+                                  active_neighbors_set =
+                                          this->vertices_to_cell[v_index];
+                                  for (unsigned int m = 0;
+                                       m < active_neighbors_set.size();
+                                       m++) {
+                                      const auto &cell_3 = active_neighbors_set[m];
+                                      cell_3->get_dof_indices(local_dof_indices_3);
                                       for (unsigned int o = 0;
                                            o < local_dof_indices_3.size();
-                                           ++o)
-                                        {
-                                          this->system_matrix.set(
-                                            global_index_overwrite,
-                                            local_dof_indices_3[o],
-                                            0);
-                                        }
-                                    }
-                                }
-                            }
+                                           ++o) {
+                                          if (global_index_overwrite ==
+                                              local_dof_indices_3[o]) {
+                                              // cell_3 contain the same dof
+                                              // check if this cell is cut if
+                                              // it's not cut this dof must not
+                                              // be overwritten
+                                              unsigned int count_small_1 = 0;
+                                              for (unsigned int q = 0;
+                                                   q < local_dof_indices_3.size();
+                                                   ++q) {
+                                                  // Count the number of dof
+                                                  // that are smaller or
+                                                  // larger then the radius
+                                                  // of the particles if all
+                                                  // the dof are on one side
+                                                  // the cell is not cut by
+                                                  // the boundary meaning we
+                                                  // dont have to do
+                                                  // anything
+                                                  if ((support_points
+                                                       [local_dof_indices_3[q]] -
+                                                       center_immersed)
+                                                              .norm() <=
+                                                      particles[p].radius) {
+                                                      ++count_small_1;
+                                                  }
+                                              }
 
-                          // Check if the DOF intersect the IB
-                          bool do_rhs = false;
-                          if (cell_2 == cell)
-                            {
-                              skip_stencil = true;
-                              this->system_matrix.set(global_index_overwrite,
-                                                      global_index_overwrite,
-                                                      sum_line);
-                              this->system_rhs(global_index_overwrite) = 0;
-                              // Tolerence to define a intersection of
-                              // the DOF and IB
-                              if (vect_dist.norm() <= 1e-12 * dr)
-                                {
-                                  do_rhs = true;
-                                }
-                              else
-                                {
-                                  this->system_rhs(global_index_overwrite) = 0;
-                                }
-                            }
+                                              if (count_small_1 == 0 or
+                                                  count_small_1 ==
+                                                  local_dof_indices_3.size())
+                                                  dummy_dof = false;
+                                          }
+                                      }
+                                  }
+                              }
 
+                              if (dummy_dof) {
+                                  unsigned int inside_index = global_index_overwrite;
+                                  for (unsigned int vi = 0; vi < vertex_per_cell; ++vi) {
+                                      unsigned int v_index = cell->vertex_index(vi);
+                                      active_neighbors_set = this->vertices_to_cell[v_index];
+                                      for (unsigned int m = 0; m < active_neighbors_set.size();
+                                           m++) {
+                                          const auto &cell_3 = active_neighbors_set[m];
+                                          cell_3->get_dof_indices(local_dof_indices_3);
+                                          for (unsigned int o = 0;
+                                               o < local_dof_indices_3.size();
+                                               ++o) {
+                                              if (std::find(local_dof_indices_3.begin(),
+                                                            local_dof_indices_3.end(),
+                                                            inside_index) !=
+                                                  local_dof_indices_3.end()) {
+                                                  for (unsigned int o = 0;
+                                                       o < local_dof_indices_3.size();
+                                                       ++o) {
+                                                      this->system_matrix.set(
+                                                              inside_index,
+                                                              local_dof_indices_3[o],
+                                                              0);
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                                  this->system_matrix.set(global_index_overwrite,
+                                                          global_index_overwrite,
+                                                          sum_line);
+                                  if (component_i == 0) {
+                                      double vx = 0;
+                                      double rhs_add = 0;
+                                      if (dim == 2) {
+                                          vx = -particles[p].omega[2] *
+                                               particles[p].radius *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[1] +
+                                               particles[p].velocity[0];
+                                      }
+                                      if (dim == 3) {
+                                          vx = particles[p].omega[1] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[2] *
+                                               particles[p].radius -
+                                               particles[p].omega[2] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[1] *
+                                               particles[p].radius +
+                                               particles[p].velocity[0];
+                                      }
 
-                          // Define the variable used for the
-                          // extrapolation of the actual solution at the
-                          // boundary in order to define the correction
-                          double local_interp_sol   = 0;
-                          double local_interp_sol_2 = 0;
-                          double local_interp_sol_3 = 0;
-                          double local_interp_sol_4 = 0;
+                                      this->system_rhs(global_index_overwrite) =
+                                              sum_line * (vx - this->evaluation_point(global_index_overwrite));
 
-                          // Define the new matrix entry for this dof
-                          if (skip_stencil == false)
-                            {
-                              // First the dof itself
-                              for (unsigned int j = 0;
-                                   j < local_dof_indices_2.size();
-                                   ++j)
-                                {
-                                  // First the dof itself
-                                  const unsigned int component_j =
-                                    this->fe.system_to_component_index(j).first;
-                                  if (component_j == component_i)
-                                    {
-                                      if (global_index_overwrite ==
-                                          local_dof_indices_2[j])
-                                        {
-                                          // Define the solution at each
-                                          // point used for the stencil and
-                                          // applied the stencil for the
-                                          // specfic dof. for stencil with
-                                          // order of convergence higher
-                                          // then 5 the stencil is define
-                                          // trough direct extrapolation of
-                                          // the cell
+                                  } else if (component_i == 1) {
+                                      double vy = 0;
+                                      double rhs_add = 0;
+                                      if (dim == 2) {
+                                          vy = particles[p].omega[2] *
+                                               particles[p].radius *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[0] +
+                                               particles[p].velocity[1];
+                                      }
+                                      if (dim == 3) {
+                                          vy = particles[p].omega[2] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[0] *
+                                               particles[p].radius -
+                                               particles[p].omega[0] *
+                                               ((support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed) /
+                                                (support_points
+                                                 [global_index_overwrite] -
+                                                 center_immersed)
+                                                        .norm())[2] *
+                                               particles[p].radius +
+                                               particles[p].velocity[2];
+                                      }
 
-                                          if (this->nsparam.particlesParameters
-                                                .order == 1)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_2 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  dof_2 * sum_line);
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-
-                                          if (this->nsparam.particlesParameters
-                                                .order == 2)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_3 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  dof_3 * sum_line +
-                                                  tp_3 *
-                                                    this->fe.shape_value(
-                                                      j, third_point_v) *
-                                                    sum_line);
-
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_2 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, third_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                          if (this->nsparam.particlesParameters
-                                                .order == 3)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_4 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  dof_4 * sum_line +
-                                                  tp_4 *
-                                                    this->fe.shape_value(
-                                                      j, third_point_v) *
-                                                    sum_line +
-                                                  fp_4 *
-                                                    this->fe.shape_value(
-                                                      j, fourth_point_v) *
-                                                    sum_line);
-
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_2 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, third_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_3 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, fourth_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                          if (this->nsparam.particlesParameters
-                                                .order > 4)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                  sum_line);
-                                              local_interp_sol +=
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-
-                                          if (this->nsparam.particlesParameters
-                                                .order == 4)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                dof_5 * sum_line +
-                                                  sp_5 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  tp_5 *
-                                                    this->fe.shape_value(
-                                                      j, third_point_v) *
-                                                    sum_line +
-                                                  fp1_5 *
-                                                    this->fe.shape_value(
-                                                      j, fourth_point_v) *
-                                                    sum_line +
-                                                  fp2_5 *
-                                                    this->fe.shape_value(
-                                                      j, fifth_point_v) *
-                                                    sum_line);
+                                      this->system_rhs(global_index_overwrite) =
+                                              sum_line * (vy - this->evaluation_point(global_index_overwrite));
 
 
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_2 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, third_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_3 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, fourth_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_4 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, fifth_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                        }
-                                      // Then the third point trough
-                                      // interpolation from the dof of the
-                                      // cell in which the third point is
-                                      else
-                                        {
-                                          if (this->nsparam.particlesParameters
-                                                .order == 1)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_2 *
-                                                  this->fe.shape_value(
-                                                    j, second_point_v) *
-                                                  sum_line);
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
+                                  } else if (component_i == 2 && dim == 3) {
+                                      double vz =
+                                              particles[p].omega[0] *
+                                              ((support_points[global_index_overwrite] -
+                                                center_immersed) /
+                                               (support_points[global_index_overwrite] -
+                                                center_immersed)
+                                                       .norm())[1] *
+                                              particles[p].radius -
+                                              particles[p].omega[1] *
+                                              ((support_points[global_index_overwrite] -
+                                                center_immersed) /
+                                               (support_points[global_index_overwrite] -
+                                                center_immersed)
+                                                       .norm())[0] *
+                                              particles[p].radius +
+                                              particles[p].velocity[2];
 
-                                          if (this->nsparam.particlesParameters
-                                                .order == 2)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_3 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  tp_3 *
-                                                    this->fe.shape_value(
-                                                      j, third_point_v) *
-                                                    sum_line);
 
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_2 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, third_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                          if (this->nsparam.particlesParameters
-                                                .order == 3)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_4 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  tp_4 *
-                                                    this->fe.shape_value(
-                                                      j, third_point_v) *
-                                                    sum_line +
-                                                  fp_4 *
-                                                    this->fe.shape_value(
-                                                      j, fourth_point_v) *
-                                                    sum_line);
+                                      // First the dof itself
+                                      this->system_rhs(global_index_overwrite) =
+                                              sum_line * (vz - this->evaluation_point(global_index_overwrite));
 
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_2 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, third_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_3 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, fourth_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                          if (this->nsparam.particlesParameters
-                                                .order > 4)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                  sum_line);
-                                              local_interp_sol +=
-                                                this->fe.shape_value(
-                                                  j, first_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                          if (this->nsparam.particlesParameters
-                                                .order == 4)
-                                            {
-                                              this->system_matrix.set(
-                                                global_index_overwrite,
-                                                local_dof_indices_2[j],
-                                                sp_5 *
-                                                    this->fe.shape_value(
-                                                      j, second_point_v) *
-                                                    sum_line +
-                                                  tp_5 *
-                                                    this->fe.shape_value(
-                                                      j, third_point_v) *
-                                                    sum_line +
-                                                  fp1_5 *
-                                                    this->fe.shape_value(
-                                                      j, fourth_point_v) *
-                                                    sum_line +
-                                                  fp2_5 *
-                                                    this->fe.shape_value(
-                                                      j, fifth_point_v) *
-                                                    sum_line);
-
-                                              local_interp_sol +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, second_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_2 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, third_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_3 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, fourth_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                              local_interp_sol_4 +=
-                                                1 *
-                                                this->fe.shape_value(
-                                                  j, fifth_point_v) *
-                                                sum_line *
-                                                this->evaluation_point(
-                                                  local_dof_indices_2[j]);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                                  } else {
 
 
 
-                          // Define the RHS of the stencil used for the
-                          // IB
-                          if (skip_stencil == false || do_rhs)
-                            {
-                              // Different boundary condition depending
-                              // if the dof is vx ,vy or vz and if the
-                              // problem we solve is 2d or 3d.
-                              if (component_i == 0)
-                                {
-                                  double vx      = 0;
-                                  double rhs_add = 0;
-                                  if (dim == 2)
-                                    {
-                                      vx = -particles[p].omega[2] *
-                                             particles[p].radius *
-                                             ((support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed) /
-                                              (support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed)
-                                                .norm())[1] +
-                                           particles[p].velocity[0];
-                                    }
-                                  if (dim == 3)
-                                    {
-                                      vx = particles[p].omega[1] *
-                                             ((support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed) /
-                                              (support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed)
-                                                .norm())[2] *
-                                             particles[p].radius -
-                                           particles[p].omega[2] *
-                                             ((support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed) /
-                                              (support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed)
-                                                .norm())[1] *
-                                             particles[p].radius +
-                                           particles[p].velocity[0];
-                                    }
+                                      // First the dof itself
+                                      this->system_rhs(global_index_overwrite) = 0;
 
 
-                                  if (this->nsparam.particlesParameters.order ==
-                                      1)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_2 -
-                                                local_interp_sol * sp_2;
-                                    }
-                                  if (this->nsparam.particlesParameters.order ==
-                                      2)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_3 -
-                                                local_interp_sol * sp_3 -
-                                                local_interp_sol_2 * tp_3;
-                                    }
-                                  if (this->nsparam.particlesParameters.order ==
-                                      3)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_4 -
-                                                local_interp_sol * sp_4 -
-                                                local_interp_sol_2 * tp_4 -
-                                                local_interp_sol_3 * fp_4;
-                                    }
-                                  if (this->nsparam.particlesParameters.order >
-                                      4)
-                                    rhs_add = -local_interp_sol;
+                                  }
+                              }
+                              else{
+                                  if(weak_formulation_error<local_weak_formulation_error)
+                                    weak_formulation_error=local_weak_formulation_error;
+                              }
+                          }
+                      }
 
-                                  if (this->nsparam.particlesParameters.order ==
-                                      4)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_5 -
-                                                local_interp_sol * sp_5 -
-                                                local_interp_sol_2 * tp_5 -
-                                                local_interp_sol_3 * fp1_5 -
-                                                local_interp_sol_4 * fp2_5;
-                                    }
-
-
-                                  this->system_rhs(global_index_overwrite) =
-                                    vx * sum_line + rhs_add;
-                                  if (do_rhs)
-                                    this->system_rhs(global_index_overwrite) =
-                                      vx * sum_line -
-                                      this->evaluation_point(
-                                        global_index_overwrite) *
-                                        sum_line;
-                                }
-                              else if (component_i == 1)
-                                {
-                                  double vy      = 0;
-                                  double rhs_add = 0;
-                                  if (dim == 2)
-                                    {
-                                      vy = particles[p].omega[2] *
-                                             particles[p].radius *
-                                             ((support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed) /
-                                              (support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed)
-                                                .norm())[0] +
-                                           particles[p].velocity[1];
-                                    }
-                                  if (dim == 3)
-                                    {
-                                      vy = particles[p].omega[2] *
-                                             ((support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed) /
-                                              (support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed)
-                                                .norm())[0] *
-                                             particles[p].radius -
-                                           particles[p].omega[0] *
-                                             ((support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed) /
-                                              (support_points
-                                                 [local_dof_indices[i]] -
-                                               center_immersed)
-                                                .norm())[2] *
-                                             particles[p].radius +
-                                           particles[p].velocity[2];
-                                    }
-
-
-                                  if (this->nsparam.particlesParameters.order ==
-                                      1)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_2 -
-                                                local_interp_sol * sp_2;
-                                    }
-                                  if (this->nsparam.particlesParameters.order ==
-                                      2)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_3 -
-                                                local_interp_sol * sp_3 -
-                                                local_interp_sol_2 * tp_3;
-                                    }
-                                  if (this->nsparam.particlesParameters.order ==
-                                      3)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_4 -
-                                                local_interp_sol * sp_4 -
-                                                local_interp_sol_2 * tp_4 -
-                                                local_interp_sol_3 * fp_4;
-                                    }
-                                  if (this->nsparam.particlesParameters.order >
-                                      4)
-                                    rhs_add = -local_interp_sol;
-                                  if (this->nsparam.particlesParameters.order ==
-                                      4)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_5 -
-                                                local_interp_sol * sp_5 -
-                                                local_interp_sol_2 * tp_5 -
-                                                local_interp_sol_3 * fp1_5 -
-                                                local_interp_sol_4 * fp2_5;
-                                    }
-
-
-                                  this->system_rhs(global_index_overwrite) =
-                                    vy * sum_line + rhs_add;
-                                  if (do_rhs)
-                                    this->system_rhs(global_index_overwrite) =
-                                      vy * sum_line -
-                                      this->evaluation_point(
-                                        global_index_overwrite) *
-                                        sum_line;
-                                }
-                              else if (component_i == 2 && dim == 3)
-                                {
-                                  double vz =
-                                    particles[p].omega[0] *
-                                      ((support_points[local_dof_indices[i]] -
-                                        center_immersed) /
-                                       (support_points[local_dof_indices[i]] -
-                                        center_immersed)
-                                         .norm())[1] *
-                                      particles[p].radius -
-                                    particles[p].omega[1] *
-                                      ((support_points[local_dof_indices[i]] -
-                                        center_immersed) /
-                                       (support_points[local_dof_indices[i]] -
-                                        center_immersed)
-                                         .norm())[0] *
-                                      particles[p].radius +
-                                    particles[p].velocity[2];
-
-                                  double rhs_add = 0;
-                                  if (this->nsparam.particlesParameters.order ==
-                                      1)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_2 -
-                                                local_interp_sol * sp_2;
-                                    }
-                                  if (this->nsparam.particlesParameters.order ==
-                                      2)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_3 -
-                                                local_interp_sol * sp_3 -
-                                                local_interp_sol_2 * tp_3;
-                                    }
-                                  if (this->nsparam.particlesParameters.order ==
-                                      3)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_4 -
-                                                local_interp_sol * sp_4 -
-                                                local_interp_sol_2 * tp_4 -
-                                                local_interp_sol_3 * fp_4;
-                                    }
-                                  if (this->nsparam.particlesParameters.order >
-                                      4)
-                                    rhs_add = -local_interp_sol;
-                                  if (this->nsparam.particlesParameters.order ==
-                                      4)
-                                    {
-                                      rhs_add = -this->evaluation_point(
-                                                  global_index_overwrite) *
-                                                  sum_line * dof_5 -
-                                                local_interp_sol * sp_5 -
-                                                local_interp_sol_2 * tp_5 -
-                                                local_interp_sol_3 * fp1_5 -
-                                                local_interp_sol_4 * fp2_5;
-                                    }
-
-
-                                  this->system_rhs(global_index_overwrite) =
-                                    vz * sum_line + rhs_add;
-                                  if (do_rhs)
-                                    this->system_rhs(global_index_overwrite) =
-                                      vz * sum_line -
-                                      this->evaluation_point(
-                                        global_index_overwrite) *
-                                        sum_line;
-                                }
-                            }
-                        }
-
-                      if (component_i == dim)
-                        {
-                          // Applied equation on dof that have no equation
-                          // define for them. those DOF become Dummy dof. This
-                          // is usefull for high order cell or when a dof is
-                          // only element of cell that are cut.
-                          unsigned int vertex_per_cell =
-                            GeometryInfo<dim>::vertices_per_cell;
-
-                          unsigned int global_index_overwrite =
-                            local_dof_indices[i];
-                          bool dummy_dof = true;
-                          for (unsigned int vi = 0; vi < vertex_per_cell; ++vi)
-                            {
-                              unsigned int v_index = cell->vertex_index(vi);
-                              active_neighbors_set =
-                                this->vertices_to_cell[v_index];
-                              for (unsigned int m = 0;
-                                   m < active_neighbors_set.size();
-                                   m++)
-                                {
-                                  const auto &cell_3 = active_neighbors_set[m];
-                                  cell_3->get_dof_indices(local_dof_indices_3);
-                                  for (unsigned int o = 0;
-                                       o < local_dof_indices_3.size();
-                                       ++o)
-                                    {
-                                      if (global_index_overwrite ==
-                                          local_dof_indices_3[o])
-                                        {
-                                          // cell_3 contain the same dof
-                                          // check if this cell is cut if
-                                          // it's not cut this dof must not
-                                          // be overwritten
-                                          unsigned int count_small_1 = 0;
-                                          for (unsigned int q = 0;
-                                               q < local_dof_indices_3.size();
-                                               ++q)
-                                            {
-                                              // Count the number of dof
-                                              // that are smaller or
-                                              // larger then the radius
-                                              // of the particles if all
-                                              // the dof are on one side
-                                              // the cell is not cut by
-                                              // the boundary meaning we
-                                              // dont have to do
-                                              // anything
-                                              if ((support_points
-                                                     [local_dof_indices_3[q]] -
-                                                   center_immersed)
-                                                    .norm() <=
-                                                  particles[p].radius)
-                                                {
-                                                  ++count_small_1;
-                                                }
-                                            }
-
-                                          if (count_small_1 == 0 or
-                                              count_small_1 ==
-                                                local_dof_indices_3.size())
-                                            dummy_dof = false;
-                                        }
-                                    }
-                                }
-                            }
-
-                          if (dummy_dof)
-                            {
-                              this->system_matrix.set(global_index_overwrite,
-                                                      global_index_overwrite,
-                                                      sum_line);
-                              this->system_rhs(global_index_overwrite) = 0;
-                            }
-                        }
-                    }
-                }
+                  }
+              }
             }
         }
     }
 
+  double L_inf_weak_formulation_error  = Utilities::MPI::max(weak_formulation_error, this->mpi_communicator);
+  if (this->this_mpi_process == 0)
+    {
+      this->pcout << " L_inf weak formulation error"<<
+        L_inf_weak_formulation_error<< std::endl;
+    }
   this->system_matrix.compress(VectorOperation::insert);
   this->system_rhs.compress(VectorOperation::insert);
 }
@@ -3327,6 +2950,7 @@ GLSSharpNavierStokesSolver<dim>::solve()
 
   while (this->simulationControl->integrate())
     {
+      integrate_particles();
       this->simulationControl->print_progression(this->pcout);
       if (this->simulationControl->is_at_start())
         this->first_iteration();

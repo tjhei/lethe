@@ -79,6 +79,9 @@ private:
   sharp_edge();
 
   void
+  integrate_particles();
+
+  void
   write_force_ib();
 
 
