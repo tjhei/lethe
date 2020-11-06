@@ -1425,7 +1425,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
               unsigned int count_small = 0;
               center_immersed          = particles[p].position;
               pressure_bridge =
-                particles[p].position - particles[p].pressure_location;
+                particles[p].position + particles[p].pressure_location;
 
               for (unsigned int j = 0; j < local_dof_indices.size(); ++j)
                 {
@@ -1504,6 +1504,8 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                   // set new equation for the first pressure dof of the
                   // cell. this is the new reference pressure inside a
                   // particle
+
+
                   this->system_matrix.set(inside_index,
                                           local_dof_indices[dim],
                                           sum_line);
@@ -1807,33 +1809,35 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                           bool modifed_stencil =false;
                           if (cell_2 == cell)
                             {
-                              modifed_stencil=true;
-                              //skip_stencil = true;
-
                               this->system_matrix.set(global_index_overwrite,
                                                       global_index_overwrite,
                                                       sum_line);
+                                do_rhs = true;
                               //this->system_rhs(global_index_overwrite) = 0;
-                              first_point=support_points[local_dof_indices[i]];
+                              /*first_point=support_points[local_dof_indices[i]];
                               second_point=support_points[local_dof_indices[i]]+normal_vect*dr;
                               cell_2=find_cell_around_point_with_tree(this->dof_handler,
                                                                       second_point);
-                              cell_2->get_dof_indices(local_dof_indices_2);
+                              cell_2->get_dof_indices(local_dof_indices_2);*/
                               // Tolerence to define a intersection of
                               // the DOF and IB
                               if (vect_dist.norm() <= 1e-12 * dr)
                                 {
-                                  do_rhs = true;
+
                                     skip_stencil = true;
                                     this->system_matrix.set(global_index_overwrite,
                                                             global_index_overwrite,
                                                             sum_line);
+                                }
+                              else{
+                                  modifed_stencil =true;
 
-                                }
-                              else
-                                {
-                                  this->system_rhs(global_index_overwrite) = 0;
-                                }
+                                  second_point=support_points[local_dof_indices[i]]+normal_vect*dr*1;
+                                  cell_2=find_cell_around_point_with_tree(this->dof_handler,
+                                                                          second_point);
+                                  cell_2->get_dof_indices(local_dof_indices_2);
+                              }
+
                             }
 
                             Point<dim> first_point_v =
@@ -1986,7 +1990,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
 
                                                   local_interp_sol +=
                                                           this->fe.shape_value(
-                                                                  j, first_point_v) *
+                                                                  j, second_point_v) *
                                                           sum_line *
                                                           this->evaluation_point(
                                                                   local_dof_indices_2[j]);
@@ -2164,7 +2168,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                                 if (modifed_stencil) {
                                                     local_interp_sol +=
                                                             this->fe.shape_value(
-                                                                    j, first_point_v) *
+                                                                    j, second_point_v) *
                                                             sum_line *
                                                             this->evaluation_point(
                                                                     local_dof_indices_2[j]);
@@ -2250,6 +2254,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                               // Different boundary condition depending
                               // if the dof is vx ,vy or vz and if the
                               // problem we solve is 2d or 3d.
+                              double v_ib=0;
                               if (component_i == 0)
                                 {
                                   double vx      = 0;
@@ -2289,6 +2294,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                              particles[p].radius +
                                            particles[p].velocity[0];
                                     }
+                                    v_ib=vx;
 
 
                                   if (this->nsparam.particlesParameters.order ==
@@ -2384,7 +2390,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                            particles[p].velocity[2];
                                     }
 
-
+                                    v_ib=vy;
                                   if (this->nsparam.particlesParameters.order ==
                                       1)
                                     {
@@ -2455,7 +2461,7 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                          .norm())[0] *
                                       particles[p].radius +
                                     particles[p].velocity[2];
-
+                                    v_ib=vz;
                                   double rhs_add = 0;
                                   if (this->nsparam.particlesParameters.order ==
                                       1)
@@ -2509,11 +2515,11 @@ GLSSharpNavierStokesSolver<dim>::sharp_edge()
                                         global_index_overwrite) *
                                         sum_line;
                                 }
-                            }
-                          if(modifed_stencil)
-                            this->system_rhs(global_index_overwrite) =local_interp_sol-this->evaluation_point(
-                                    global_index_overwrite) *sum_line;
 
+                          if(modifed_stencil)
+                            this->system_rhs(global_index_overwrite) =(sum_line*v_ib*(1-vect_dist.norm()/(vect_dist.norm()+dr)) +local_interp_sol*vect_dist.norm()/(vect_dist.norm()+dr))-this->evaluation_point(
+                                    global_index_overwrite) *sum_line;
+                            }
 
                         }
 
@@ -2888,7 +2894,7 @@ GLSSharpNavierStokesSolver<dim>::assembleGLS()
                    */
 
                   if (scheme ==
-                      Parameters::SimulationControl::TimeSteppingMethod::bdf1)
+                      Parameters::SimulationControl::TimeSteppingMethod::bdf1 and assemble_bool_last==true )
                     strong_residual +=
                       bdf_coefs[0] * present_velocity_values[q] +
                       bdf_coefs[1] * p1_velocity_values[q];
@@ -2943,7 +2949,7 @@ GLSSharpNavierStokesSolver<dim>::assembleGLS()
                              grad_phi_u[j] * present_velocity_values[q] +
                              grad_phi_p[j] - viscosity_ * laplacian_phi_u[j]);
 
-                          if (is_bdf(scheme))
+                          if (is_bdf(scheme) and assemble_bool_last==true)
                             strong_jac += phi_u[j] * bdf_coefs[0];
                           if (is_sdirk(scheme))
                             strong_jac += phi_u[j] * sdirk_coefs[0][0];
@@ -2964,7 +2970,7 @@ GLSSharpNavierStokesSolver<dim>::assembleGLS()
                                 fe_values.JxW(q);
 
                               // Mass matrix
-                              if (is_bdf(scheme))
+                              if (is_bdf(scheme) and assemble_bool_last==true )
                                 local_matrix(i, j) += phi_u[j] * phi_u[i] *
                                                       bdf_coefs[0] *
                                                       fe_values.JxW(q);
@@ -3034,7 +3040,7 @@ GLSSharpNavierStokesSolver<dim>::assembleGLS()
 
                       // Residual associated with BDF schemes
                       if (scheme == Parameters::SimulationControl::
-                                      TimeSteppingMethod::bdf1)
+                                      TimeSteppingMethod::bdf1 and assemble_bool_last==true )
                         local_rhs(i) -=
                           bdf_coefs[0] *
                           (present_velocity_values[q] - p1_velocity_values[q]) *
