@@ -29,6 +29,7 @@ class IBParticle
 {
 public:
   Point<dim> position;
+  Point<dim> last_position;
   // Translational velocity
   Tensor<1, dim> velocity;
   // Angular velocity

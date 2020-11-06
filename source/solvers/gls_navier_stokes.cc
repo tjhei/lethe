@@ -1303,6 +1303,17 @@ GLSNavierStokesSolver<dim>::solve_system_GMRES(const bool   initial_step,
                                                const double relative_residual,
                                                const bool   renewed_matrix)
 {
+    TimerOutput::Scope t(this->computing_timer, "solve");
+
+
+  unsigned int max_iter=20;
+  unsigned int orignal_fill=this->nsparam.linear_solver.ilu_precond_fill;
+  unsigned int iter=0;
+  bool succes=false;
+
+  while(succes==false and iter<max_iter){
+
+  try{
   const AffineConstraints<double> &constraints_used =
     initial_step ? this->nonzero_constraints : this->zero_constraints;
   const double linear_solver_tolerance =
@@ -1346,6 +1357,17 @@ GLSNavierStokesSolver<dim>::solve_system_GMRES(const bool   initial_step,
   }
   constraints_used.distribute(completely_distributed_solution);
   this->newton_update = completely_distributed_solution;
+  succes=true;
+  }
+  catch (std::exception &e)
+  {
+      this->nsparam.linear_solver.ilu_precond_fill+=5;
+      this->pcout << " solver failed try with high preconditionner fill . new fill = "
+                 << this->nsparam.linear_solver.ilu_precond_fill << std::endl;
+  }
+  iter+=1;
+  }
+  this->nsparam.linear_solver.ilu_precond_fill=orignal_fill;
 }
 
 template <int dim>
@@ -1458,6 +1480,7 @@ GLSNavierStokesSolver<dim>::solve_system_direct(const bool   initial_step,
                                                 const double relative_residual,
                                                 const bool /*renewed_matrix*/)
 {
+    TimerOutput::Scope t(this->computing_timer, "solve");
   const AffineConstraints<double> &constraints_used =
     initial_step ? this->nonzero_constraints : this->zero_constraints;
   const double linear_solver_tolerance =

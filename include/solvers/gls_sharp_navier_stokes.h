@@ -66,6 +66,9 @@ private:
   void
   vertices_cell_mapping();
 
+  void
+  integrate_particules();
+
   // BB - TODO The particles structure should be refactored to use a small class
   // to store the information or a struct instead of just using a vector where
   // the things are hardcoded within.
