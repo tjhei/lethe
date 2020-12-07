@@ -92,6 +92,12 @@ private:
   void
   assembleGD();
 
+  template <bool                                              assemble_matrix,
+            Parameters::SimulationControl::TimeSteppingMethod scheme,
+            Parameters::VelocitySource::VelocitySourceType    velocity_source>
+  void
+  assembleGLS();
+
   void
   assemble_L2_projection();
 
@@ -177,6 +183,11 @@ private:
     system_amg_preconditioner;
 
   const double gamma = 1;
+
+  static const bool gls_assembly = true;
+  static const bool SUPG         = true;
+  static const bool PSPG         = true;
+  const double      GLS_u_scale  = 1;
 };
 
 
@@ -210,42 +221,42 @@ BlockSchurPreconditioner<BSPreconditioner>::vmult(
   TrilinosWrappers::MPI::BlockVector &      dst,
   const TrilinosWrappers::MPI::BlockVector &src) const
 {
-  //    TimerOutput computing_timer(std::cout,
-  //                                TimerOutput::summary,
-  //                                TimerOutput::wall_times);
+  TimerOutput computing_timer(std::cout,
+                              TimerOutput::summary,
+                              TimerOutput::wall_times);
 
   TrilinosWrappers::MPI::Vector utmp(src.block(0));
   {
-    //        computing_timer.enter_section("Pressure");
+    computing_timer.enter_section("Pressure");
     SolverControl solver_control(
       linear_solver_parameters.max_iterations,
       std::max(
         1e-3 * src.block(1).l2_norm(),
         // linear_solver_parameters.relative_residual*src.block(0).l2_norm(),
         linear_solver_parameters.minimum_residual));
-    TrilinosWrappers::SolverCG cg(solver_control);
+    TrilinosWrappers::SolverGMRES pressure_solver(solver_control);
 
     dst.block(1) = 0.0;
-    cg.solve(pressure_mass_matrix,
-             dst.block(1),
-             src.block(1),
-             *pmass_preconditioner);
+    pressure_solver.solve(pressure_mass_matrix,
+                          dst.block(1),
+                          src.block(1),
+                          *pmass_preconditioner);
     dst.block(1) *= -(viscosity + gamma);
-    //        computing_timer.exit_section("Pressure");
+    computing_timer.exit_section("Pressure");
   }
 
   {
-    //        computing_timer.enter_section("Operations");
+    computing_timer.enter_section("Operations");
     stokes_matrix.block(0, 1).vmult(utmp, dst.block(1));
     utmp *= -1.0;
     utmp += src.block(0);
-    //        computing_timer.exit_section("Operations");
+    computing_timer.exit_section("Operations");
   }
   {
-    //        computing_timer.enter_section("A Matrix");
+    computing_timer.enter_section("A Matrix");
     SolverControl solver_control(
       linear_solver_parameters.max_iterations,
-      std::max(1e-1 * src.block(0).l2_norm(),
+      std::max(1e-3 * src.block(0).l2_norm(),
                linear_solver_parameters.minimum_residual));
 
 
@@ -259,10 +270,9 @@ BlockSchurPreconditioner<BSPreconditioner>::vmult(
                  dst.block(0),
                  utmp,
                  *amat_preconditioner);
-    //        computing_timer.exit_section("A Matrix");
+    computing_timer.exit_section("A Matrix");
   }
 }
-
 
 
 template <class PreconditionerMp>
