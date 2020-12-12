@@ -226,6 +226,12 @@ namespace Parameters
                         "false",
                         Patterns::Bool(),
                         "Apply high order mapping everywhere");
+
+      prm.declare_entry("Navier-Stokes formulation",
+                        "grad_div",
+                        Patterns::Selection("gls|grad_div"),
+                        "Navier-Stokes formulation for the block solver "
+                        "Choices are <gls|grad_div>.");
     }
     prm.leave_subsection();
   }
@@ -238,6 +244,14 @@ namespace Parameters
       velocity_order = prm.get_integer("velocity order");
       pressure_order = prm.get_integer("pressure order");
       qmapping_all   = prm.get_bool("qmapping all");
+
+      const std::string cl = prm.get("Navier-Stokes formulation");
+      if (cl == "gls")
+        navier_stokes = NavierStokesFormulation::gls;
+      else if (cl == "grad_div")
+        navier_stokes = NavierStokesFormulation::grad_div;
+      else
+        throw(std::runtime_error("Invalid Navier-Stokes formulation"));
     }
     prm.leave_subsection();
   }

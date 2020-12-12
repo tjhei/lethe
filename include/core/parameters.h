@@ -267,6 +267,13 @@ namespace Parameters
    */
   struct FEM
   {
+    enum class NavierStokesFormulation
+    {
+      gls,
+      grad_div
+    } navier_stokes;
+
+
     // Interpolation order velocity
     unsigned int velocity_order;
 

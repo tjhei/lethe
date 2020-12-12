@@ -53,6 +53,149 @@ private:
   const BSPreconditioner *                   pmass_preconditioner;
 };
 
+
+// We can notice that the initialization of the inverse of the matrix at the
+// top left corner is completed in the constructor. If so, every application
+// of the preconditioner then no longer requires the computation of the
+// matrix factors.
+template <typename BSPreconditioner>
+BlockSchurPreconditioner<BSPreconditioner>::BlockSchurPreconditioner(
+  double                                     gamma,
+  double                                     viscosity,
+  const TrilinosWrappers::BlockSparseMatrix &S,
+  const TrilinosWrappers::SparseMatrix &     P,
+  const BSPreconditioner *                   p_amat_preconditioner,
+  const BSPreconditioner *                   p_pmass_preconditioner,
+
+  Parameters::LinearSolver p_solver_parameters)
+  : gamma(gamma)
+  , viscosity(viscosity)
+  , linear_solver_parameters(p_solver_parameters)
+  , stokes_matrix(S)
+  , pressure_mass_matrix(P)
+  , amat_preconditioner(p_amat_preconditioner)
+  , pmass_preconditioner(p_pmass_preconditioner)
+{}
+
+template <class BSPreconditioner>
+void
+BlockSchurPreconditioner<BSPreconditioner>::vmult(
+  TrilinosWrappers::MPI::BlockVector &      dst,
+  const TrilinosWrappers::MPI::BlockVector &src) const
+{
+  TrilinosWrappers::MPI::Vector utmp(src.block(0));
+  {
+    SolverControl solver_control(
+      linear_solver_parameters.max_iterations,
+      std::max(linear_solver_parameters.relative_residual *
+                 src.block(1).l2_norm(),
+               linear_solver_parameters.minimum_residual));
+    TrilinosWrappers::SolverGMRES pressure_solver(solver_control);
+
+    dst.block(1) = 0.0;
+    pressure_solver.solve(pressure_mass_matrix,
+                          dst.block(1),
+                          src.block(1),
+                          *pmass_preconditioner);
+    dst.block(1) *= -(viscosity + gamma);
+  }
+
+  {
+    stokes_matrix.block(0, 1).vmult(utmp, dst.block(1));
+    utmp *= -1.0;
+    utmp += src.block(0);
+  }
+  {
+    SolverControl solver_control(
+      linear_solver_parameters.max_iterations,
+      std::max(linear_solver_parameters.relative_residual *
+                 src.block(0).l2_norm(),
+               linear_solver_parameters.minimum_residual));
+
+
+
+    // TrilinosWrappers::SolverBicgstab solver(solver_control);
+    TrilinosWrappers::SolverGMRES solver(solver_control);
+
+    // A_inverse.solve(stokes_matrix.block(0, 0),dst.block(0), utmp,
+    // mp_preconditioner);
+    solver.solve(stokes_matrix.block(0, 0),
+                 dst.block(0),
+                 utmp,
+                 *amat_preconditioner);
+  }
+}
+
+template <class BSPreconditioner>
+class BlockSchurPreconditionerGLS : public Subscriptor
+{
+public:
+  BlockSchurPreconditionerGLS(const TrilinosWrappers::BlockSparseMatrix &S,
+                              const BSPreconditioner * p_amat_preconditioner,
+                              const BSPreconditioner * p_pmass_preconditioner,
+                              Parameters::LinearSolver solver_parameters);
+
+  void
+  vmult(TrilinosWrappers::MPI::BlockVector &      dst,
+        const TrilinosWrappers::MPI::BlockVector &src) const;
+
+private:
+  const Parameters::LinearSolver             linear_solver_parameters;
+  const TrilinosWrappers::BlockSparseMatrix &stokes_matrix;
+  const BSPreconditioner *                   amat_preconditioner;
+  const BSPreconditioner *                   pmat_preconditioner;
+};
+
+
+// We can notice that the initialization of the inverse of the matrix at the
+// top left corner is completed in the constructor. If so, every application
+// of the preconditioner then no longer requires the computation of the
+// matrix factors.
+template <typename BSPreconditioner>
+BlockSchurPreconditionerGLS<BSPreconditioner>::BlockSchurPreconditionerGLS(
+  const TrilinosWrappers::BlockSparseMatrix &S,
+  const BSPreconditioner *                   p_amat_preconditioner,
+  const BSPreconditioner *                   p_pmat_preconditioner,
+
+  Parameters::LinearSolver p_solver_parameters)
+  : linear_solver_parameters(p_solver_parameters)
+  , stokes_matrix(S)
+  , amat_preconditioner(p_amat_preconditioner)
+  , pmat_preconditioner(p_pmat_preconditioner)
+{}
+
+template <class BSPreconditioner>
+void
+BlockSchurPreconditionerGLS<BSPreconditioner>::vmult(
+  TrilinosWrappers::MPI::BlockVector &      dst,
+  const TrilinosWrappers::MPI::BlockVector &src) const
+{
+  TrilinosWrappers::MPI::Vector utmp(src.block(0));
+  {
+    SolverControl solver_control(
+      linear_solver_parameters.max_iterations,
+      std::max(1e-3 * src.block(1).l2_norm(),
+               linear_solver_parameters.minimum_residual));
+    TrilinosWrappers::SolverGMRES pressure_solver(solver_control);
+    pressure_solver.solve(stokes_matrix.block(1, 1),
+                          dst.block(1),
+                          src.block(1),
+                          *pmat_preconditioner);
+  }
+  {
+    SolverControl solver_control(
+      linear_solver_parameters.max_iterations,
+      std::max(1e-3 * src.block(0).l2_norm(),
+               linear_solver_parameters.minimum_residual));
+    TrilinosWrappers::SolverGMRES solver(solver_control);
+
+    solver.solve(stokes_matrix.block(0, 0),
+                 dst.block(0),
+                 utmp,
+                 *amat_preconditioner);
+  }
+}
+
 /**
  * A solver class for the Navier-Stokes equation using Grad-Div
  * stabilization
@@ -179,100 +322,21 @@ private:
   std::shared_ptr<BlockSchurPreconditioner<TrilinosWrappers::PreconditionILU>>
     system_ilu_preconditioner;
 
+  std::shared_ptr<
+    BlockSchurPreconditionerGLS<TrilinosWrappers::PreconditionILU>>
+    system_ilu_preconditioner_gls;
+
   std::shared_ptr<BlockSchurPreconditioner<TrilinosWrappers::PreconditionAMG>>
     system_amg_preconditioner;
 
   const double gamma = 1;
 
-  static const bool gls_assembly = true;
-  static const bool SUPG         = true;
-  static const bool PSPG         = true;
-  const double      GLS_u_scale  = 1;
+  const bool        gls_assembly;
+  static const bool SUPG        = true;
+  static const bool PSPG        = true;
+  const double      GLS_u_scale = 1;
 };
 
-
-
-// We can notice that the initialization of the inverse of the matrix at the
-// top left corner is completed in the constructor. If so, every application
-// of the preconditioner then no longer requires the computation of the
-// matrix factors.
-template <typename BSPreconditioner>
-BlockSchurPreconditioner<BSPreconditioner>::BlockSchurPreconditioner(
-  double                                     gamma,
-  double                                     viscosity,
-  const TrilinosWrappers::BlockSparseMatrix &S,
-  const TrilinosWrappers::SparseMatrix &     P,
-  const BSPreconditioner *                   p_amat_preconditioner,
-  const BSPreconditioner *                   p_pmass_preconditioner,
-
-  Parameters::LinearSolver p_solver_parameters)
-  : gamma(gamma)
-  , viscosity(viscosity)
-  , linear_solver_parameters(p_solver_parameters)
-  , stokes_matrix(S)
-  , pressure_mass_matrix(P)
-  , amat_preconditioner(p_amat_preconditioner)
-  , pmass_preconditioner(p_pmass_preconditioner)
-{}
-
-template <class BSPreconditioner>
-void
-BlockSchurPreconditioner<BSPreconditioner>::vmult(
-  TrilinosWrappers::MPI::BlockVector &      dst,
-  const TrilinosWrappers::MPI::BlockVector &src) const
-{
-  TimerOutput computing_timer(std::cout,
-                              TimerOutput::summary,
-                              TimerOutput::wall_times);
-
-  TrilinosWrappers::MPI::Vector utmp(src.block(0));
-  {
-    computing_timer.enter_section("Pressure");
-    SolverControl solver_control(
-      linear_solver_parameters.max_iterations,
-      std::max(
-        1e-3 * src.block(1).l2_norm(),
-        // linear_solver_parameters.relative_residual*src.block(0).l2_norm(),
-        linear_solver_parameters.minimum_residual));
-    TrilinosWrappers::SolverGMRES pressure_solver(solver_control);
-
-    dst.block(1) = 0.0;
-    pressure_solver.solve(pressure_mass_matrix,
-                          dst.block(1),
-                          src.block(1),
-                          *pmass_preconditioner);
-    dst.block(1) *= -(viscosity + gamma);
-    computing_timer.exit_section("Pressure");
-  }
-
-  {
-    computing_timer.enter_section("Operations");
-    stokes_matrix.block(0, 1).vmult(utmp, dst.block(1));
-    utmp *= -1.0;
-    utmp += src.block(0);
-    computing_timer.exit_section("Operations");
-  }
-  {
-    computing_timer.enter_section("A Matrix");
-    SolverControl solver_control(
-      linear_solver_parameters.max_iterations,
-      std::max(1e-3 * src.block(0).l2_norm(),
-               linear_solver_parameters.minimum_residual));
-
-
-
-    // TrilinosWrappers::SolverBicgstab solver(solver_control);
-    TrilinosWrappers::SolverGMRES solver(solver_control);
-
-    // A_inverse.solve(stokes_matrix.block(0, 0),dst.block(0), utmp,
-    // mp_preconditioner);
-    solver.solve(stokes_matrix.block(0, 0),
-                 dst.block(0),
-                 utmp,
-                 *amat_preconditioner);
-    computing_timer.exit_section("A Matrix");
-  }
-}
 
 
 template <class PreconditionerMp>
