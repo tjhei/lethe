@@ -594,10 +594,28 @@ namespace Parameters
         "As the number of mesh elements increase, the amg solver is the most "
         "efficient. Generally, at 1M elements, the amg solver always "
         "outperforms the gmres or bicgstab");
+
+      prm.declare_entry(
+        "pressure preconditioner",
+        "ilu",
+        Patterns::Selection("ilu|amg"),
+        "Preconditioner for the pressure block in the block solver");
+
+      prm.declare_entry(
+        "velocity preconditioner",
+        "ilu",
+        Patterns::Selection("ilu|amg"),
+        "Preconditioner for the velocity block in the block solver");
+
       prm.declare_entry("relative residual",
                         "1e-3",
                         Patterns::Double(),
                         "Linear solver residual");
+
+      prm.declare_entry("sub relative residual",
+                        "1e-3",
+                        Patterns::Double(),
+                        "Block preconditioner linear solver residual");
       prm.declare_entry("minimum residual",
                         "1e-8",
                         Patterns::Double(),
@@ -697,7 +715,31 @@ namespace Parameters
         throw std::logic_error(
           "Error, invalid iterative solver type. Choices are amg, gmres, bicgstab, tfqmr or direct");
 
-      relative_residual  = prm.get_double("relative residual");
+      {
+        const std::string sv = prm.get("pressure preconditioner");
+        if (sv == "amg")
+          pressure_preconditioner = Preconditioner::amg;
+        else if (sv == "ilu")
+          pressure_preconditioner = Preconditioner::ilu;
+        else
+          throw std::logic_error(
+            "Error, invalid iterative preconditioner type. Choices are ilu or amg");
+      }
+
+      {
+        const std::string sv = prm.get("velocity preconditioner");
+        if (sv == "amg")
+          velocity_preconditioner = Preconditioner::amg;
+        else if (sv == "ilu")
+          velocity_preconditioner = Preconditioner::ilu;
+        else
+          throw std::logic_error(
+            "Error, invalid iterative preconditioner type. Choices are ilu or amg");
+      }
+
+      relative_residual     = prm.get_double("relative residual");
+      sub_relative_residual = prm.get_double("sub relative residual");
+
       minimum_residual   = prm.get_double("minimum residual");
       max_iterations     = prm.get_integer("max iters");
       max_krylov_vectors = prm.get_integer("max krylov vectors");

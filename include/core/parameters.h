@@ -346,10 +346,22 @@ namespace Parameters
     };
     SolverType solver;
 
+    // Type of linear solver
+    enum class Preconditioner
+    {
+      ilu,
+      amg
+    };
+    Preconditioner pressure_preconditioner;
+    Preconditioner velocity_preconditioner;
+
     Verbosity verbosity;
 
     // Relative residual of the iterative solver
     double relative_residual;
+
+    // Relative residual of the block preconditioner solver
+    double sub_relative_residual;
 
     // Minimum residual of the iterative solver
     double minimum_residual;
@@ -392,6 +404,8 @@ namespace Parameters
 
     // AMG Smoother overalp
     unsigned int amg_smoother_overlap;
+
+
 
     static void
     declare_parameters(ParameterHandler &prm);
