@@ -107,6 +107,7 @@ NewtonNonLinearSolver<VectorType>::solve(
         }
 
       solver->solve_linear_system(first_step);
+      double last_alpha_res=current_res;
 
       for (double alpha = 1.0; alpha > 1e-3; alpha *= 0.5)
         {
@@ -125,12 +126,27 @@ NewtonNonLinearSolver<VectorType>::solve(
                             << std::setprecision(this->params.display_precision)
                             << current_res << std::endl;
             }
+          if(current_res>last_alpha_res and alpha<0.99){
+              alpha=2*alpha;
+              solver->local_evaluation_point = solver->present_solution;
+              solver->local_evaluation_point.add(alpha, solver->newton_update);
+              solver->apply_constraints();
+              solver->evaluation_point = solver->local_evaluation_point;
+
+              if (this->params.verbosity != Parameters::Verbosity::quiet)
+              {
+                  solver->pcout << "\t\talpha value was kept at alpha = "
+                                << alpha << "as alpha = "<< alpha/2 << "increase the residual" << std::endl;
+              }
+              break;
+          }
 
           if (current_res < this->params.step_tolerance * last_res ||
               last_res < this->params.tolerance)
             {
               break;
             }
+          last_alpha_res=current_res;
         }
 
       solver->present_solution = solver->evaluation_point;

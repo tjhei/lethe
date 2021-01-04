@@ -68,6 +68,8 @@ private:
 
   void
   integrate_particules();
+  void
+  finish_time_step_particules();
 
   // BB - TODO The particles structure should be refactored to use a small class
   // to store the information or a struct instead of just using a vector where
@@ -114,6 +116,7 @@ private:
   const bool                   PSPG        = true;
   const double                 GLS_u_scale = 1;
   std::vector<IBParticle<dim>> particles;
+  bool                         forces_first_guess;
 
 
   std::vector<TableHandler> table_f;

@@ -129,6 +129,8 @@ find_cell_around_point_with_tree(const DoFHandler<dim> &dof_handler,
         }
       catch (const typename MappingQGeneric<dim>::ExcTransformationFailed &)
         {}
+      if (cell_0_found)
+          break;
     }
 
   if (cell_0_found)
@@ -152,10 +154,10 @@ find_cell_around_point_with_tree(const DoFHandler<dim> &dof_handler,
                                                     point);
                   const double dist =
                     GeometryInfo<dim>::distance_to_unit_cell(p_cell);
-                  bool inside = true;
 
 
-                  if (dist <= best_dist and inside)
+
+                  if (dist <= best_dist)
                     {
                       best_dist  = dist;
                       best_index = i;

@@ -30,10 +30,17 @@ class IBParticle
 public:
   Point<dim> position;
   Point<dim> last_position;
+  Tensor<1, dim> forces;
+
+  Tensor<1, 3> torques;
+  double masses;
+  Tensor<2, dim>  innertia;
   // Translational velocity
   Tensor<1, dim> velocity;
+  Tensor<1, dim> last_velocity;
   // Angular velocity
   Tensor<1, 3> omega;
+
 
   double radius;
 

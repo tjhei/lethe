@@ -913,6 +913,8 @@ namespace Parameters
       Patterns::Double(),
       "position relative to the center of the particle  for the location of the point where the pressure is impose inside the particle  in z ");
     prm.declare_entry("radius", "0.2", Patterns::Double(), "Particles radius ");
+    prm.declare_entry("density", "1", Patterns::Double(), "density of the particle ");
+
   }
 
   template <int dim>
@@ -962,8 +964,25 @@ namespace Parameters
         "ib_force",
         Patterns::FileName(),
         "Bool to define if the force is evaluated on each particle ");
+      prm.declare_entry(
+                "integrate motion",
+                "false",
+                Patterns::Bool(),
+                "Bool to define if the the particle trajectory is integrated");
+      prm.declare_entry(
+                "fluid density",
+                "1",
+                Patterns::Double(),
+                "density of the fluid");
+      prm.declare_entry(
+                "gravity",
+                "-9.81",
+                Patterns::Double(),
+                "gravitational acceleration");
+      prm.declare_entry("alpha", "0.1", Patterns::Double(), "relaxation parameter");
 
-      prm.enter_subsection("particle info 0");
+
+        prm.enter_subsection("particle info 0");
       {
         declare_default_entry(prm);
       }
@@ -1032,6 +1051,11 @@ namespace Parameters
       nb_force_eval      = prm.get_integer("nb force evaluation");
       calculate_force_ib = prm.get_bool("calculate force");
       ib_force_output_file = prm.get("ib force output file");
+      density            = prm.get_double("fluid density");
+      gravity            = prm.get_double("gravity");
+      integrate_motion   = prm.get_bool("integrate motion");
+      alpha              = prm.get_double("alpha");
+
 
 
       particles.resize(nb);
@@ -1055,6 +1079,12 @@ namespace Parameters
               particles[i].position[2]          = prm.get_double("z");
               particles[i].velocity[2]          = prm.get_double("w");
               particles[i].pressure_location[2] = prm.get_double("pressure z");
+              particles[i].masses               = 4.0/3.0*3.14159265359*particles[i].radius*particles[i].radius*particles[i].radius*prm.get_double("density");
+            }
+          if (dim == 2)
+            {
+              particles[i].masses               = 3.14159265359*particles[i].radius*particles[i].radius*prm.get_double("density");
+
             }
           prm.leave_subsection();
         }

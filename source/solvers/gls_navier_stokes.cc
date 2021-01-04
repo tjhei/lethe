@@ -1361,7 +1361,7 @@ GLSNavierStokesSolver<dim>::solve_system_GMRES(const bool   initial_step,
   }
   catch (std::exception &e)
   {
-      this->nsparam.linear_solver.ilu_precond_fill+=5;
+      this->nsparam.linear_solver.ilu_precond_fill+=1;
       this->pcout << " solver failed try with high preconditionner fill . new fill = "
                  << this->nsparam.linear_solver.ilu_precond_fill << std::endl;
   }
