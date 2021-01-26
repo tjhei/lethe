@@ -914,6 +914,7 @@ namespace Parameters
       "position relative to the center of the particle  for the location of the point where the pressure is impose inside the particle  in z ");
     prm.declare_entry("radius", "0.2", Patterns::Double(), "Particles radius ");
     prm.declare_entry("density", "1", Patterns::Double(), "density of the particle ");
+    prm.declare_entry("inertia", "1", Patterns::Double(), "uniform rotational inertia");
 
   }
 
@@ -1058,6 +1059,7 @@ namespace Parameters
 
 
 
+
       particles.resize(nb);
       for (unsigned int i = 0; i < nb; ++i)
         {
@@ -1071,6 +1073,9 @@ namespace Parameters
           particles[i].omega[1]             = prm.get_double("omega y");
           particles[i].omega[2]             = prm.get_double("omega z");
           particles[i].radius               = prm.get_double("radius");
+          particles[i].inertia[0][0]        = prm.get_double("inertia");
+          particles[i].inertia[1][1]        = prm.get_double("inertia");
+          particles[i].inertia[2][2]        = prm.get_double("inertia");
           particles[i].pressure_location[0] = prm.get_double("pressure x");
           particles[i].pressure_location[1] = prm.get_double("pressure y");
 

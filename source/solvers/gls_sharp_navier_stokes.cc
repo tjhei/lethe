@@ -91,10 +91,27 @@ GLSSharpNavierStokesSolver<dim>::define_particles()
 
         particles[p].forces[0]=0;
         particles[p].forces[1]=0;
-        if (dim==3)
-            particles[p].forces[2]=0;
+        particles[p].last_forces[0]=0;
+        particles[p].last_forces[1]=0;
+        particles[p].last_torques=0;
+        if (dim==3) {
+            particles[p].forces[2] = 0;
+            particles[p].last_forces[2] = 0;
+        }
         particles[p].last_velocity=particles[p].velocity;
+        particles[p].velocity_iter=particles[p].velocity;
         particles[p].last_position=particles[p].position;
+
+        particles[p].last_omega=particles[p].omega;
+        particles[p].omega_iter=particles[p].omega;
+        particles[p].angular_position[0]=0;
+        particles[p].angular_position[1]=0;
+        particles[p].angular_position[2]=0;
+        particles[p].last_angular_position=particles[p].angular_position;
+        particles[p].local_alpha_torque=1;
+        particles[p].local_alpha_force=1;
+
+
 
     }
 }
@@ -1213,6 +1230,7 @@ GLSSharpNavierStokesSolver<dim>::integrate_particules()
         Tensor<1, dim> gravity;
 
         for (unsigned int p = 0; p < particles.size(); ++p) {
+            // Translation
             gravity[0] = 0;
             if (dim==2)
                 gravity[1] = g * (particles[p].masses -particles[p].radius*particles[p].radius*3.14159265359*rho) ;
@@ -1224,7 +1242,34 @@ GLSSharpNavierStokesSolver<dim>::integrate_particules()
 
             Tensor<1, dim> velocity_iter;
             velocity_iter = particles[p].last_velocity + (particles[p].forces + gravity) * dt / particles[p].masses;
-            particles[p].velocity = particles[p].velocity + alpha * (velocity_iter - particles[p].velocity);
+            Tensor<1, dim> last_variation_v=particles[p].velocity_iter-particles[p].last_velocity;
+            Tensor<1, dim> variation_v= velocity_iter-particles[p].last_velocity;
+            double cross_product_v;
+            if (dim==2)
+                cross_product_v= (last_variation_v[0]*variation_v[0]+last_variation_v[1]*variation_v[1])/(last_variation_v.norm()*variation_v.norm());
+            if (dim==3)
+                cross_product_v= (last_variation_v[0]*variation_v[0]+last_variation_v[1]*variation_v[1]+last_variation_v[2]*variation_v[2])/(last_variation_v.norm()*variation_v.norm());
+
+            if (last_variation_v.norm()<1e-10){
+                particles[p].velocity = particles[p].velocity + alpha *(velocity_iter - particles[p].velocity);;
+            }
+            else {
+
+                if (variation_v.norm() * cross_product_v > -last_variation_v.norm()) {
+                    particles[p].velocity = particles[p].velocity + alpha * particles[p].local_alpha_force*
+                                                              (velocity_iter - particles[p].velocity);
+
+                }
+                else {
+                    particles[p].velocity = particles[p].velocity + variation_v*last_variation_v.norm()/variation_v.norm() / 2;
+                    particles[p].local_alpha_force = particles[p].local_alpha_force/ 2;
+                }
+
+            }
+            particles[p].velocity_iter=particles[p].velocity;
+
+
+
             particles[p].position =
                     particles[p].last_position + (particles[p].velocity * 0.5 + particles[p].last_velocity * 0.5) * dt;
 
@@ -1232,6 +1277,76 @@ GLSSharpNavierStokesSolver<dim>::integrate_particules()
             this->pcout << "particule " << p << " position " << particles[p].position << std::endl;
             this->pcout << "particule " << p << " velocity " << particles[p].velocity << std::endl;
 
+            // Rotation
+            if (dim==2){
+                double i_inverse;
+                i_inverse = 1.0/particles[p].inertia[2][2];
+                Tensor<1, 3>  omega_iter;
+                omega_iter = particles[p].last_omega + (i_inverse*particles[p].torques)* dt ;
+                Tensor<1, 3> last_variation=particles[p].omega_iter-particles[p].last_omega;
+                Tensor<1, 3> variation= omega_iter-particles[p].last_omega;
+                this->pcout << "particule " << p << " last variation " << last_variation << std::endl;
+                this->pcout << "particule " << p << " variation " << variation<< std::endl;
+                double cross_product= (last_variation[0]*variation[0]+last_variation[1]*variation[1]+last_variation[2]*variation[2])/(last_variation.norm()*variation.norm());
+
+                if (last_variation.norm()<1e-10){
+                    particles[p].omega = particles[p].omega + alpha *(omega_iter - particles[p].omega);;
+                }
+                else {
+                    if (variation.norm() * cross_product > -last_variation.norm()) {
+                        particles[p].omega = particles[p].omega + alpha * particles[p].local_alpha_torque *
+                                                                  (omega_iter - particles[p].omega);
+                    } else {
+                        particles[p].omega = particles[p].omega + variation*last_variation.norm()/variation.norm() / 2;
+                        particles[p].local_alpha_torque = particles[p].local_alpha_torque / 2;
+                    }
+
+                }
+
+
+                particles[p].omega_iter=particles[p].omega;
+                particles[p].velocity_iter=particles[p].velocity;
+
+                particles[p].angular_position + (particles[p].omega * 0.5 + particles[p].last_omega * 0.5) * dt;
+
+            }
+
+
+            if (dim==3) {
+                Tensor<2, 3, double> i_inverse;
+                i_inverse = invert(particles[p].inertia);
+                Tensor<1, 3, double> omega_iter ;
+                omega_iter[0] = particles[p].last_omega[0] + (i_inverse[0][0]*particles[p].torques[0]+i_inverse[0][1]*particles[p].torques[1]+i_inverse[0][2]*particles[p].torques[2])* dt ;
+                omega_iter[1] = particles[p].last_omega[1] + (i_inverse[1][0]*particles[p].torques[0]+i_inverse[1][1]*particles[p].torques[1]+i_inverse[1][2]*particles[p].torques[2])* dt ;
+                omega_iter[2] = particles[p].last_omega[2] + (i_inverse[2][0]*particles[p].torques[0]+i_inverse[2][1]*particles[p].torques[1]+i_inverse[2][2]*particles[p].torques[2])* dt ;
+                Tensor<1, 3> last_variation=particles[p].omega_iter-particles[p].last_omega;
+                Tensor<1, 3> variation= omega_iter-particles[p].last_omega;
+                this->pcout << "particule " << p << " last variation " << last_variation << std::endl;
+                this->pcout << "particule " << p << " variation " << variation << std::endl;
+                double cross_product= (last_variation[0]*variation[0]+last_variation[1]*variation[1]+last_variation[2]*variation[2])/(last_variation.norm()*variation.norm());
+
+                if (last_variation.norm()<1e-10){
+                    particles[p].omega = particles[p].omega + alpha *(omega_iter - particles[p].omega);;
+                }
+                else {
+                    if (variation.norm() * cross_product > -last_variation.norm()) {
+                        particles[p].omega = particles[p].omega + alpha * particles[p].local_alpha_torque *
+                                                                  (omega_iter - particles[p].omega);
+                    } else {
+                        particles[p].omega = particles[p].omega + variation*last_variation.norm()/variation.norm() / 2;
+                        particles[p].local_alpha_torque = particles[p].local_alpha_torque / 2;
+                    }
+
+                }
+
+
+                particles[p].omega_iter=particles[p].omega;
+
+                particles[p].angular_position + (particles[p].omega * 0.5 + particles[p].last_omega * 0.5) * dt;
+            }
+            this->pcout << "particule " << p << " position " << particles[p].position << std::endl;
+            this->pcout << "particule " << p << " velocity " << particles[p].velocity << std::endl;
+            this->pcout << "particule " << p << " omega " << particles[p].omega << std::endl;
 
         }
     }
@@ -1266,6 +1381,11 @@ GLSSharpNavierStokesSolver<dim>::finish_time_step_particules()
     for (unsigned int p = 0; p < particles.size(); ++p) {
         particles[p].last_position=particles[p].position;
         particles[p].last_velocity=particles[p].velocity;
+        particles[p].last_forces=particles[p].forces;
+        particles[p].last_omega=particles[p].omega;
+        particles[p].local_alpha_torque=1;
+        particles[p].local_alpha_force=1;
+
         if(this->nsparam.particlesParameters.integrate_motion) {
             this->pcout << "particule " << p << " position " << particles[p].position << std::endl;
             this->pcout << "particule " << p << " velocity " << particles[p].velocity << std::endl;
@@ -1300,6 +1420,8 @@ GLSSharpNavierStokesSolver<dim>::finish_time_step_particules()
         if(this->nsparam.particlesParameters.integrate_motion) {
             table_f[p].add_value("v_x", particles[p].velocity[0]);
             table_f[p].add_value("p_x", particles[p].position[0]);
+            table_f[p].add_value("omega_z", particles[p].omega[2]);
+
         }
         table_f[p].add_value("f_y", particles[p].forces[1]);
         if(this->nsparam.particlesParameters.integrate_motion) {
@@ -1319,6 +1441,8 @@ GLSSharpNavierStokesSolver<dim>::finish_time_step_particules()
                     "p_x", this->nsparam.simulation_control.log_precision);
             table_f[p].set_precision(
                     "p_y", this->nsparam.simulation_control.log_precision);
+            table_f[p].set_precision(
+                    "omega_z", this->nsparam.simulation_control.log_precision);
         }
         if(dim==3){
 

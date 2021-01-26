@@ -31,15 +31,26 @@ public:
   Point<dim> position;
   Point<dim> last_position;
   Tensor<1, dim> forces;
+  Tensor<1, dim> last_forces;
 
   Tensor<1, 3> torques;
   double masses;
-  Tensor<2, dim>  innertia;
+  Tensor<2, 3>  inertia;
   // Translational velocity
   Tensor<1, dim> velocity;
   Tensor<1, dim> last_velocity;
+  Tensor<1, dim> velocity_iter;
   // Angular velocity
+  Tensor<1, 3> angular_position;
+  // by default the angular position is always 0 use to integrate motion
+  Tensor<1, 3> last_angular_position;
+
   Tensor<1, 3> omega;
+  Tensor<1, 3> last_omega;
+  Tensor<1, 3> omega_iter;
+  Tensor<1, 3> last_torques;
+  double local_alpha_torque ;
+  double local_alpha_force;
 
 
   double radius;
