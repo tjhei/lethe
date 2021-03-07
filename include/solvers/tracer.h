@@ -14,10 +14,7 @@
  * ---------------------------------------------------------------------
 
  *
- * Implementation of heat transfer as an auxiliary physics.
- * This heat equation is weakly coupled to the velocity field.
- * Equation solved:
- * rho * Cp * (dT/dt + u.gradT) = k div(gradT) + nu/rho * (gradu : gradu)
+ * Implementation of tracer as an auxiliary physics.
  *
  * Author: Bruno Blais, Polytechnique Montreal, 2020-
  */
