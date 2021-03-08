@@ -44,7 +44,7 @@ void
 FreeSurface<dim>::assemble_system(
   const Parameters::SimulationControl::TimeSteppingMethod time_stepping_method)
 {
-Vector<int> alpha; //TODO function for alpha definition
+  Vector<int> alpha; // TODO function for alpha definition
 
   if (assemble_matrix)
     system_matrix = 0;
@@ -116,10 +116,10 @@ Vector<int> alpha; //TODO function for alpha definition
                                  update_gradients);
 
   // Shape functions and gradients
-  std::vector<double>         phi_T(dofs_per_cell);
-  std::vector<Tensor<1, dim>> grad_phi_T(dofs_per_cell);
-  std::vector<Tensor<2, dim>> hess_phi_T(dofs_per_cell);
-  std::vector<double>         laplacian_phi_T(dofs_per_cell);
+  std::vector<double>         phi_alpha(dofs_per_cell);
+  std::vector<Tensor<1, dim>> grad_phi_alpha(dofs_per_cell);
+  std::vector<Tensor<2, dim>> hess_phi_alpha(dofs_per_cell);
+  std::vector<double>         laplacian_phi_alpha(dofs_per_cell);
 
 
   // Velocity values
@@ -197,8 +197,12 @@ Vector<int> alpha; //TODO function for alpha definition
             {
               fe_values_fs.get_function_values(this->solution_m1,
                                                p1_alpha_values);
-//              fe_values_fs.get_function_gradients(this->solution_m1,
-//                                                  p1_alpha_gradients); //see if needed for normal vector calculation
+              //              fe_values_fs.get_function_gradients(this->solution_m1,
+              //                                                  p1_alpha_gradients);
+              //                                                  //see if
+              //                                                  needed for
+              //                                                  normal vector
+              //                                                  calculation
             }
 
           if (time_stepping_method_has_two_stages(time_stepping_method))
@@ -206,8 +210,8 @@ Vector<int> alpha; //TODO function for alpha definition
               fe_values_fs.get_function_values(this->solution_m2,
                                                p2_alpha_values);
 
-              fe_values_fs.get_function_gradients(this->solution_m2,
-                                                  p2_alpha_gradients);
+              //              fe_values_fs.get_function_gradients(this->solution_m2,
+              //                                                  p2_alpha_gradients);
             }
 
           if (time_stepping_method_has_three_stages(time_stepping_method))
@@ -215,8 +219,8 @@ Vector<int> alpha; //TODO function for alpha definition
               fe_values_fs.get_function_values(this->solution_m3,
                                                p3_alpha_values);
 
-              fe_values_fs.get_function_gradients(this->solution_m3,
-                                                  p3_alpha_gradients);
+              //              fe_values_fs.get_function_gradients(this->solution_m3,
+              //                                                  p3_alpha_gradients);
             }
 
           source_term.value_list(fe_values_fs.get_quadrature_points(),
@@ -239,89 +243,98 @@ Vector<int> alpha; //TODO function for alpha definition
               // Calculation of the GLS stabilization parameter. The
               // stabilization parameter used is different if the simulation is
               // steady or unsteady. In the unsteady case it includes the value
-              // of the time-step
-              const double tau =
-                is_steady(time_stepping_method) ?
-                  1. / std::sqrt(std::pow(2. * rho_cp * u_mag / h, 2) +
-                                 9 * std::pow(4 * alpha / (h * h), 2)) :
-                  1. / std::sqrt(std::pow(sdt, 2) +
-                                 std::pow(2. * rho_cp * u_mag / h, 2) +
-                                 9 * std::pow(4 * alpha / (h * h), 2));
-              const double tau_ggls = std::pow(h, fe->degree + 1) / 6. / rho_cp;
+              // of the time-step //TODO see if necessary here
+              //              const double tau =
+              //                is_steady(time_stepping_method) ?
+              //                  1. / std::sqrt(std::pow(2. * 1 * u_mag /
+              //                  h, 2) +
+              //                                 9 * std::pow(4 * alpha / (h *
+              //                                 h), 2)) :
+              //                  1. / std::sqrt(std::pow(sdt, 2) +
+              //                                 std::pow(2. * 1 * u_mag /
+              //                                 h, 2) + 9 * std::pow(4 * alpha
+              //                                 / (h * h), 2));
+              //              const double tau_ggls = std::pow(h, fe->degree +
+              //              1) / 6. / 1;
 
               // Gather the shape functions and their gradient
               for (unsigned int k : fe_values_fs.dof_indices())
                 {
-                  phi_T[k]      = fe_values_fs.shape_value(k, q);
-                  grad_phi_T[k] = fe_values_fs.shape_grad(k, q);
-                  hess_phi_T[k] = fe_values_fs.shape_hessian(k, q);
+                  phi_alpha[k]      = fe_values_fs.shape_value(k, q);
+                  grad_phi_alpha[k] = fe_values_fs.shape_grad(k, q);
+                  hess_phi_alpha[k] = fe_values_fs.shape_hessian(k, q);
 
-                  laplacian_phi_T[k] = trace(hess_phi_T[k]);
+                  laplacian_phi_alpha[k] = trace(hess_phi_alpha[k]);
                 }
 
 
 
               for (const unsigned int i : fe_values_fs.dof_indices())
                 {
-                  const auto phi_T_i      = phi_T[i];
-                  const auto grad_phi_T_i = grad_phi_T[i];
+                  const auto phi_alpha_i      = phi_alpha[i];
+                  const auto grad_phi_alpha_i = grad_phi_alpha[i];
 
 
                   if (assemble_matrix)
                     {
                       for (const unsigned int j : fe_values_fs.dof_indices())
                         {
-                          const auto phi_T_j           = phi_T[j];
-                          const auto grad_phi_T_j      = grad_phi_T[j];
-                          const auto laplacian_phi_T_j = laplacian_phi_T[j];
+                          const auto phi_alpha_j      = phi_alpha[j];
+                          const auto grad_phi_alpha_j = grad_phi_alpha[j];
+                          const auto laplacian_phi_alpha_j =
+                            laplacian_phi_alpha[j];
 
 
 
                           // Weak form for : nabla * (rho * u * u) = 0
                           // TODO determine expression
                           cell_matrix(i, j) +=
-                            (thermal_conductivity * grad_phi_T_i *
-                               grad_phi_T_j +
-                             rho_cp * phi_T_i * velocity * grad_phi_T_j) *
+                            (grad_phi_alpha_i * grad_phi_alpha_j +
+                             phi_alpha_i * velocity * grad_phi_alpha_j) *
                             JxW;
 
                           auto strong_jacobian =
-                            rho_cp * velocity * grad_phi_T_j -
-                            thermal_conductivity * laplacian_phi_T_j;
+                            velocity * grad_phi_alpha_j - laplacian_phi_alpha_j;
 
                           // Mass matrix for transient simulation
                           if (is_bdf(time_stepping_method))
                             {
-                              cell_matrix(i, j) +=
-                                rho_cp * phi_T_j * phi_T_i * bdf_coefs[0] * JxW;
+                              cell_matrix(i, j) += 1 * phi_alpha_j *
+                                                   phi_alpha_i * bdf_coefs[0] *
+                                                   JxW;
 
-                              strong_jacobian +=
-                                rho_cp * phi_T_j * bdf_coefs[0];
-
-                              if (GGLS)
-                                {
-                                  cell_matrix(i, j) +=
-                                    rho_cp * rho_cp * tau_ggls *
-                                    (grad_phi_T_i * grad_phi_T_j) *
-                                    bdf_coefs[0] * JxW;
-                                }
+                              strong_jacobian += 1 * phi_alpha_j * bdf_coefs[0];
+                              // TODO see if stabilization necessary
+                              //                              if (GGLS)
+                              //                                {
+                              //                                  cell_matrix(i,
+                              //                                  j) +=
+                              //                                    1 *
+                              //                                    1 *
+                              //                                    tau_ggls *
+                              //                                    (grad_phi_alpha_i
+                              //                                    *
+                              //                                    grad_phi_alpha_j)
+                              //                                    *
+                              //                                    bdf_coefs[0]
+                              //                                    * JxW;
+                              //                                }
                             }
 
-                          cell_matrix(i, j) +=
-                            tau * strong_jacobian *
-                            (grad_phi_T_i * velocity_values[q]) * JxW;
+                          cell_matrix(i, j) += // tau *
+                            strong_jacobian *
+                            (grad_phi_alpha_i * velocity_values[q]) * JxW;
                         }
                     }
 
                   // rhs for : - k * laplacian T + rho * cp * u * grad T - f
                   // -grad(u)*grad(u) = 0
                   cell_rhs(i) -=
-                    (thermal_conductivity * grad_phi_T_i *
-                       alpha_gradients[q] +
-                     density * specific_heat * phi_T_i * velocity_values[q] *
+                    (1 * grad_phi_alpha_i * alpha_gradients[q] +
+                     1 * 1 * phi_alpha_i * velocity_values[q] *
                        alpha_gradients[q] -
-                     source_term_values[q] * phi_T_i -
-                     dynamic_viscosity * phi_T_i *
+                     source_term_values[q] * phi_alpha_i -
+                     1 * phi_alpha_i *
                        scalar_product(velocity_gradient_values[q] +
                                         transpose(velocity_gradient_values[q]),
                                       transpose(velocity_gradient_values[q]))) *
@@ -329,8 +342,8 @@ Vector<int> alpha; //TODO function for alpha definition
 
                   // Calculate the strong residual for GLS stabilization
                   auto strong_residual =
-                    rho_cp * velocity_values[q] * alpha_gradients[q] -
-                    thermal_conductivity * present_alpha_laplacians[q];
+                    1 * velocity_values[q] * alpha_gradients[q] -
+                    1 * present_alpha_laplacians[q];
 
 
 
@@ -340,159 +353,101 @@ Vector<int> alpha; //TODO function for alpha definition
                       time_stepping_method == Parameters::SimulationControl::
                                                 TimeSteppingMethod::steady_bdf)
                     {
-                      cell_rhs(i) -=
-                        rho_cp *
-                        (bdf_coefs[0] * present_alpha_values[q] +
-                         bdf_coefs[1] * p1_alpha_values[q]) *
-                        phi_T_i * JxW;
+                      cell_rhs(i) -= 1 *
+                                     (bdf_coefs[0] * present_alpha_values[q] +
+                                      bdf_coefs[1] * p1_alpha_values[q]) *
+                                     phi_alpha_i * JxW;
 
                       strong_residual +=
-                        rho_cp * (bdf_coefs[0] * present_alpha_values[q] +
-                                  bdf_coefs[1] * p1_alpha_values[q]);
+                        1 * (bdf_coefs[0] * present_alpha_values[q] +
+                             bdf_coefs[1] * p1_alpha_values[q]);
 
-                      if (GGLS)
-                        {
-                          cell_rhs(i) -=
-                            rho_cp * rho_cp * tau_ggls * grad_phi_T_i *
-                            (bdf_coefs[0] * alpha_gradients[q] +
-                             bdf_coefs[1] * p1_alpha_gradients[q]) *
-                            JxW;
-                        }
+                      // TODO see if stabilization necessary
+                      //                      if (GGLS)
+                      //                        {
+                      //                          cell_rhs(i) -=
+                      //                            1 * 1 * tau_ggls *
+                      //                            grad_phi_alpha_i *
+                      //                            (bdf_coefs[0] *
+                      //                            alpha_gradients[q] +
+                      //                             bdf_coefs[1] *
+                      //                             p1_alpha_gradients[q]) *
+                      //                            JxW;
+                      //                        }
                     }
 
                   if (time_stepping_method ==
                       Parameters::SimulationControl::TimeSteppingMethod::bdf2)
                     {
-                      cell_rhs(i) -=
-                        rho_cp *
-                        (bdf_coefs[0] * present_alpha_values[q] +
-                         bdf_coefs[1] * p1_alpha_values[q] +
-                         bdf_coefs[2] * p2_alpha_values[q]) *
-                        phi_T_i * JxW;
+                      cell_rhs(i) -= 1 *
+                                     (bdf_coefs[0] * present_alpha_values[q] +
+                                      bdf_coefs[1] * p1_alpha_values[q] +
+                                      bdf_coefs[2] * p2_alpha_values[q]) *
+                                     phi_alpha_i * JxW;
 
                       strong_residual +=
-                        rho_cp * (bdf_coefs[0] * present_alpha_values[q] +
-                                  bdf_coefs[1] * p1_alpha_values[q] +
-                                  bdf_coefs[2] * p2_alpha_values[q]);
+                        1 * (bdf_coefs[0] * present_alpha_values[q] +
+                             bdf_coefs[1] * p1_alpha_values[q] +
+                             bdf_coefs[2] * p2_alpha_values[q]);
 
-                      if (GGLS)
-                        {
-                          cell_rhs(i) -=
-                            rho_cp * rho_cp * tau_ggls * grad_phi_T_i *
-                            (bdf_coefs[0] * alpha_gradients[q] +
-                             bdf_coefs[1] * p1_alpha_gradients[q] +
-                             bdf_coefs[2] * p2_alpha_gradients[q]) *
-                            JxW;
-                        }
+                      // see if stabilization necessary
+                      //                      if (GGLS)
+                      //                        {
+                      //                          cell_rhs(i) -=
+                      //                            1 * 1 * tau_ggls *
+                      //                            grad_phi_alpha_i *
+                      //                            (bdf_coefs[0] *
+                      //                            alpha_gradients[q] +
+                      //                             bdf_coefs[1] *
+                      //                             p1_alpha_gradients[q] +
+                      //                             bdf_coefs[2] *
+                      //                             p2_alpha_gradients[q]) *
+                      //                            JxW;
+                      //                        }
                     }
 
                   if (time_stepping_method ==
                       Parameters::SimulationControl::TimeSteppingMethod::bdf3)
                     {
-                      cell_rhs(i) -=
-                        rho_cp *
-                        (bdf_coefs[0] * present_alpha_values[q] +
-                         bdf_coefs[1] * p1_alpha_values[q] +
-                         bdf_coefs[2] * p2_alpha_values[q] +
-                         bdf_coefs[3] * p3_alpha_values[q]) *
-                        phi_T_i * JxW;
+                      cell_rhs(i) -= 1 *
+                                     (bdf_coefs[0] * present_alpha_values[q] +
+                                      bdf_coefs[1] * p1_alpha_values[q] +
+                                      bdf_coefs[2] * p2_alpha_values[q] +
+                                      bdf_coefs[3] * p3_alpha_values[q]) *
+                                     phi_alpha_i * JxW;
 
                       strong_residual +=
-                        rho_cp * (bdf_coefs[0] * present_alpha_values[q] +
-                                  bdf_coefs[1] * p1_alpha_values[q] +
-                                  bdf_coefs[2] * p2_alpha_values[q] +
-                                  bdf_coefs[3] * p3_alpha_values[q]);
+                        1 * (bdf_coefs[0] * present_alpha_values[q] +
+                             bdf_coefs[1] * p1_alpha_values[q] +
+                             bdf_coefs[2] * p2_alpha_values[q] +
+                             bdf_coefs[3] * p3_alpha_values[q]);
 
-                      if (GGLS)
-                        {
-                          cell_rhs(i) -=
-                            rho_cp * rho_cp * tau_ggls * grad_phi_T_i *
-                            (bdf_coefs[0] * alpha_gradients[q] +
-                             bdf_coefs[1] * p1_alpha_gradients[q] +
-                             bdf_coefs[2] * p2_alpha_gradients[q] +
-                             bdf_coefs[3] * p3_alpha_gradients[q]) *
-                            JxW;
-                        }
+                      // TODO see if stabilization necessary
+                      //                      if (GGLS)
+                      //                        {
+                      //                          cell_rhs(i) -=
+                      //                            1 * 1 * tau_ggls *
+                      //                            grad_phi_alpha_i *
+                      //                            (bdf_coefs[0] *
+                      //                            alpha_gradients[q] +
+                      //                             bdf_coefs[1] *
+                      //                             p1_alpha_gradients[q] +
+                      //                             bdf_coefs[2] *
+                      //                             p2_alpha_gradients[q] +
+                      //                             bdf_coefs[3] *
+                      //                             p3_alpha_gradients[q]) *
+                      //                            JxW;
+                      //                        }
                     }
 
 
-                  cell_rhs(i) -=
-                    tau *
-                    (strong_residual * (grad_phi_T_i * velocity_values[q])) *
-                    JxW;
+                  cell_rhs(i) -= 1 *
+                                 (strong_residual *
+                                  (grad_phi_alpha_i * velocity_values[q])) *
+                                 JxW;
                 }
 
             } // end loop on quadrature points
-
-          // Robin boundary condition, loop on faces (Newton's cooling law)
-          // implementation similar to deal.ii step-7
-          for (unsigned int i_bc = 0;
-               i_bc < simulation_parameters.boundary_conditions_fs.size;
-               ++i_bc)
-            {
-              if (this->simulation_parameters.boundary_conditions_fs
-                    .type[i_bc] == BoundaryConditions::BoundaryType::convection)
-                {
-                  const double h =
-                    simulation_parameters.boundary_conditions_fs.h[i_bc];
-                  const double T_inf =
-                    simulation_parameters.boundary_conditions_fs.Tinf[i_bc];
-                  std::vector<double> phi_face_T(dofs_per_cell);
-
-                  if (cell->is_locally_owned())
-                    {
-                      for (unsigned int face = 0;
-                           face < GeometryInfo<dim>::faces_per_cell;
-                           face++)
-                        {
-                          if (cell->face(face)->at_boundary() &&
-                              (cell->face(face)->boundary_id() ==
-                               simulation_parameters.boundary_conditions_fs
-                                 .id[i_bc]))
-                            {
-                              fe_face_values_fs.reinit(cell, face);
-                              fe_face_values_fs.get_function_values(
-                                evaluation_point,
-                                present_face_alpha_values);
-                              {
-                                for (const unsigned int q :
-                                     fe_face_values_fs
-                                       .quadrature_point_indices())
-                                  {
-                                    const double JxW = fe_face_values_fs.JxW(q);
-                                    for (unsigned int k :
-                                         fe_values_fs.dof_indices())
-                                      phi_face_T[k] =
-                                        fe_face_values_fs.shape_value(k, q);
-
-                                    for (const unsigned int i :
-                                         fe_values_fs.dof_indices())
-                                      {
-                                        if (assemble_matrix)
-                                          {
-                                            for (const unsigned int j :
-                                                 fe_values_fs.dof_indices())
-                                              {
-                                                // Weak form modification
-                                                cell_matrix(i, j) +=
-                                                  phi_face_T[i] *
-                                                  phi_face_T[j] * h * JxW;
-                                              }
-                                          }
-                                        // Residual
-                                        cell_rhs(i) -=
-                                          phi_face_T[i] * h *
-                                          (present_face_alpha_values[q] -
-                                           T_inf) *
-                                          JxW;
-                                      }
-                                  }
-                              }
-                            }
-                        }
-                    }
-                }
-            } // end loop for Robin condition
 
           // transfer cell contribution into global objects
           cell->get_dof_indices(local_dof_indices);
@@ -515,61 +470,6 @@ FreeSurface<dim>::attach_solution_to_output(DataOut<dim> &data_out)
   data_out.add_data_vector(dof_handler, present_solution, "alpha");
 }
 
-template <int dim>
-double
-FreeSurface<dim>::calculate_L2_error()
-{
-  auto mpi_communicator = triangulation->get_communicator();
-
-  FEValues<dim> fe_values(*this->alpha_mapping,
-                          *fe,
-                          *this->error_quadrature,
-                          update_values | update_gradients |
-                            update_quadrature_points | update_JxW_values);
-
-
-
-  const unsigned int dofs_per_cell =
-    fe->dofs_per_cell; // This gives you dofs per cell
-
-  std::vector<types::global_dof_index> local_dof_indices(
-    dofs_per_cell); //  Local connectivity
-
-  const unsigned int n_q_points = this->error_quadrature->size();
-
-  std::vector<double> q_exact_solution(n_q_points);
-  std::vector<double> q_scalar_values(n_q_points);
-
-  auto &exact_solution = simulation_parameters.analytical_solution->alpha;
-  exact_solution.set_time(simulation_control->get_current_time());
-
-  double l2error = 0.;
-
-  for (const auto &cell : dof_handler.active_cell_iterators())
-    {
-      if (cell->is_locally_owned())
-        {
-          fe_values.reinit(cell);
-          fe_values.get_function_values(present_solution, q_scalar_values);
-
-          // Retrieve the effective "connectivity matrix" for this element
-          cell->get_dof_indices(local_dof_indices);
-
-          // Get the exact solution at all gauss points
-          exact_solution.value_list(fe_values.get_quadrature_points(),
-                                    q_exact_solution);
-
-          for (unsigned int q = 0; q < n_q_points; q++)
-            {
-              double sim   = q_scalar_values[q];
-              double exact = q_exact_solution[q];
-              l2error += (sim - exact) * (sim - exact) * fe_values.JxW(q);
-            }
-        }
-    }
-  l2error = Utilities::MPI::sum(l2error, mpi_communicator);
-  return l2error;
-}
 
 template <int dim>
 void
@@ -617,21 +517,22 @@ template <int dim>
 void
 FreeSurface<dim>::postprocess(bool first_iteration)
 {
+  // TODO see if necessary
   if (simulation_parameters.analytical_solution->calculate_error() == true &&
       !first_iteration)
     {
-      double alpha_error = calculate_L2_error();
+      //      double alpha_error = calculate_L2_error();
 
-      error_table.add_value("cells",
-                            this->triangulation->n_global_active_cells());
-      error_table.add_value("error_alpha", alpha_error);
+      //      error_table.add_value("cells",
+      //                            this->triangulation->n_global_active_cells());
+      //      error_table.add_value("error_alpha", alpha_error);
 
-      if (simulation_parameters.analytical_solution->verbosity ==
-          Parameters::Verbosity::verbose)
-        {
-          this->pcout << "L2 error alpha : " << alpha_error
-                      << std::endl;
-        }
+      //      if (simulation_parameters.analytical_solution->verbosity ==
+      //          Parameters::Verbosity::verbose)
+      //        {
+      //          this->pcout << "L2 error alpha : " << alpha_error <<
+      //          std::endl;
+      //        }
     }
 }
 
@@ -760,47 +661,49 @@ FreeSurface<dim>::setup_dofs()
     DoFTools::make_hanging_node_constraints(this->dof_handler,
                                             nonzero_constraints);
 
-    for (unsigned int i_bc = 0;
-         i_bc < this->simulation_parameters.boundary_conditions_fs.size;
-         ++i_bc)
-      {
-        // Dirichlet condition : imposed alpha at i_bc
-        if (this->simulation_parameters.boundary_conditions_fs.type[i_bc] ==
-            BoundaryConditions::BoundaryType::alpha)
-          {
-            VectorTools::interpolate_boundary_values(
-              this->dof_handler,
-              this->simulation_parameters.boundary_conditions_fs.id[i_bc],
-              dealii::Functions::ConstantFunction<dim>(
-                this->simulation_parameters.boundary_conditions_fs.value[i_bc]),
-              nonzero_constraints);
-          }
-      }
+    //    for (unsigned int i_bc = 0;
+    //         i_bc < this->simulation_parameters.boundary_conditions_fs.size;
+    //         ++i_bc)
+    //      {
+    //        // Dirichlet condition : imposed alpha at i_bc
+    //        if (this->simulation_parameters.boundary_conditions_fs.type[i_bc]
+    //        ==
+    //            BoundaryConditions::BoundaryType::alpha)
+    //          {
+    //            VectorTools::interpolate_boundary_values(
+    //              this->dof_handler,
+    //              this->simulation_parameters.boundary_conditions_fs.id[i_bc],
+    //              dealii::Functions::ConstantFunction<dim>(
+    //                this->simulation_parameters.boundary_conditions_fs.value[i_bc]),
+    //              nonzero_constraints);
+    //          }
+    //      }
   }
   nonzero_constraints.close();
 
   // Boundary conditions for Newton correction
-//  {
-//    zero_constraints.clear();
-//    DoFTools::make_hanging_node_constraints(this->dof_handler,
-//                                            zero_constraints);
+  {
+    zero_constraints.clear();
+    DoFTools::make_hanging_node_constraints(this->dof_handler,
+                                            zero_constraints);
 
-//    for (unsigned int i_bc = 0;
-//         i_bc < this->simulation_parameters.boundary_conditions_fs.size;
-//         ++i_bc)
-//      {
-//        if (this->simulation_parameters.boundary_conditions_fs.type[i_bc] ==
-//            BoundaryConditions::BoundaryType::alpha)
-//          {
-//            VectorTools::interpolate_boundary_values(
-//              this->dof_handler,
-//              this->simulation_parameters.boundary_conditions_fs.id[i_bc],
-//              Functions::ZeroFunction<dim>(),
-//              zero_constraints);
-//          }
-//      }
-//  }
-//  zero_constraints.close();
+    //    for (unsigned int i_bc = 0;
+    //         i_bc < this->simulation_parameters.boundary_conditions_fs.size;
+    //         ++i_bc)
+    //      {
+    //        if (this->simulation_parameters.boundary_conditions_fs.type[i_bc]
+    //        ==
+    //            BoundaryConditions::BoundaryType::alpha)
+    //          {
+    //            VectorTools::interpolate_boundary_values(
+    //              this->dof_handler,
+    //              this->simulation_parameters.boundary_conditions_fs.id[i_bc],
+    //              Functions::ZeroFunction<dim>(),
+    //              zero_constraints);
+    //          }
+    //      }
+  }
+  zero_constraints.close();
 
   // Sparse matrices initialization
   DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
@@ -826,10 +729,12 @@ template <int dim>
 void
 FreeSurface<dim>::set_initial_conditions()
 {
-  VectorTools::interpolate(*this->alpha_mapping,
-                           dof_handler,
-                           simulation_parameters.initial_condition->temperature, //TODO replace by alpha when initial conditions defined
-                           newton_update);
+  VectorTools::interpolate(
+    *this->alpha_mapping,
+    dof_handler,
+    simulation_parameters.initial_condition
+      ->temperature, // TODO replace by alpha when initial conditions defined
+    newton_update);
   nonzero_constraints.distribute(newton_update);
   present_solution = newton_update;
   finish_time_step();
@@ -838,7 +743,7 @@ FreeSurface<dim>::set_initial_conditions()
 template <int dim>
 void
 FreeSurface<dim>::solve_linear_system(const bool initial_step,
-                                       const bool /*renewed_matrix*/)
+                                      const bool /*renewed_matrix*/)
 {
   auto mpi_communicator = triangulation->get_communicator();
 
