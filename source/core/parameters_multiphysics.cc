@@ -41,7 +41,7 @@ Parameters::Multiphysics::parse_parameters(ParameterHandler &prm)
     fluid_dynamics = prm.get_bool("fluid dynamics");
     heat_transfer  = prm.get_bool("heat transfer");
     tracer         = prm.get_bool("tracer");
-    free_surface   = prm.get_bool("free_surface");
+    free_surface   = prm.get_bool("free surface");
   }
   prm.leave_subsection();
 }

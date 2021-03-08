@@ -254,7 +254,8 @@ HeatTransfer<dim>::assemble_system(
               // Store JxW in local variable for faster access
               const double JxW = fe_values_ht.JxW(q);
 
-              const auto velocity = velocity_values[q];
+              const auto velocity          = velocity_values[q];
+              const auto velocity_gradient = velocity_gradient_values[q];
 
 
               // Calculation of the magnitude of the velocity for the
@@ -333,9 +334,8 @@ HeatTransfer<dim>::assemble_system(
                                 }
                             }
 
-                          cell_matrix(i, j) +=
-                            tau * strong_jacobian *
-                            (grad_phi_T_i * velocity_values[q]) * JxW;
+                          cell_matrix(i, j) += tau * strong_jacobian *
+                                               (grad_phi_T_i * velocity) * JxW;
                         }
                     }
 
@@ -344,13 +344,12 @@ HeatTransfer<dim>::assemble_system(
                   cell_rhs(i) -=
                     (thermal_conductivity * grad_phi_T_i *
                        temperature_gradients[q] +
-                     density * specific_heat * phi_T_i * velocity_values[q] *
-                       temperature_gradients[q] -
+                     rho_cp * phi_T_i * velocity * temperature_gradients[q] -
                      source_term_values[q] * phi_T_i -
                      dynamic_viscosity * phi_T_i *
-                       scalar_product(velocity_gradient_values[q] +
-                                        transpose(velocity_gradient_values[q]),
-                                      transpose(velocity_gradient_values[q]))) *
+                       scalar_product(velocity_gradient +
+                                        transpose(velocity_gradient),
+                                      transpose(velocity_gradient))) *
                     JxW;
 
                   // Calculate the strong residual for GLS stabilization
