@@ -34,6 +34,7 @@ namespace BoundaryConditions
     slip,
     function,
     periodic,
+
     // for heat transfer
     temperature, // Dirichlet
     convection,  // Robin

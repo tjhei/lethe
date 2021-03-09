@@ -69,6 +69,7 @@ public:
     , solution_transfer_m2(dof_handler)
     , solution_transfer_m3(dof_handler)
   {
+    std::cout << "FREE SURFACE - entrée constructeur..." << std::endl;
     //#ifdef DEAL_II_WITH_SIMPLEX_SUPPORT
     //    if (simulation_parameters.mesh.simplex)
     //      {
@@ -81,14 +82,14 @@ public:
     //      }
     //    else
     //#endif
-    //      {
-    //        // Usual case, for quad/hex meshes
-    //        fe = std::make_shared<FE_Q<dim>>(
-    //          simulation_parameters.fem_parameters.tracer_order);
-    //        mapping = std::make_shared<MappingQ<dim>>(
-    //          fe->degree, simulation_parameters.fem_parameters.qmapping_all);
-    //        cell_quadrature = std::make_shared<QGauss<dim>>(fe->degree + 1);
-    //      }
+    {
+      // Usual case, for quad/hex meshes
+      fe      = std::make_shared<FE_Q<dim>>(1);
+      mapping = std::make_shared<MappingQ<dim>>(
+        fe->degree, simulation_parameters.fem_parameters.qmapping_all);
+      cell_quadrature = std::make_shared<QGauss<dim>>(fe->degree + 1);
+    }
+    std::cout << "...sortie constructeur" << std::endl;
   }
 
   /**
@@ -269,7 +270,7 @@ private:
   ConvergenceTable                    error_table;
 
   // Mapping and Quadrature
-  std::shared_ptr<Mapping<dim>>        alpha_mapping;
+  std::shared_ptr<Mapping<dim>>        mapping;
   std::shared_ptr<Quadrature<dim>>     cell_quadrature;
   std::shared_ptr<Quadrature<dim - 1>> face_quadrature;
   std::shared_ptr<Quadrature<dim>>     error_quadrature;
