@@ -15,11 +15,11 @@
 
  *
  * Implementation of free surface with a Volume of Fluid method.
- * Two fluid formulation. The phase indicator alpha is equal to 0
+ * Two fluid formulation. The phase indicator "phase" is equal to 0
  * in one fluid and 1 in the other. The free surface is located
- * where alpha is equal to 0.5.
+ * where "phase" is equal to 0.5.
  *
- * Author: Jeanne Joachim, Polytechnique Montreal, 2020
+ * Author: Jeanne Joachim, Polytechnique Montreal, 2021
  */
 
 #ifndef lethe_free_surface_h
