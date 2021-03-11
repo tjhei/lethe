@@ -31,6 +31,7 @@
 #include <deal.II/distributed/solution_transfer.h>
 #include <deal.II/distributed/tria_base.h>
 
+#include <deal.II/fe/fe_dgq.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_simplex_p.h>
 #include <deal.II/fe/mapping_fe.h>
@@ -42,7 +43,6 @@
 #include <core/simulation_control.h>
 #include <solvers/auxiliary_physics.h>
 #include <solvers/multiphysics_interface.h>
-
 
 template <int dim>
 class Tracer : public AuxiliaryPhysics<dim, TrilinosWrappers::MPI::Vector>
@@ -78,7 +78,7 @@ public:
 #endif
       {
         // Usual case, for quad/hex meshes
-        fe = std::make_shared<FE_Q<dim>>(
+        fe = std::make_shared<FE_DGQ<dim>>(
           simulation_parameters.fem_parameters.tracer_order);
         mapping = std::make_shared<MappingQ<dim>>(
           fe->degree, simulation_parameters.fem_parameters.qmapping_all);
@@ -258,6 +258,11 @@ private:
   void
   assemble_system(const Parameters::SimulationControl::TimeSteppingMethod
                     time_stepping_method);
+
+  template <bool assemble_matrix>
+  void
+  assemble_system_dg(const Parameters::SimulationControl::TimeSteppingMethod
+                       time_stepping_method);
 
   /**
    * @brief Calculate tracer statistics : Max, min, average and standard-deviation
