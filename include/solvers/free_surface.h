@@ -211,14 +211,15 @@ public:
 
   /**
    * @brief Getter methods to get the private attributes for the physic currently solved
+   * NB : dof_handler and present_solution are already passed to the
+   * multiphysics interface at the end of the setup_dofs method
+   * //TODO See if they are necessary
    */
-
   virtual const DoFHandler<dim> &
   get_dof_handler() override
   {
     return dof_handler;
-  };
-
+  }
   virtual TrilinosWrappers::MPI::Vector &
   get_evaluation_point() override
   {

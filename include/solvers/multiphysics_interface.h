@@ -345,6 +345,7 @@ public:
                            active_physics.end(),
                            physics_id) != active_physics.end()),
                 ExcInternalError());
+
     return physics_dof_handler[physics_id];
   }
 

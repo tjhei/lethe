@@ -706,6 +706,11 @@ Tracer<dim>::setup_dofs()
 
   this->pcout << "   Number of thermal degrees of freedom: "
               << dof_handler.n_dofs() << std::endl;
+
+  // Provide the tracer dof_handler and present solution pointers to the
+  // multiphysics interface
+  multiphysics->set_dof_handler(PhysicsID::tracer, &this->dof_handler);
+  multiphysics->set_solution(PhysicsID::tracer, &this->present_solution);
 }
 
 template <int dim>

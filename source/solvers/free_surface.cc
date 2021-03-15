@@ -87,10 +87,8 @@ FreeSurface<dim>::assemble_system(
     }
 
 
-  //  auto &source_term =
-  //  simulation_parameters.sourceTerm->heat_transfer_source;
-  //  source_term.set_time(simulation_control->get_current_time());
-
+  // Free surface FEValues initialization
+  // TODO clean up after full implementation
   FEValues<dim> fe_values_fs(*fe,
                              *this->cell_quadrature,
                              update_values | update_gradients |
@@ -104,8 +102,10 @@ FreeSurface<dim>::assemble_system(
   FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
   Vector<double>     cell_rhs(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-  const unsigned int     n_q_points = this->cell_quadrature->size();
-  std::vector<double>    source_term_values(n_q_points);
+  const unsigned int  n_q_points = this->cell_quadrature->size();
+  std::vector<double> source_term_values(n_q_points);
+
+  // Fluid FEValues information gathering
   const DoFHandler<dim> *dof_handler_fluid =
     multiphysics->get_dof_handler(PhysicsID::fluid_dynamics);
   FEValues<dim> fe_values_flow(dof_handler_fluid->get_fe(),
@@ -159,7 +159,7 @@ FreeSurface<dim>::assemble_system(
           h = pow(2. * dim * cell->measure() / M_PI, 1. / dim) /
               velocity_fem_degree;
 
-
+          // Gather flow values
           typename DoFHandler<dim>::active_cell_iterator velocity_cell(
             &(*triangulation), cell->level(), cell->index(), dof_handler_fluid);
 
@@ -184,7 +184,7 @@ FreeSurface<dim>::assemble_system(
                 velocity_gradient_values);
             }
 
-          // Gather present value
+          // Gather free surface present value
           fe_values_fs.get_function_values(evaluation_point,
                                            present_phase_values);
 
@@ -431,8 +431,6 @@ FreeSurface<dim>::percolate_time_vectors()
   solution_m3 = solution_m2;
   solution_m2 = solution_m1;
   solution_m1 = present_solution;
-  std::cout << "present_solution min" << present_solution.min() << std::endl;
-  std::cout << "present_solution max" << present_solution.max() << std::endl;
 }
 
 template <int dim>
@@ -650,6 +648,11 @@ FreeSurface<dim>::setup_dofs()
 
   this->pcout << "   Number of free surface degrees of freedom: "
               << dof_handler.n_dofs() << std::endl;
+
+  // Provide the free surface dof_handler and present solution pointers to the
+  // multiphysics interface
+  multiphysics->set_dof_handler(PhysicsID::free_surface, &this->dof_handler);
+  multiphysics->set_solution(PhysicsID::free_surface, &this->present_solution);
 }
 
 template <int dim>
