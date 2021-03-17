@@ -209,6 +209,25 @@ namespace Parameters
                         "0",
                         Patterns::Double(),
                         "Tracer diffusivity");
+      // TEMP for free_surface basic implementation
+      prm.declare_entry("density fluid 0",
+                        "1",
+                        Patterns::Double(),
+                        "Density for the fluid corresponding to Phase = 0");
+      prm.declare_entry("density fluid 1",
+                        "1",
+                        Patterns::Double(),
+                        "Density for the fluid corresponding to Phase = 1");
+      prm.declare_entry(
+        "kinematic viscosity fluid 0",
+        "1",
+        Patterns::Double(),
+        "Kinematic viscosity for the fluid corresponding to Phase = 0");
+      prm.declare_entry(
+        "kinematic viscosity fluid 1",
+        "1",
+        Patterns::Double(),
+        "Kinematic viscosity for the fluid corresponding to Phase = 1");
     }
     prm.leave_subsection();
   }
@@ -223,6 +242,12 @@ namespace Parameters
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
+
+      // TEMP for free_surface basic implementation
+      density_fluid0   = prm.get_double("density fluid 0");
+      density_fluid1   = prm.get_double("density fluid 1");
+      viscosity_fluid0 = prm.get_double("kinematic viscosity fluid 0");
+      viscosity_fluid1 = prm.get_double("kinematic viscosity fluid 1");
     }
     prm.leave_subsection();
   }

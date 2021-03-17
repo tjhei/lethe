@@ -196,7 +196,7 @@ Tracer<dim>::assemble_system(
           fe_values_tracer.get_function_laplacians(evaluation_point,
                                                    present_tracer_laplacians);
 
-          // Gather the previous time steps for heat transfer depending on
+          // Gather the previous time steps for tracer depending on
           // the number of stages of the time integration method
           if (time_stepping_method !=
               Parameters::SimulationControl::TimeSteppingMethod::steady)

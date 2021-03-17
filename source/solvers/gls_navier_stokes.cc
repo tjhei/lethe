@@ -846,7 +846,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
     system_matrix = 0;
   this->system_rhs = 0;
 
-  double viscosity = this->simulation_parameters.physical_properties.viscosity;
+  //  double viscosity =
+  //  this->simulation_parameters.physical_properties.viscosity;
   Function<dim> *l_forcing_function = this->forcing_function;
 
   FEValues<dim>                    fe_values(*this->mapping,
@@ -944,6 +945,13 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
   double h;
   auto & evaluation_point = this->evaluation_point;
 
+  // test
+  //  std::cout << "rho fluid 0 = "
+  //            <<
+  //            this->simulation_parameters.physical_properties.density_fluid0
+  //            << std::endl;
+  // fin test
+
   for (const auto &cell : this->dof_handler.active_cell_iterators())
     {
       if (cell->is_locally_owned())
@@ -1015,6 +1023,21 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           // Loop over the quadrature points
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
+              // Calculation of the equivalent density for the quadrature point
+              // phase=1 -> density=density1, and phase=0 -> density=density0
+              const double density_eq =
+                phase_values[q] * this->simulation_parameters
+                                    .physical_properties.density_fluid1 +
+                (1 - phase_values[q]) * this->simulation_parameters
+                                          .physical_properties.density_fluid0;
+              //              std::cout << "density eq quad pt = " << density_eq
+              //              << std::endl;
+              const double viscosity_eq =
+                phase_values[q] * this->simulation_parameters
+                                    .physical_properties.viscosity_fluid1 +
+                (1 - phase_values[q]) * this->simulation_parameters
+                                          .physical_properties.viscosity_fluid0;
+
               // Gather into local variables the relevant fields
               const Tensor<1, dim> velocity = present_velocity_values[q];
               const Tensor<2, dim> velocity_gradient =
@@ -1025,8 +1048,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               const Tensor<1, dim> p2_velocity = p2_velocity_values[q];
               const Tensor<1, dim> p3_velocity = p3_velocity_values[q];
               const double current_pressure    = present_pressure_values[q];
-
-
 
               // Calculation of the magnitude of the velocity for the
               // stabilization parameter
@@ -1043,10 +1064,10 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               const double tau =
                 is_steady(scheme) ?
                   1. / std::sqrt(std::pow(2. * u_mag / h, 2) +
-                                 9 * std::pow(4 * viscosity / (h * h), 2)) :
+                                 9 * std::pow(4 * viscosity_eq / (h * h), 2)) :
                   1. /
                     std::sqrt(std::pow(sdt, 2) + std::pow(2. * u_mag / h, 2) +
-                              9 * std::pow(4 * viscosity / (h * h), 2));
+                              9 * std::pow(4 * viscosity_eq / (h * h), 2));
 
               // Gather the shape functions, their gradient and their laplacian
               // for the velocity and the pressure
@@ -1076,8 +1097,9 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
               // Calculate the strong residual for GLS stabilization
               auto strong_residual =
-                velocity_gradient * velocity + present_pressure_gradients[q] -
-                viscosity * present_velocity_laplacians[q] - force;
+                velocity_gradient * velocity +
+                (present_pressure_gradients[q] / density_eq) -
+                viscosity_eq * present_velocity_laplacians[q] - force;
 
               if (velocity_source ==
                   Parameters::VelocitySource::VelocitySourceType::srf)
@@ -1166,7 +1188,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
                       auto strong_jac =
                         (velocity_gradient * phi_u_j + grad_phi_u_j * velocity +
-                         grad_phi_p_j - viscosity * laplacian_phi_u[j]);
+                         grad_phi_p_j - viscosity_eq * laplacian_phi_u[j]);
 
                       if (is_bdf(scheme))
                         strong_jac += phi_u_j * bdf_coefs[0];
@@ -1195,13 +1217,13 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                           local_matrix(i, j) +=
                             (
                               // Momentum terms
-                              viscosity *
+                              viscosity_eq *
                                 scalar_product(grad_phi_u_j, grad_phi_u_i) +
                               velocity_gradient * phi_u_j * phi_u_i +
                               grad_phi_u_j * velocity * phi_u_i -
-                              div_phi_u[i] * phi_p_j +
+                              div_phi_u[i] * (phi_p_j / density_eq) +
                               // Continuity
-                              phi_p_i * div_phi_u[j]) *
+                              (phi_p_i / density_eq) * div_phi_u[j]) *
                             JxW;
 
                           // Mass matrix
@@ -1215,7 +1237,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
                           // PSPG GLS term
                           local_matrix(i, j) +=
-                            tau * (strong_jac * grad_phi_p_i) * JxW;
+                            tau * (strong_jac * grad_phi_p_i / density_eq) *
+                            JxW;
 
                           if (velocity_source == Parameters::VelocitySource::
                                                    VelocitySourceType::srf)
@@ -1282,12 +1305,13 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   local_rhs(i) +=
                     (
                       // Momentum
-                      -viscosity *
+                      -viscosity_eq *
                         scalar_product(velocity_gradient, grad_phi_u_i) -
                       velocity_gradient * velocity * phi_u_i +
-                      current_pressure * div_phi_u_i + force * phi_u_i -
+                      (current_pressure / density_eq) * div_phi_u_i +
+                      force * phi_u_i -
                       // Continuity
-                      present_velocity_divergence * phi_p_i) *
+                      present_velocity_divergence * (phi_p_i / density_eq)) *
                     JxW;
 
                   // Residual associated with BDF schemes
@@ -1370,7 +1394,9 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                     }
 
                   // PSPG GLS term
-                  local_rhs(i) += -tau * (strong_residual * grad_phi_p_i) * JxW;
+                  local_rhs(i) +=
+                    -tau * (strong_residual * (grad_phi_p_i / density_eq)) *
+                    JxW;
 
                   // SUPG GLS term
                   if (SUPG)

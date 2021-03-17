@@ -160,6 +160,12 @@ namespace Parameters
     // tracer diffusivity) in L^2/s
     double tracer_diffusivity;
 
+    // TEMP test for free_surface
+    double density_fluid0;
+    double density_fluid1;
+    double viscosity_fluid0;
+    double viscosity_fluid1;
+
     static void
     declare_parameters(ParameterHandler &prm);
     void
