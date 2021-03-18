@@ -188,7 +188,6 @@ FreeSurface<dim>::assemble_system(
           fe_values_fs.get_function_values(evaluation_point,
                                            present_phase_values);
 
-
           // Gather present laplacian
           fe_values_fs.get_function_laplacians(evaluation_point,
                                                present_phase_laplacians);
@@ -230,8 +229,8 @@ FreeSurface<dim>::assemble_system(
               // Store JxW in local variable for faster access
               const double JxW = fe_values_fs.JxW(q);
 
-              const auto velocity = velocity_values[q];
-              //              const auto phase    = present_phase_values[q];
+              const auto velocity      = velocity_values[q];
+              const auto present_phase = present_phase_values[q];
 
               // Calculation of the magnitude of the velocity for the
               // stabilization parameter and the compression term for the phase
@@ -328,43 +327,40 @@ FreeSurface<dim>::assemble_system(
                       time_stepping_method == Parameters::SimulationControl::
                                                 TimeSteppingMethod::steady_bdf)
                     {
-                      cell_rhs(i) -= (bdf_coefs[0] * present_phase_values[q] +
+                      cell_rhs(i) -= (bdf_coefs[0] * present_phase +
                                       bdf_coefs[1] * p1_phase_values[q]) *
                                      phi_phase_i * JxW;
 
-                      strong_residual +=
-                        bdf_coefs[0] * present_phase_values[q] +
-                        bdf_coefs[1] * p1_phase_values[q];
+                      strong_residual += bdf_coefs[0] * present_phase +
+                                         bdf_coefs[1] * p1_phase_values[q];
                     }
 
                   if (time_stepping_method ==
                       Parameters::SimulationControl::TimeSteppingMethod::bdf2)
                     {
-                      cell_rhs(i) -= (bdf_coefs[0] * present_phase_values[q] +
+                      cell_rhs(i) -= (bdf_coefs[0] * present_phase +
                                       bdf_coefs[1] * p1_phase_values[q] +
                                       bdf_coefs[2] * p2_phase_values[q]) *
                                      phi_phase_i * JxW;
 
-                      strong_residual +=
-                        bdf_coefs[0] * present_phase_values[q] +
-                        bdf_coefs[1] * p1_phase_values[q] +
-                        bdf_coefs[2] * p2_phase_values[q];
+                      strong_residual += bdf_coefs[0] * present_phase +
+                                         bdf_coefs[1] * p1_phase_values[q] +
+                                         bdf_coefs[2] * p2_phase_values[q];
                     }
 
                   if (time_stepping_method ==
                       Parameters::SimulationControl::TimeSteppingMethod::bdf3)
                     {
-                      cell_rhs(i) -= (bdf_coefs[0] * present_phase_values[q] +
+                      cell_rhs(i) -= (bdf_coefs[0] * present_phase +
                                       bdf_coefs[1] * p1_phase_values[q] +
                                       bdf_coefs[2] * p2_phase_values[q] +
                                       bdf_coefs[3] * p3_phase_values[q]) *
                                      phi_phase_i * JxW;
 
-                      strong_residual +=
-                        (bdf_coefs[0] * present_phase_values[q] +
-                         bdf_coefs[1] * p1_phase_values[q] +
-                         bdf_coefs[2] * p2_phase_values[q] +
-                         bdf_coefs[3] * p3_phase_values[q]);
+                      strong_residual += (bdf_coefs[0] * present_phase +
+                                          bdf_coefs[1] * p1_phase_values[q] +
+                                          bdf_coefs[2] * p2_phase_values[q] +
+                                          bdf_coefs[3] * p3_phase_values[q]);
                     }
 
 
@@ -437,6 +433,22 @@ template <int dim>
 void
 FreeSurface<dim>::finish_time_step()
 {
+  // Limit solution (phase) value between 0 and 1 (patch)
+  // TODO see if necessary after compression term is added
+  for (TrilinosWrappers::MPI::Vector::size_type i = 0;
+       i < present_solution.size();
+       ++i)
+    {
+      if (present_solution(i) > 1.)
+        {
+          present_solution(i) = 1.;
+        }
+      else if (present_solution(i) < 0.)
+        {
+          present_solution(i) = 0.;
+        }
+    }
+  // fin test
   percolate_time_vectors();
 }
 
@@ -585,24 +597,6 @@ FreeSurface<dim>::setup_dofs()
     nonzero_constraints.clear();
     DoFTools::make_hanging_node_constraints(this->dof_handler,
                                             nonzero_constraints);
-
-    //    for (unsigned int i_bc = 0;
-    //         i_bc < this->simulation_parameters.boundary_conditions_fs.size;
-    //         ++i_bc)
-    //      {
-    //        // Dirichlet condition : imposed phase at i_bc
-    //        if (this->simulation_parameters.boundary_conditions_fs.type[i_bc]
-    //        ==
-    //            BoundaryConditions::BoundaryType::phase)
-    //          {
-    //            VectorTools::interpolate_boundary_values(
-    //              this->dof_handler,
-    //              this->simulation_parameters.boundary_conditions_fs.id[i_bc],
-    //              dealii::Functions::ConstantFunction<dim>(
-    //                this->simulation_parameters.boundary_conditions_fs.value[i_bc]),
-    //              nonzero_constraints);
-    //          }
-    //      }
   }
   nonzero_constraints.close();
 
@@ -611,22 +605,6 @@ FreeSurface<dim>::setup_dofs()
     zero_constraints.clear();
     DoFTools::make_hanging_node_constraints(this->dof_handler,
                                             zero_constraints);
-
-    //    for (unsigned int i_bc = 0;
-    //         i_bc < this->simulation_parameters.boundary_conditions_fs.size;
-    //         ++i_bc)
-    //      {
-    //        if (this->simulation_parameters.boundary_conditions_fs.type[i_bc]
-    //        ==
-    //            BoundaryConditions::BoundaryType::phase)
-    //          {
-    //            VectorTools::interpolate_boundary_values(
-    //              this->dof_handler,
-    //              this->simulation_parameters.boundary_conditions_fs.id[i_bc],
-    //              Functions::ZeroFunction<dim>(),
-    //              zero_constraints);
-    //          }
-    //      }
   }
   zero_constraints.close();
 
@@ -666,6 +644,7 @@ FreeSurface<dim>::set_initial_conditions()
     newton_update);
   nonzero_constraints.distribute(newton_update);
   present_solution = newton_update;
+
   finish_time_step();
 }
 
@@ -732,6 +711,24 @@ FreeSurface<dim>::solve_linear_system(const bool initial_step,
                   << " steps " << std::endl;
     }
 
+  // Limit solution (phase) value between 0 and 1 (patch)
+  // TODO see if necessary after compression term is added
+  for (TrilinosWrappers::MPI::Vector::size_type i = 0;
+       i < completely_distributed_solution.size();
+       ++i)
+    {
+      if (completely_distributed_solution(i) > 1.)
+        {
+          completely_distributed_solution(i) = 1.;
+        }
+      else if (completely_distributed_solution(i) < 0.)
+        {
+          completely_distributed_solution(i) = 0.;
+        }
+    }
+  // fin test
+
+  // Update constraints and newton vectors
   constraints_used.distribute(completely_distributed_solution);
   newton_update = completely_distributed_solution;
 }
