@@ -828,13 +828,13 @@ template <bool                                              assemble_matrix,
 void
 GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 {
-  std::cout << "Je suis dans assembleGLSFreeSurface" << std::endl;
+  //  std::cout << "Je suis dans assembleGLSFreeSurface" << std::endl;
 
   // FreeSurface FEValues information gathering
-  std::cout << "FreeSurface FEValues information gathering..." << std::endl;
+  //  std::cout << "FreeSurface FEValues information gathering..." << std::endl;
   const DoFHandler<dim> *dof_handler_fs =
     this->multiphysics->get_dof_handler(PhysicsID::free_surface);
-  std::cout << "...get_dof_handler..." << std::endl;
+  //  std::cout << "...get_dof_handler..." << std::endl;
 
   FEValues<dim> fe_values_fs(dof_handler_fs->get_fe(),
                              *this->cell_quadrature,
@@ -1099,7 +1099,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               auto strong_residual =
                 velocity_gradient * velocity +
                 (present_pressure_gradients[q] / density_eq) -
-                viscosity_eq * present_velocity_laplacians[q] - force;
+                viscosity_eq * present_velocity_laplacians[q] -
+                force * density_eq;
 
               if (velocity_source ==
                   Parameters::VelocitySource::VelocitySourceType::srf)
@@ -1309,7 +1310,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                         scalar_product(velocity_gradient, grad_phi_u_i) -
                       velocity_gradient * velocity * phi_u_i +
                       (current_pressure / density_eq) * div_phi_u_i +
-                      force * phi_u_i -
+                      force * density_eq * phi_u_i -
                       // Continuity
                       present_velocity_divergence * (phi_p_i / density_eq)) *
                     JxW;

@@ -435,10 +435,18 @@ FreeSurface<dim>::finish_time_step()
 {
   // Limit solution (phase) value between 0 and 1 (patch)
   // TODO see if necessary after compression term is added
+
+  //  const double max = present_solution.max();
+  //  const double min = present_solution.min();
+  //  std::cout << "MAX = " << max << ", fabs(min) = " << fabs(min) <<
+  //  std::endl;
   for (TrilinosWrappers::MPI::Vector::size_type i = 0;
        i < present_solution.size();
        ++i)
     {
+      // ne fonctionne pas, voir pourquoi
+      //      present_solution(i) = (present_solution(i) + fabs(min)) / max;
+      //
       if (present_solution(i) > 1.)
         {
           present_solution(i) = 1.;
@@ -713,19 +721,19 @@ FreeSurface<dim>::solve_linear_system(const bool initial_step,
 
   // Limit solution (phase) value between 0 and 1 (patch)
   // TODO see if necessary after compression term is added
-  for (TrilinosWrappers::MPI::Vector::size_type i = 0;
-       i < completely_distributed_solution.size();
-       ++i)
-    {
-      if (completely_distributed_solution(i) > 1.)
-        {
-          completely_distributed_solution(i) = 1.;
-        }
-      else if (completely_distributed_solution(i) < 0.)
-        {
-          completely_distributed_solution(i) = 0.;
-        }
-    }
+  //  const double max = completely_distributed_solution.max();
+  //  const double min = completely_distributed_solution.min();
+  //  for (TrilinosWrappers::MPI::Vector::size_type i = 0;
+  //       i < completely_distributed_solution.size();
+  //       ++i)
+  //    {
+  //      //        if (completely_distributed_solution(i) < 0. ||
+  //      //        completely_distributed_solution(i) > 1.)
+  //      //          {
+  //      completely_distributed_solution(i) =
+  //        (completely_distributed_solution(i) + fabs(min)) / max;
+  //      //          }
+  //    }
   // fin test
 
   // Update constraints and newton vectors
