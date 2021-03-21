@@ -162,7 +162,7 @@ private:
   std::shared_ptr<TrilinosWrappers::PreconditionILU> ilu_preconditioner;
   std::shared_ptr<TrilinosWrappers::PreconditionAMG> amg_preconditioner;
 
-  const bool   SUPG        = true;
+  const bool   SUPG        = false;
   const double GLS_u_scale = 1;
 };
 
