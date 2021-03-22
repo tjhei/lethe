@@ -1748,9 +1748,17 @@ GLSNavierStokesSolver<dim>::assemble_rhs(
     {
       if (time_stepping_method ==
           Parameters::SimulationControl::TimeSteppingMethod::bdf1)
-        assembleGLS<false,
-                    Parameters::SimulationControl::TimeSteppingMethod::bdf1,
-                    Parameters::VelocitySource::VelocitySourceType::none>();
+        {
+          if (this->simulation_parameters.multiphysics.free_surface)
+            assembleGLSFreeSurface<
+              false,
+              Parameters::SimulationControl::TimeSteppingMethod::bdf1,
+              Parameters::VelocitySource::VelocitySourceType::none>();
+          else
+            assembleGLS<false,
+                        Parameters::SimulationControl::TimeSteppingMethod::bdf1,
+                        Parameters::VelocitySource::VelocitySourceType::none>();
+        }
       else if (time_stepping_method ==
                Parameters::SimulationControl::TimeSteppingMethod::bdf2)
         assembleGLS<false,
