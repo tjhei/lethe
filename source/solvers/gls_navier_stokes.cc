@@ -1180,7 +1180,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                   sdirk_coefs[2][3] * p3_velocity);
                 }
 
-              strong_residual = strong_residual * 0;
               // Matrix assembly
               if (assemble_matrix)
                 {
@@ -1215,8 +1214,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                             strong_jac +=
                               2 * cross_product_3d(omega_vector, phi_u_j);
                         }
-
-                      strong_jac = 0;
 
                       for (unsigned int i = 0; i < dofs_per_cell; ++i)
                         {
