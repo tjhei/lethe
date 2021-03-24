@@ -939,6 +939,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
   // Phase values for FreeSurface
   const FEValuesExtractors::Scalar phase(0); // ou phase(dim)?
   std::vector<double>              phase_values(n_q_points);
+  std::vector<double>              phase_values_m1(n_q_points);
   std::vector<Tensor<1, dim>>      phase_gradient_values(n_q_points);
 
   // Element size
@@ -980,6 +981,9 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           fe_values_fs[phase].get_function_values(
             *this->multiphysics->get_solution(PhysicsID::free_surface),
             phase_values);
+          fe_values_fs[phase].get_function_values(
+            *this->multiphysics->get_solution_m1(PhysicsID::free_surface),
+            phase_values_m1);
           fe_values_fs[phase].get_function_gradients(
             *this->multiphysics->get_solution(PhysicsID::free_surface),
             phase_gradient_values);

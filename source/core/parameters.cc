@@ -219,15 +219,15 @@ namespace Parameters
                         Patterns::Double(),
                         "Density for the fluid corresponding to Phase = 1");
       prm.declare_entry(
-        "kinematic viscosity fluid 0",
+        "dynamic viscosity fluid 0",
         "1",
         Patterns::Double(),
-        "Kinematic viscosity for the fluid corresponding to Phase = 0");
+        "Dynamic viscosity for the fluid corresponding to Phase = 0");
       prm.declare_entry(
-        "kinematic viscosity fluid 1",
+        "dynamic viscosity fluid 1",
         "1",
         Patterns::Double(),
-        "Kinematic viscosity for the fluid corresponding to Phase = 1");
+        "Dynamic viscosity for the fluid corresponding to Phase = 1");
     }
     prm.leave_subsection();
   }
@@ -246,8 +246,8 @@ namespace Parameters
       // TEMP for free_surface basic implementation
       density_fluid0   = prm.get_double("density fluid 0");
       density_fluid1   = prm.get_double("density fluid 1");
-      viscosity_fluid0 = prm.get_double("kinematic viscosity fluid 0");
-      viscosity_fluid1 = prm.get_double("kinematic viscosity fluid 1");
+      viscosity_fluid0 = prm.get_double("dynamic viscosity fluid 0");
+      viscosity_fluid1 = prm.get_double("dynamic viscosity fluid 1");
     }
     prm.leave_subsection();
   }

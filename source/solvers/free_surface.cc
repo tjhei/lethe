@@ -635,10 +635,11 @@ FreeSurface<dim>::setup_dofs()
   this->pcout << "   Number of free surface degrees of freedom: "
               << dof_handler.n_dofs() << std::endl;
 
-  // Provide the free surface dof_handler and present solution pointers to the
+  // Provide the free surface dof_handler and solution pointers to the
   // multiphysics interface
   multiphysics->set_dof_handler(PhysicsID::free_surface, &this->dof_handler);
   multiphysics->set_solution(PhysicsID::free_surface, &this->present_solution);
+  multiphysics->set_solution_m1(PhysicsID::free_surface, &this->solution_m1);
 }
 
 template <int dim>
