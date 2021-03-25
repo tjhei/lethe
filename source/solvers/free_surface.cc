@@ -263,8 +263,6 @@ FreeSurface<dim>::assemble_system(
                   laplacian_phi_phase[k] = trace(hess_phi_phase[k]);
                 }
 
-
-
               for (const unsigned int i : fe_values_fs.dof_indices())
                 {
                   const auto phi_phase_i      = phi_phase[i];
@@ -639,7 +637,9 @@ FreeSurface<dim>::setup_dofs()
   // multiphysics interface
   multiphysics->set_dof_handler(PhysicsID::free_surface, &this->dof_handler);
   multiphysics->set_solution(PhysicsID::free_surface, &this->present_solution);
-  multiphysics->set_solution_m1(PhysicsID::free_surface, &this->solution_m1);
+  // Provide pointer to solution_m2 to get solution_m1, because of
+  // percolate_time_vector
+  multiphysics->set_solution_m1(PhysicsID::free_surface, &this->solution_m2);
 }
 
 template <int dim>

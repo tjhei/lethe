@@ -1034,9 +1034,22 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                     .physical_properties.density_fluid1 +
                 (1 - phase_values[q]) * this->simulation_parameters
                                           .physical_properties.density_fluid0;
-
-              // std::cout << "density eq quad pt = " << density_eq <<
-              // std::endl;
+              double density_eq_m1 =
+                phase_values_m1[q] * this->simulation_parameters
+                                       .physical_properties.density_fluid1 +
+                (1 - phase_values_m1[q]) *
+                  this->simulation_parameters.physical_properties
+                    .density_fluid0;
+              //              // test
+              //              if (phase_values[q] != phase_values_m1[q])
+              //                {
+              //                  std::cout << "phase_values = " <<
+              //                  phase_values[q] << std::endl
+              //                            << "phase_values_m1 = " <<
+              //                            phase_values_m1[q]
+              //                            << std::endl;
+              //                }
+              //              // fin test
               const double viscosity_eq =
                 phase_values[q] * this->simulation_parameters
                                     .physical_properties.viscosity_fluid1 +
@@ -1145,8 +1158,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   scheme == Parameters::SimulationControl::TimeSteppingMethod::
                               steady_bdf)
                 strong_residual +=
-                  density_eq * (bdf_coefs[0] * velocity +
-                                bdf_coefs[1] * p1_velocity_values[q]);
+                  density_eq * bdf_coefs[0] * velocity +
+                  density_eq_m1 * bdf_coefs[1] * p1_velocity_values[q];
 
               if (scheme ==
                   Parameters::SimulationControl::TimeSteppingMethod::bdf2)
@@ -1335,8 +1348,10 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                   TimeSteppingMethod::bdf1 ||
                       scheme == Parameters::SimulationControl::
                                   TimeSteppingMethod::steady_bdf)
-                    local_rhs(i) -= density_eq * bdf_coefs[0] *
-                                    (velocity - p1_velocity) * phi_u_i * JxW;
+                    local_rhs(i) -=
+                      (density_eq * bdf_coefs[0] * velocity +
+                       density_eq_m1 * bdf_coefs[1] * p1_velocity) *
+                      phi_u_i * JxW;
 
                   if (scheme ==
                       Parameters::SimulationControl::TimeSteppingMethod::bdf2)
