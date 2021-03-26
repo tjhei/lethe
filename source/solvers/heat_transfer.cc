@@ -886,7 +886,8 @@ HeatTransfer<dim>::solve_linear_system(const bool initial_step,
   if (this->simulation_parameters.linear_solver.verbosity !=
       Parameters::Verbosity::quiet)
     {
-      this->pcout << "  -Tolerance of iterative solver is : "
+      this->pcout << "  Heat Transfer : " << std::endl
+                  << "  -Tolerance of iterative solver is : "
                   << linear_solver_tolerance << std::endl;
     }
 
@@ -924,7 +925,8 @@ HeatTransfer<dim>::solve_linear_system(const bool initial_step,
   if (simulation_parameters.linear_solver.verbosity !=
       Parameters::Verbosity::quiet)
     {
-      this->pcout << "  -Iterative solver took : " << solver_control.last_step()
+      this->pcout << "  Heat Transfer : " << std::endl
+                  << "  -Iterative solver took : " << solver_control.last_step()
                   << " steps " << std::endl;
     }
 

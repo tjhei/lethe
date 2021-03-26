@@ -431,30 +431,6 @@ template <int dim>
 void
 FreeSurface<dim>::finish_time_step()
 {
-  // Limit solution (phase) value between 0 and 1 (patch)
-  // TODO see if necessary after compression term is added
-
-  //  const double max = present_solution.max();
-  //  const double min = present_solution.min();
-  //  std::cout << "MAX = " << max << ", fabs(min) = " << fabs(min) <<
-  //  std::endl;
-  for (TrilinosWrappers::MPI::Vector::size_type i = 0;
-       i < present_solution.size();
-       ++i)
-    {
-      // ne fonctionne pas, voir pourquoi
-      //      present_solution(i) = (present_solution(i) + fabs(min)) / max;
-      //
-      if (present_solution(i) > 1.)
-        {
-          present_solution(i) = 1.;
-        }
-      else if (present_solution(i) < 0.)
-        {
-          present_solution(i) = 0.;
-        }
-    }
-  // fin test
   percolate_time_vectors();
 }
 
@@ -637,8 +613,9 @@ FreeSurface<dim>::setup_dofs()
   // multiphysics interface
   multiphysics->set_dof_handler(PhysicsID::free_surface, &this->dof_handler);
   multiphysics->set_solution(PhysicsID::free_surface, &this->present_solution);
-  // Provide pointer to solution_m2 to get solution_m1, because of
-  // percolate_time_vector
+  // the fluid at present iteration is solved before the free surface, and after
+  // percolate is called for the previous iteration, so at the time the getter
+  // is called solution_m2 = solution_m1
   multiphysics->set_solution_m1(PhysicsID::free_surface, &this->solution_m2);
 }
 
@@ -678,7 +655,8 @@ FreeSurface<dim>::solve_linear_system(const bool initial_step,
   if (this->simulation_parameters.linear_solver.verbosity !=
       Parameters::Verbosity::quiet)
     {
-      this->pcout << "  -Tolerance of iterative solver is : "
+      this->pcout << "  Free Surface : " << std::endl
+                  << "  -Tolerance of iterative solver is : "
                   << linear_solver_tolerance << std::endl;
     }
 
@@ -716,26 +694,10 @@ FreeSurface<dim>::solve_linear_system(const bool initial_step,
   if (simulation_parameters.linear_solver.verbosity !=
       Parameters::Verbosity::quiet)
     {
-      this->pcout << "  -Iterative solver took : " << solver_control.last_step()
+      this->pcout << "  Free Surface : " << std::endl
+                  << "  -Iterative solver took : " << solver_control.last_step()
                   << " steps " << std::endl;
     }
-
-  // Limit solution (phase) value between 0 and 1 (patch)
-  // TODO see if necessary after compression term is added
-  //  const double max = completely_distributed_solution.max();
-  //  const double min = completely_distributed_solution.min();
-  //  for (TrilinosWrappers::MPI::Vector::size_type i = 0;
-  //       i < completely_distributed_solution.size();
-  //       ++i)
-  //    {
-  //      //        if (completely_distributed_solution(i) < 0. ||
-  //      //        completely_distributed_solution(i) > 1.)
-  //      //          {
-  //      completely_distributed_solution(i) =
-  //        (completely_distributed_solution(i) + fabs(min)) / max;
-  //      //          }
-  //    }
-  // fin test
 
   // Update constraints and newton vectors
   constraints_used.distribute(completely_distributed_solution);

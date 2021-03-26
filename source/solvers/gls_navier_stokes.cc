@@ -978,15 +978,15 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
           fe_values_fs.reinit(phase_cell);
           // //see if statement is_block necessary
-          fe_values_fs[phase].get_function_values(
-            *this->multiphysics->get_solution(PhysicsID::free_surface),
-            phase_values);
-          fe_values_fs[phase].get_function_values(
-            *this->multiphysics->get_solution_m1(PhysicsID::free_surface),
-            phase_values_m1);
-          fe_values_fs[phase].get_function_gradients(
-            *this->multiphysics->get_solution(PhysicsID::free_surface),
-            phase_gradient_values);
+          fe_values_fs.get_function_values(*this->multiphysics->get_solution(
+                                             PhysicsID::free_surface),
+                                           phase_values);
+          fe_values_fs.get_function_values(*this->multiphysics->get_solution_m1(
+                                             PhysicsID::free_surface),
+                                           phase_values_m1);
+          fe_values_fs.get_function_gradients(*this->multiphysics->get_solution(
+                                                PhysicsID::free_surface),
+                                              phase_gradient_values);
 
           // Gather velocity (values, gradient and laplacian)
           fe_values[velocities].get_function_values(evaluation_point,
@@ -1023,7 +1023,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           if (time_stepping_method_has_three_stages(scheme))
             fe_values[velocities].get_function_values(this->solution_m3,
                                                       p3_velocity_values);
-
           // Loop over the quadrature points
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
@@ -1040,21 +1039,55 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                 (1 - phase_values_m1[q]) *
                   this->simulation_parameters.physical_properties
                     .density_fluid0;
-              //              // test
-              //              if (phase_values[q] != phase_values_m1[q])
-              //                {
-              //                  std::cout << "phase_values = " <<
-              //                  phase_values[q] << std::endl
-              //                            << "phase_values_m1 = " <<
-              //                            phase_values_m1[q]
-              //                            << std::endl;
-              //                }
-              //              // fin test
-              const double viscosity_eq =
+
+              double viscosity_eq =
                 phase_values[q] * this->simulation_parameters
                                     .physical_properties.viscosity_fluid1 +
                 (1 - phase_values[q]) * this->simulation_parameters
                                           .physical_properties.viscosity_fluid0;
+
+              // Limit parameters value (patch)
+              // TODO see if necessary after compression term is added
+              const double density_min = std::min(
+                this->simulation_parameters.physical_properties.density_fluid0,
+                this->simulation_parameters.physical_properties.density_fluid1);
+              const double density_max = std::max(
+                this->simulation_parameters.physical_properties.density_fluid0,
+                this->simulation_parameters.physical_properties.density_fluid1);
+              const double viscosity_min =
+                std::min(this->simulation_parameters.physical_properties
+                           .viscosity_fluid0,
+                         this->simulation_parameters.physical_properties
+                           .viscosity_fluid1);
+              const double viscosity_max =
+                std::max(this->simulation_parameters.physical_properties
+                           .viscosity_fluid0,
+                         this->simulation_parameters.physical_properties
+                           .viscosity_fluid1);
+              if (density_eq < density_min)
+                {
+                  density_eq = density_min;
+                }
+              if (density_eq > density_max)
+                {
+                  density_eq = density_max;
+                }
+              if (density_eq_m1 < density_min)
+                {
+                  density_eq_m1 = density_min;
+                }
+              if (density_eq_m1 > density_max)
+                {
+                  density_eq_m1 = density_max;
+                }
+              if (viscosity_eq < viscosity_min)
+                {
+                  viscosity_eq = viscosity_min;
+                }
+              if (viscosity_eq > viscosity_max)
+                {
+                  viscosity_eq = viscosity_max;
+                }
 
               // Gather into local variables the relevant fields
               const Tensor<1, dim> velocity = present_velocity_values[q];
@@ -1161,42 +1194,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   density_eq * bdf_coefs[0] * velocity +
                   density_eq_m1 * bdf_coefs[1] * p1_velocity_values[q];
 
-              if (scheme ==
-                  Parameters::SimulationControl::TimeSteppingMethod::bdf2)
-                strong_residual += density_eq * (bdf_coefs[0] * velocity +
-                                                 bdf_coefs[1] * p1_velocity +
-                                                 bdf_coefs[2] * p2_velocity);
-
-              if (scheme ==
-                  Parameters::SimulationControl::TimeSteppingMethod::bdf3)
-                strong_residual +=
-                  density_eq *
-                  (bdf_coefs[0] * velocity + bdf_coefs[1] * p1_velocity +
-                   bdf_coefs[2] * p2_velocity + bdf_coefs[3] * p3_velocity);
-
-
-              if (is_sdirk_step1(scheme))
-                strong_residual +=
-                  density_eq * (sdirk_coefs[0][0] * velocity +
-                                sdirk_coefs[0][1] * p1_velocity);
-
-              if (is_sdirk_step2(scheme))
-                {
-                  strong_residual +=
-                    density_eq * (sdirk_coefs[1][0] * velocity +
-                                  sdirk_coefs[1][1] * p1_velocity +
-                                  sdirk_coefs[1][2] * p2_velocity);
-                }
-
-              if (is_sdirk_step3(scheme))
-                {
-                  strong_residual +=
-                    density_eq * (sdirk_coefs[2][0] * velocity +
-                                  sdirk_coefs[2][1] * p1_velocity +
-                                  sdirk_coefs[2][2] * p2_velocity +
-                                  sdirk_coefs[2][3] * p3_velocity);
-                }
-
               // Matrix assembly
               if (assemble_matrix)
                 {
@@ -1209,8 +1206,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                       const auto phi_p_j      = phi_p[j];
                       const auto grad_phi_p_j = grad_phi_p[j];
 
-
-
                       auto strong_jac =
                         (density_eq * velocity_gradient * phi_u_j +
                          density_eq * grad_phi_u_j * velocity + grad_phi_p_j -
@@ -1218,8 +1213,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
                       if (is_bdf(scheme))
                         strong_jac += density_eq * phi_u_j * bdf_coefs[0];
-                      if (is_sdirk(scheme))
-                        strong_jac += density_eq * phi_u_j * sdirk_coefs[0][0];
 
                       if (velocity_source ==
                           Parameters::VelocitySource::VelocitySourceType::srf)
@@ -1257,11 +1250,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                           if (is_bdf(scheme))
                             local_matrix(i, j) += density_eq * phi_u_j *
                                                   phi_u_i * bdf_coefs[0] * JxW;
-
-                          if (is_sdirk(scheme))
-                            local_matrix(i, j) += density_eq * phi_u_j *
-                                                  phi_u_i * sdirk_coefs[0][0] *
-                                                  JxW;
 
                           // PSPG GLS term
                           local_matrix(i, j) +=
@@ -1349,56 +1337,10 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                       scheme == Parameters::SimulationControl::
                                   TimeSteppingMethod::steady_bdf)
                     local_rhs(i) -=
-                      (density_eq * bdf_coefs[0] * velocity +
-                       density_eq_m1 * bdf_coefs[1] * p1_velocity) *
+                      (density_eq * bdf_coefs[0] * velocity -
+                       density_eq_m1 * bdf_coefs[0] * p1_velocity) *
                       phi_u_i * JxW;
 
-                  if (scheme ==
-                      Parameters::SimulationControl::TimeSteppingMethod::bdf2)
-                    local_rhs(i) -= density_eq *
-                                    (bdf_coefs[0] * (velocity * phi_u_i) +
-                                     bdf_coefs[1] * (p1_velocity * phi_u_i) +
-                                     bdf_coefs[2] * (p2_velocity * phi_u_i)) *
-                                    JxW;
-
-                  if (scheme ==
-                      Parameters::SimulationControl::TimeSteppingMethod::bdf3)
-                    local_rhs(i) -= density_eq *
-                                    (bdf_coefs[0] * (velocity * phi_u_i) +
-                                     bdf_coefs[1] * (p1_velocity * phi_u_i) +
-                                     bdf_coefs[2] * (p2_velocity * phi_u_i) +
-                                     bdf_coefs[3] * (p3_velocity * phi_u_i)) *
-                                    JxW;
-
-                  // Residuals associated with SDIRK schemes
-                  if (is_sdirk_step1(scheme))
-                    local_rhs(i) -=
-                      density_eq *
-                      (sdirk_coefs[0][0] * (velocity * phi_u_i) +
-                       sdirk_coefs[0][1] * (p1_velocity * phi_u_i)) *
-                      JxW;
-
-                  if (is_sdirk_step2(scheme))
-                    {
-                      local_rhs(i) -=
-                        density_eq *
-                        (sdirk_coefs[1][0] * (velocity * phi_u_i) +
-                         sdirk_coefs[1][1] * (p1_velocity * phi_u_i) +
-                         sdirk_coefs[1][2] *
-                           (p2_velocity_values[q] * phi_u_i)) *
-                        JxW;
-                    }
-
-                  if (is_sdirk_step3(scheme))
-                    {
-                      local_rhs(i) -=
-                        density_eq *
-                        (sdirk_coefs[2][0] * (velocity * phi_u_i) +
-                         sdirk_coefs[2][1] * (p1_velocity * phi_u_i) +
-                         sdirk_coefs[2][2] * (p2_velocity * phi_u_i) +
-                         sdirk_coefs[2][3] * (p3_velocity * phi_u_i)) *
-                        JxW;
-                    }
 
                   if (velocity_source ==
                       Parameters::VelocitySource::VelocitySourceType::srf)
