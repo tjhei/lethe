@@ -1337,8 +1337,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                       scheme == Parameters::SimulationControl::
                                   TimeSteppingMethod::steady_bdf)
                     local_rhs(i) -=
-                      (density_eq * bdf_coefs[0] * velocity -
-                       density_eq_m1 * bdf_coefs[0] * p1_velocity) *
+                      (density_eq * bdf_coefs[0] * velocity +
+                       density_eq_m1 * bdf_coefs[1] * p1_velocity) *
                       phi_u_i * JxW;
 
 
