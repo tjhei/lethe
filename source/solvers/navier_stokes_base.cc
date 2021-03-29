@@ -503,6 +503,8 @@ NavierStokesBase<dim, VectorType, DofsType>::iterate()
         simulation_parameters.simulation_control.method, false, false);
       multiphysics->solve(simulation_parameters.simulation_control.method,
                           false);
+      //      PhysicsSolver<VectorType>::solve_non_linear_system(
+      //        simulation_parameters.simulation_control.method, false, false);
     }
 }
 

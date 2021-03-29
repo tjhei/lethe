@@ -946,13 +946,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
   double h;
   auto & evaluation_point = this->evaluation_point;
 
-  // test
-  //  std::cout << "rho fluid 0 = "
-  //            <<
-  //            this->simulation_parameters.physical_properties.density_fluid0
-  //            << std::endl;
-  // fin test
-
   for (const auto &cell : this->dof_handler.active_cell_iterators())
     {
       if (cell->is_locally_owned())
@@ -1029,41 +1022,50 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               // Calculation of the equivalent density for the quadrature point
               // phase=1 -> density=density1, and phase=0 -> density=density0
               double density_eq =
-                phase_values[q] * this->simulation_parameters
-                                    .physical_properties.density_fluid1 +
-                (1 - phase_values[q]) * this->simulation_parameters
-                                          .physical_properties.density_fluid0;
+                phase_values[q] *
+                  this->simulation_parameters.physical_properties.fluids[1]
+                    ->density +
+                (1 - phase_values[q]) *
+                  this->simulation_parameters.physical_properties.fluids[0]
+                    ->density;
               double density_eq_m1 =
-                phase_values_m1[q] * this->simulation_parameters
-                                       .physical_properties.density_fluid1 +
+                phase_values_m1[q] *
+                  this->simulation_parameters.physical_properties.fluids[1]
+                    ->density +
                 (1 - phase_values_m1[q]) *
-                  this->simulation_parameters.physical_properties
-                    .density_fluid0;
+                  this->simulation_parameters.physical_properties.fluids[0]
+                    ->density;
 
               double viscosity_eq =
-                phase_values[q] * this->simulation_parameters
-                                    .physical_properties.viscosity_fluid1 +
-                (1 - phase_values[q]) * this->simulation_parameters
-                                          .physical_properties.viscosity_fluid0;
+                phase_values[q] *
+                  this->simulation_parameters.physical_properties.fluids[1]
+                    ->viscosity +
+                (1 - phase_values[q]) *
+                  this->simulation_parameters.physical_properties.fluids[0]
+                    ->viscosity;
 
               // Limit parameters value (patch)
               // TODO see if necessary after compression term is added
               const double density_min = std::min(
-                this->simulation_parameters.physical_properties.density_fluid0,
-                this->simulation_parameters.physical_properties.density_fluid1);
+                this->simulation_parameters.physical_properties.fluids[0]
+                  ->density,
+                this->simulation_parameters.physical_properties.fluids[1]
+                  ->density);
               const double density_max = std::max(
-                this->simulation_parameters.physical_properties.density_fluid0,
-                this->simulation_parameters.physical_properties.density_fluid1);
-              const double viscosity_min =
-                std::min(this->simulation_parameters.physical_properties
-                           .viscosity_fluid0,
-                         this->simulation_parameters.physical_properties
-                           .viscosity_fluid1);
-              const double viscosity_max =
-                std::max(this->simulation_parameters.physical_properties
-                           .viscosity_fluid0,
-                         this->simulation_parameters.physical_properties
-                           .viscosity_fluid1);
+                this->simulation_parameters.physical_properties.fluids[0]
+                  ->density,
+                this->simulation_parameters.physical_properties.fluids[1]
+                  ->density);
+              const double viscosity_min = std::min(
+                this->simulation_parameters.physical_properties.fluids[0]
+                  ->viscosity,
+                this->simulation_parameters.physical_properties.fluids[1]
+                  ->viscosity);
+              const double viscosity_max = std::max(
+                this->simulation_parameters.physical_properties.fluids[0]
+                  ->viscosity,
+                this->simulation_parameters.physical_properties.fluids[1]
+                  ->viscosity);
               if (density_eq < density_min)
                 {
                   density_eq = density_min;

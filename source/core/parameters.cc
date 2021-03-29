@@ -209,25 +209,6 @@ namespace Parameters
                         "0",
                         Patterns::Double(),
                         "Tracer diffusivity");
-      // TEMP for free_surface basic implementation
-      prm.declare_entry("density fluid 0",
-                        "1",
-                        Patterns::Double(),
-                        "Density for the fluid corresponding to Phase = 0");
-      prm.declare_entry("density fluid 1",
-                        "1",
-                        Patterns::Double(),
-                        "Density for the fluid corresponding to Phase = 1");
-      prm.declare_entry(
-        "dynamic viscosity fluid 0",
-        "1",
-        Patterns::Double(),
-        "Dynamic viscosity for the fluid corresponding to Phase = 0");
-      prm.declare_entry(
-        "dynamic viscosity fluid 1",
-        "1",
-        Patterns::Double(),
-        "Dynamic viscosity for the fluid corresponding to Phase = 1");
     }
     prm.leave_subsection();
   }
@@ -242,12 +223,74 @@ namespace Parameters
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
+    }
+    prm.leave_subsection();
+  }
 
-      // TEMP for free_surface basic implementation
-      density_fluid0   = prm.get_double("density fluid 0");
-      density_fluid1   = prm.get_double("density fluid 1");
-      viscosity_fluid0 = prm.get_double("dynamic viscosity fluid 0");
-      viscosity_fluid1 = prm.get_double("dynamic viscosity fluid 1");
+  void
+  Fluid::declare_parameters(ParameterHandler &prm, unsigned int id)
+  {
+    prm.enter_subsection("fluid " + Utilities::int_to_string(id, 1));
+    {
+      prm.declare_entry("density",
+                        "1",
+                        Patterns::Double(),
+                        "Density for the fluid corresponding to Phase = " +
+                          Utilities::int_to_string(id, 1));
+
+      prm.declare_entry(
+        "dynamic viscosity",
+        "1",
+        Patterns::Double(),
+        "Dynamic viscosity for the fluid corresponding to Phase = " +
+          Utilities::int_to_string(id, 1));
+    }
+    prm.leave_subsection();
+  }
+
+  void
+  Fluid::parse_parameters(ParameterHandler &prm, unsigned int id)
+  {
+    prm.enter_subsection("fluid " + Utilities::int_to_string(id, 1));
+    {
+      density           = prm.get_double("density");
+      dynamic_viscosity = prm.get_double("dynamic viscosity");
+    }
+    prm.leave_subsection();
+  }
+
+  void
+  MultipleFluids::declare_parameters(ParameterHandler &prm)
+  {
+    fluids.resize(max_fluids);
+    number_fluids = 0;
+
+    prm.enter_subsection("fluid properties");
+    {
+      prm.declare_entry("number of fluids",
+                        "1",
+                        Patterns::Integer(),
+                        "Number of fluids");
+
+      for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
+        {
+          fluids[i_fluid] = std::make_shared<Fluid>();
+          fluids[i_fluid]->declare_parameters(prm, i_fluid);
+        }
+    }
+    prm.leave_subsection();
+  }
+
+  void
+  MultipleFluids::parse_parameters(ParameterHandler &prm)
+  {
+    prm.enter_subsection("fluid properties");
+    {
+      number_fluids = prm.get_integer("number of fluids");
+      for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
+        {
+          fluids[i_fluid]->parse_parameters(prm, i_fluid);
+        }
     }
     prm.leave_subsection();
   }
