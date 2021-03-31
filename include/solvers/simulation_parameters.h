@@ -41,6 +41,7 @@ public:
   Parameters::MeshAdaptation                        mesh_adaptation;
   Parameters::Mesh                                  mesh;
   std::shared_ptr<Parameters::Nitsche<dim>>         nitsche;
+  std::shared_ptr<Parameters::MultipleFluids>       fluids;
   Parameters::PhysicalProperties                    physical_properties;
   Parameters::SimulationControl                     simulation_control;
   Parameters::Timer                                 timer;
@@ -68,6 +69,8 @@ public:
   {
     Parameters::SimulationControl::declare_parameters(prm);
     Parameters::PhysicalProperties::declare_parameters(prm);
+    fluids = std::make_shared<Parameters::MultipleFluids>();
+    fluids->declare_parameters(prm);
     Parameters::Mesh::declare_parameters(prm);
     nitsche = std::make_shared<Parameters::Nitsche<dim>>();
     nitsche->declare_parameters(prm);
@@ -116,6 +119,7 @@ public:
     mesh.parse_parameters(prm);
     nitsche->parse_parameters(prm);
     physical_properties.parse_parameters(prm);
+    fluids->parse_parameters(prm);
     multiphysics.parse_parameters(prm);
     timer.parse_parameters(prm);
     fem_parameters.parse_parameters(prm);

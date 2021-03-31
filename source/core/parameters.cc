@@ -282,6 +282,75 @@ namespace Parameters
   }
 
   void
+  Fluid::declare_parameters(ParameterHandler &prm, unsigned int id)
+  {
+    prm.enter_subsection("fluid " + Utilities::int_to_string(id, 1));
+    {
+      prm.declare_entry("density",
+                        "1",
+                        Patterns::Double(),
+                        "Density for the fluid corresponding to Phase = " +
+                          Utilities::int_to_string(id, 1));
+
+      prm.declare_entry(
+        "dynamic viscosity",
+        "1",
+        Patterns::Double(),
+        "Dynamic viscosity for the fluid corresponding to Phase = " +
+          Utilities::int_to_string(id, 1));
+    }
+    prm.leave_subsection();
+  }
+
+  void
+  Fluid::parse_parameters(ParameterHandler &prm, unsigned int id)
+  {
+    prm.enter_subsection("fluid " + Utilities::int_to_string(id, 1));
+    {
+      density           = prm.get_double("density");
+      dynamic_viscosity = prm.get_double("dynamic viscosity");
+    }
+    prm.leave_subsection();
+  }
+
+  void
+  MultipleFluids::declare_parameters(ParameterHandler &prm)
+  {
+    fluids.resize(max_fluids);
+    number_fluids = 0;
+
+    prm.enter_subsection("fluid properties");
+    {
+      prm.declare_entry("number of fluids",
+                        "1",
+                        Patterns::Integer(),
+                        "Number of fluids");
+
+      for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
+        {
+          fluids[i_fluid] = std::make_shared<Fluid>();
+          fluids[i_fluid]->declare_parameters(prm, i_fluid);
+        }
+    }
+    prm.leave_subsection();
+  }
+
+  void
+  MultipleFluids::parse_parameters(ParameterHandler &prm)
+  {
+    prm.enter_subsection("fluid properties");
+    {
+      number_fluids = prm.get_integer("number of fluids");
+      for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
+        {
+          fluids[i_fluid]->parse_parameters(prm, i_fluid);
+        }
+>>>>>>> free_surface_base
+    }
+    prm.leave_subsection();
+  }
+
+  void
   FEM::declare_parameters(ParameterHandler &prm)
   {
     prm.enter_subsection("FEM");

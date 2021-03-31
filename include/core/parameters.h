@@ -170,10 +170,53 @@ namespace Parameters
     double thermal_conductivity_fluid0;
     double thermal_conductivity_fluid1;
 
-    static void
+    void
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
+  };
+
+  /**
+   * @brief Fluid - Class for fluid definition
+   */
+  class Fluid
+  {
+  public:
+    Fluid()
+    {}
+
+    void
+    declare_parameters(ParameterHandler &prm, unsigned int id);
+
+    void
+    parse_parameters(ParameterHandler &prm, unsigned int id);
+
+    // Dynamic viscosity (mu = nu*rho) in units of Pa s
+    double dynamic_viscosity;
+    // volumetric mass density (rho) in units of kg/m^3
+    double density;
+  };
+
+  /**
+   * @brief MultipleFluid - Class for multiple fluid definition, used in free surface simulations
+   * TODO : homogeneize with the physical properties for one fluid (beware of
+   * dynamic vs static viscosity)
+   */
+  class MultipleFluids
+  {
+  public:
+    MultipleFluids()
+    {}
+
+    void
+    declare_parameters(ParameterHandler &prm);
+    void
+    parse_parameters(ParameterHandler &prm);
+
+    // fluid objects
+    std::vector<std::shared_ptr<Fluid>> fluids;
+    unsigned int                        number_fluids;
+    static const unsigned int           max_fluids = 2;
   };
 
   /**
