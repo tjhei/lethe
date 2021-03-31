@@ -299,7 +299,7 @@ HeatTransfer<dim>::assemble_system(
                         .density;
 
                   // dynamic viscosity
-                  viscosity =
+                  dynamic_viscosity =
                     phase_values[q] *
                       simulation_parameters.physical_properties.fluids[1]
                         .dynamic_viscosity +
@@ -351,13 +351,13 @@ HeatTransfer<dim>::assemble_system(
                                .dynamic_viscosity,
                              simulation_parameters.physical_properties.fluids[1]
                                .dynamic_viscosity);
-                  if (viscosity < viscosity_min)
+                  if (dynamic_viscosity < viscosity_min)
                     {
-                      viscosity = viscosity_min;
+                      dynamic_viscosity = viscosity_min;
                     }
-                  if (viscosity > viscosity_max)
+                  if (dynamic_viscosity > viscosity_max)
                     {
-                      viscosity = viscosity_max;
+                      dynamic_viscosity = viscosity_max;
                     }
                   const double specific_heat_min =
                     std::min(simulation_parameters.physical_properties.fluids[0]
