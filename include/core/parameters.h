@@ -153,7 +153,6 @@ namespace Parameters
 
     void
     declare_parameters(ParameterHandler &prm, unsigned int id);
-
     void
     parse_parameters(ParameterHandler &prm, unsigned int id);
 
