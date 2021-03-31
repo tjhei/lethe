@@ -1024,48 +1024,48 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               double density_eq =
                 phase_values[q] *
                   this->simulation_parameters.physical_properties.fluids[1]
-                    ->density +
+                    .density +
                 (1 - phase_values[q]) *
                   this->simulation_parameters.physical_properties.fluids[0]
-                    ->density;
+                    .density;
               double density_eq_m1 =
                 phase_values_m1[q] *
                   this->simulation_parameters.physical_properties.fluids[1]
-                    ->density +
+                    .density +
                 (1 - phase_values_m1[q]) *
                   this->simulation_parameters.physical_properties.fluids[0]
-                    ->density;
+                    .density;
 
               double viscosity_eq =
                 phase_values[q] *
                   this->simulation_parameters.physical_properties.fluids[1]
-                    ->viscosity +
+                    .dynamic_viscosity +
                 (1 - phase_values[q]) *
                   this->simulation_parameters.physical_properties.fluids[0]
-                    ->viscosity;
+                    .dynamic_viscosity;
 
               // Limit parameters value (patch)
               // TODO see if necessary after compression term is added
               const double density_min = std::min(
                 this->simulation_parameters.physical_properties.fluids[0]
-                  ->density,
+                  .density,
                 this->simulation_parameters.physical_properties.fluids[1]
-                  ->density);
+                  .density);
               const double density_max = std::max(
                 this->simulation_parameters.physical_properties.fluids[0]
-                  ->density,
+                  .density,
                 this->simulation_parameters.physical_properties.fluids[1]
-                  ->density);
+                  .density);
               const double viscosity_min = std::min(
                 this->simulation_parameters.physical_properties.fluids[0]
-                  ->viscosity,
+                  .dynamic_viscosity,
                 this->simulation_parameters.physical_properties.fluids[1]
-                  ->viscosity);
+                  .dynamic_viscosity);
               const double viscosity_max = std::max(
                 this->simulation_parameters.physical_properties.fluids[0]
-                  ->viscosity,
+                  .dynamic_viscosity,
                 this->simulation_parameters.physical_properties.fluids[1]
-                  ->viscosity);
+                  .dynamic_viscosity);
               if (density_eq < density_min)
                 {
                   density_eq = density_min;
@@ -1098,8 +1098,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               const double present_velocity_divergence =
                 trace(velocity_gradient);
               const Tensor<1, dim> p1_velocity = p1_velocity_values[q];
-              const Tensor<1, dim> p2_velocity = p2_velocity_values[q];
-              const Tensor<1, dim> p3_velocity = p3_velocity_values[q];
               const double current_pressure    = present_pressure_values[q];
 
               // Calculation of the magnitude of the velocity for the

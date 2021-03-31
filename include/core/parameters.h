@@ -143,30 +143,6 @@ namespace Parameters
   };
 
   /**
-   * @brief PhysicalProperties - Define the possible physical properties.
-   * All continuum equations share the same physical properties object but only
-   * take the subset of properties they require
-   */
-  struct PhysicalProperties
-  {
-    // Kinematic viscosity (nu = mu/rho) in units of L^2/s
-    double viscosity;
-    // volumetric mass density (rho) in units of kg/m^3
-    double density;
-    // specific heat capacity (cp) in J/K/kg
-    double specific_heat;
-    // thermal conductivity (k) in W/m/K
-    double thermal_conductivity;
-    // tracer diffusivity) in L^2/s
-    double tracer_diffusivity;
-
-    void
-    declare_parameters(ParameterHandler &prm);
-    void
-    parse_parameters(ParameterHandler &prm);
-  };
-
-  /**
    * @brief Fluid - Class for fluid definition
    */
   class Fluid
@@ -188,15 +164,30 @@ namespace Parameters
   };
 
   /**
-   * @brief MultipleFluid - Class for multiple fluid definition, used in free surface simulations
+   * @brief PhysicalProperties - Define the possible physical properties.
+   * All continuum equations share the same physical properties object but only
+   * take the subset of properties they require
+   * Defined as a class with public attributes in order to use a non-static
+   * declare_paremeters methods (useful for multiple fluid simulations).
    * TODO : homogeneize with the physical properties for one fluid (beware of
    * dynamic vs static viscosity)
    */
-  class MultipleFluids
+  class PhysicalProperties
   {
   public:
-    MultipleFluids()
+    PhysicalProperties()
     {}
+
+    // Kinematic viscosity (nu = mu/rho) in units of L^2/s
+    double viscosity;
+    // volumetric mass density (rho) in units of kg/m^3
+    double density;
+    // specific heat capacity (cp) in J/K/kg
+    double specific_heat;
+    // thermal conductivity (k) in W/m/K
+    double thermal_conductivity;
+    // tracer diffusivity) in L^2/s
+    double tracer_diffusivity;
 
     void
     declare_parameters(ParameterHandler &prm);
@@ -204,9 +195,9 @@ namespace Parameters
     parse_parameters(ParameterHandler &prm);
 
     // fluid objects
-    std::vector<std::shared_ptr<Fluid>> fluids;
-    unsigned int                        number_fluids;
-    static const unsigned int           max_fluids = 2;
+    std::vector<Fluid>        fluids;
+    unsigned int              number_fluids;
+    static const unsigned int max_fluids = 2;
   };
 
   /**

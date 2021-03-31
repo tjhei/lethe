@@ -189,6 +189,9 @@ namespace Parameters
   void
   PhysicalProperties::declare_parameters(ParameterHandler &prm)
   {
+    fluids.resize(max_fluids);
+    number_fluids = 0;
+
     prm.enter_subsection("physical properties");
     {
       prm.declare_entry("kinematic viscosity",
@@ -209,6 +212,16 @@ namespace Parameters
                         "0",
                         Patterns::Double(),
                         "Tracer diffusivity");
+
+      prm.declare_entry("number of fluids",
+                        "1",
+                        Patterns::Integer(),
+                        "Number of fluids");
+      for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
+        {
+          fluids[i_fluid] = Fluid();
+          fluids[i_fluid].declare_parameters(prm, i_fluid);
+        }
     }
     prm.leave_subsection();
   }
@@ -223,6 +236,12 @@ namespace Parameters
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
+
+      number_fluids = prm.get_integer("number of fluids");
+      for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
+        {
+          fluids[i_fluid].parse_parameters(prm, i_fluid);
+        }
     }
     prm.leave_subsection();
   }
@@ -255,42 +274,6 @@ namespace Parameters
     {
       density           = prm.get_double("density");
       dynamic_viscosity = prm.get_double("dynamic viscosity");
-    }
-    prm.leave_subsection();
-  }
-
-  void
-  MultipleFluids::declare_parameters(ParameterHandler &prm)
-  {
-    fluids.resize(max_fluids);
-    number_fluids = 0;
-
-    prm.enter_subsection("fluid properties");
-    {
-      prm.declare_entry("number of fluids",
-                        "1",
-                        Patterns::Integer(),
-                        "Number of fluids");
-
-      for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
-        {
-          fluids[i_fluid] = std::make_shared<Fluid>();
-          fluids[i_fluid]->declare_parameters(prm, i_fluid);
-        }
-    }
-    prm.leave_subsection();
-  }
-
-  void
-  MultipleFluids::parse_parameters(ParameterHandler &prm)
-  {
-    prm.enter_subsection("fluid properties");
-    {
-      number_fluids = prm.get_integer("number of fluids");
-      for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
-        {
-          fluids[i_fluid]->parse_parameters(prm, i_fluid);
-        }
     }
     prm.leave_subsection();
   }
