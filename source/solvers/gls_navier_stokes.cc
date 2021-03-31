@@ -1026,8 +1026,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           // Loop over the quadrature points
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
-              // Calculation of the equivalent density for the quadrature point
-              // phase=1 -> density=density1, and phase=0 -> density=density0
+              // Calculation of the equivalent physical properties at the
+              // quadrature point
               double density_eq =
                 phase_values[q] * this->simulation_parameters
                                     .physical_properties.density_fluid1 +
@@ -1096,8 +1096,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               const double present_velocity_divergence =
                 trace(velocity_gradient);
               const Tensor<1, dim> p1_velocity = p1_velocity_values[q];
-              const Tensor<1, dim> p2_velocity = p2_velocity_values[q];
-              const Tensor<1, dim> p3_velocity = p3_velocity_values[q];
               const double current_pressure    = present_pressure_values[q];
 
               // Calculation of the magnitude of the velocity for the

@@ -218,6 +218,7 @@ namespace Parameters
                         "1",
                         Patterns::Double(),
                         "Density for the fluid corresponding to Phase = 1");
+
       prm.declare_entry(
         "dynamic viscosity fluid 0",
         "1",
@@ -228,6 +229,28 @@ namespace Parameters
         "1",
         Patterns::Double(),
         "Dynamic viscosity for the fluid corresponding to Phase = 1");
+
+      prm.declare_entry(
+        "specific heat fluid 0",
+        "1",
+        Patterns::Double(),
+        "Specific heat for the fluid corresponding to Phase = 0");
+      prm.declare_entry(
+        "specific heat fluid 1",
+        "1",
+        Patterns::Double(),
+        "Specific heat for the fluid corresponding to Phase = 1");
+
+      prm.declare_entry(
+        "thermal conductivity fluid 0",
+        "1",
+        Patterns::Double(),
+        "Thermal conductivity for the fluid corresponding to Phase = 0");
+      prm.declare_entry(
+        "thermal conductivity fluid 1",
+        "1",
+        Patterns::Double(),
+        "Thermal conductivity for the fluid corresponding to Phase = 1");
     }
     prm.leave_subsection();
   }
@@ -244,10 +267,16 @@ namespace Parameters
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
 
       // TEMP for free_surface basic implementation
-      density_fluid0   = prm.get_double("density fluid 0");
-      density_fluid1   = prm.get_double("density fluid 1");
-      viscosity_fluid0 = prm.get_double("dynamic viscosity fluid 0");
-      viscosity_fluid1 = prm.get_double("dynamic viscosity fluid 1");
+      density_fluid0       = prm.get_double("density fluid 0");
+      density_fluid1       = prm.get_double("density fluid 1");
+      viscosity_fluid0     = prm.get_double("dynamic viscosity fluid 0");
+      viscosity_fluid1     = prm.get_double("dynamic viscosity fluid 1");
+      specific_heat_fluid0 = prm.get_double("specific heat fluid 0");
+      specific_heat_fluid1 = prm.get_double("specific heat fluid 1");
+      thermal_conductivity_fluid0 =
+        prm.get_double("thermal conductivity fluid 0");
+      thermal_conductivity_fluid1 =
+        prm.get_double("thermal conductivity fluid 1");
     }
     prm.leave_subsection();
   }

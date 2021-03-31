@@ -165,6 +165,10 @@ namespace Parameters
     double density_fluid1;
     double viscosity_fluid0;
     double viscosity_fluid1;
+    double specific_heat_fluid0;
+    double specific_heat_fluid1;
+    double thermal_conductivity_fluid0;
+    double thermal_conductivity_fluid1;
 
     static void
     declare_parameters(ParameterHandler &prm);
