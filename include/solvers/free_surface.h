@@ -69,7 +69,6 @@ public:
     , solution_transfer_m2(dof_handler)
     , solution_transfer_m3(dof_handler)
   {
-    std::cout << "FREE SURFACE - entrée constructeur..." << std::endl;
     //#ifdef DEAL_II_WITH_SIMPLEX_SUPPORT
     //    if (simulation_parameters.mesh.simplex)
     //      {

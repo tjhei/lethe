@@ -194,6 +194,7 @@ namespace Parameters
 
     prm.enter_subsection("physical properties");
     {
+      // TODO remove
       prm.declare_entry("kinematic viscosity",
                         "1",
                         Patterns::Double(),
@@ -217,6 +218,7 @@ namespace Parameters
                         "1",
                         Patterns::Integer(),
                         "Number of fluids");
+      // end TODO remove
       for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
         {
           fluids[i_fluid] = Fluid();
@@ -231,12 +233,13 @@ namespace Parameters
   {
     prm.enter_subsection("physical properties");
     {
+      // TODO remove
       viscosity            = prm.get_double("kinematic viscosity");
       density              = prm.get_double("density");
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
-
+      // end TODO remove
       number_fluids = prm.get_integer("number of fluids");
       for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
         {
@@ -256,12 +259,35 @@ namespace Parameters
                         Patterns::Double(),
                         "Density for the fluid corresponding to Phase = " +
                           Utilities::int_to_string(id, 1));
-
       prm.declare_entry(
-        "dynamic viscosity",
+        "kinematic viscosity",
         "1",
         Patterns::Double(),
+        "Kinematic viscosity for the fluid corresponding to Phase = " +
+          Utilities::int_to_string(id, 1));
+      prm.declare_entry(
+        "dynamic viscosity",
+        "0",
+        Patterns::Double(),
         "Dynamic viscosity for the fluid corresponding to Phase = " +
+          Utilities::int_to_string(id, 1));
+      prm.declare_entry(
+        "specific heat",
+        "1",
+        Patterns::Double(),
+        "Specific heat for the fluid corresponding to Phase = " +
+          Utilities::int_to_string(id, 1));
+      prm.declare_entry(
+        "thermal conductivity",
+        "1",
+        Patterns::Double(),
+        "Thermal conductivity for the fluid corresponding to Phase = " +
+          Utilities::int_to_string(id, 1));
+      prm.declare_entry(
+        "tracer diffusivity",
+        "0",
+        Patterns::Double(),
+        "Tracer diffusivity for the fluid corresponding to Phase = " +
           Utilities::int_to_string(id, 1));
     }
     prm.leave_subsection();
@@ -274,6 +300,11 @@ namespace Parameters
     {
       density           = prm.get_double("density");
       dynamic_viscosity = prm.get_double("dynamic viscosity");
+      // TODO manage viscosity definition
+      viscosity            = prm.get_double("kinematic viscosity");
+      specific_heat        = prm.get_double("specific heat");
+      thermal_conductivity = prm.get_double("thermal conductivity");
+      tracer_diffusivity   = prm.get_double("tracer diffusivity");
     }
     prm.leave_subsection();
   }

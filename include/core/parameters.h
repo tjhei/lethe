@@ -156,10 +156,18 @@ namespace Parameters
     void
     parse_parameters(ParameterHandler &prm, unsigned int id);
 
+    // Kinematic viscosity (nu = mu/rho) in units of L^2/s
+    double viscosity;
     // Dynamic viscosity (mu = nu*rho) in units of Pa s
     double dynamic_viscosity;
     // volumetric mass density (rho) in units of kg/m^3
     double density;
+    // specific heat capacity (cp) in J/K/kg
+    double specific_heat;
+    // thermal conductivity (k) in W/m/K
+    double thermal_conductivity;
+    // tracer diffusivity) in L^2/s
+    double tracer_diffusivity;
   };
 
   /**
