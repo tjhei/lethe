@@ -1090,6 +1090,15 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   viscosity_eq = viscosity_max;
                 }
 
+              // BB temporary
+              // Limitations for cases where air becomes liquid
+              if (density_eq < density_eq_m1)
+                density_eq_m1 = 0;
+
+              // BB temporary
+              // define epsilon below which gravity is not applied
+              double epsilon_alpha = 1e-6;
+
               // Gather into local variables the relevant fields
               const Tensor<1, dim> velocity = present_velocity_values[q];
               const Tensor<2, dim> velocity_gradient =
@@ -1141,6 +1150,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   const unsigned int component_i =
                     this->fe->system_to_component_index(i).first;
                   force[i] = rhs_force[q](component_i);
+                  if (phase_values[q] < epsilon_alpha)
+                    force[i] = 0;
                 }
               // Correct force to include the dynamic forcing term for flow
               // control
