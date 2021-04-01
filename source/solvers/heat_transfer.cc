@@ -44,6 +44,19 @@ void
 HeatTransfer<dim>::assemble_system(
   const Parameters::SimulationControl::TimeSteppingMethod time_stepping_method)
 {
+  // Gather physical properties (to be modified in case of multiple fluids
+  // simulations)
+  double density = simulation_parameters.physical_properties.density;
+  double specific_heat =
+    simulation_parameters.physical_properties.specific_heat;
+  double thermal_conductivity =
+    simulation_parameters.physical_properties.thermal_conductivity;
+  double viscosity = simulation_parameters.physical_properties.viscosity;
+
+  double dynamic_viscosity = viscosity * density;
+  double rho_cp            = density * specific_heat;
+  double alpha             = thermal_conductivity / rho_cp;
+
   if (assemble_matrix)
     system_matrix = 0;
   system_rhs = 0;
@@ -149,38 +162,24 @@ HeatTransfer<dim>::assemble_system(
   std::vector<Tensor<1, dim>> p2_temperature_gradients(n_q_points);
   std::vector<Tensor<1, dim>> p3_temperature_gradients(n_q_points);
 
-  //  if (simulation_parameters.multiphysics.free_surface)
-  //    {
-  // if free surface simulation, gather dof_handler and FEValues
-  // physical properties will be defined in quadrature points loop
-  const DoFHandler<dim> *dof_handler_fs =
-    this->multiphysics->get_dof_handler(PhysicsID::free_surface);
+  // Initialization for pointers and vector used in multiple fluids simulations
+  const DoFHandler<dim> *dof_handler_fs;
+  FEValues<dim> *        fe_values_fs;
+  std::vector<double>    phase_values(n_q_points);
 
-  FEValues<dim> fe_values_fs(dof_handler_fs->get_fe(),
-                             *this->cell_quadrature,
-                             update_values | update_gradients |
-                               update_quadrature_points);
+  if (simulation_parameters.multiphysics.free_surface)
+    {
+      // if free surface simulation, gather dof_handler and FEValues
+      // physical properties will be defined in quadrature points loop
+      dof_handler_fs =
+        this->multiphysics->get_dof_handler(PhysicsID::free_surface);
 
-  const FEValuesExtractors::Scalar phase(0); // ou phase(dim)?
-  std::vector<double>              phase_values(n_q_points);
-  //    }
-  //  else
-  //    {
-  // if classical one phase simulation, gather physical properties
-  double density = simulation_parameters.physical_properties.density;
-  double specific_heat =
-    simulation_parameters.physical_properties.specific_heat;
-  double thermal_conductivity =
-    simulation_parameters.physical_properties.thermal_conductivity;
-
-  double viscosity = simulation_parameters.physical_properties.viscosity;
-
-  double dynamic_viscosity = viscosity * density;
-
-  double rho_cp = density * specific_heat;
-
-  double alpha = thermal_conductivity / rho_cp;
-  //    }
+      FEValues<dim> fe_values_free_surface(dof_handler_fs->get_fe(),
+                                           *this->cell_quadrature,
+                                           update_values | update_gradients |
+                                             update_quadrature_points);
+      fe_values_fs = &fe_values_free_surface;
+    }
 
   for (const auto &cell : dof_handler.active_cell_iterators())
     {
@@ -190,7 +189,7 @@ HeatTransfer<dim>::assemble_system(
           cell_rhs    = 0;
           double h    = 0;
 
-          if (this->simulation_parameters.multiphysics.free_surface)
+          if (simulation_parameters.multiphysics.free_surface)
             {
               // Gather FreeSurface values, current phase
               typename DoFHandler<dim>::active_cell_iterator phase_cell(
@@ -199,9 +198,9 @@ HeatTransfer<dim>::assemble_system(
                 cell->index(),
                 dof_handler_fs);
 
-              fe_values_fs.reinit(phase_cell);
+              fe_values_fs->reinit(phase_cell);
 
-              fe_values_fs.get_function_values(
+              fe_values_fs->get_function_values(
                 *this->multiphysics->get_solution(PhysicsID::free_surface),
                 phase_values);
             }

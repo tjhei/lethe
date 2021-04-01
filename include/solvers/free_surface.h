@@ -88,7 +88,6 @@ public:
         fe->degree, simulation_parameters.fem_parameters.qmapping_all);
       cell_quadrature = std::make_shared<QGauss<dim>>(fe->degree + 1);
     }
-    std::cout << "...sortie constructeur" << std::endl;
   }
 
   /**
