@@ -163,9 +163,9 @@ HeatTransfer<dim>::assemble_system(
   std::vector<Tensor<1, dim>> p3_temperature_gradients(n_q_points);
 
   // Initialization for pointers and vector used in multiple fluids simulations
-  const DoFHandler<dim> *dof_handler_fs;
-  FEValues<dim> *        fe_values_fs;
-  std::vector<double>    phase_values(n_q_points);
+  DoFHandler<dim> *              dof_handler_fs;
+  std::shared_ptr<FEValues<dim>> fe_values_fs;
+  std::vector<double>            phase_values(n_q_points);
 
   if (simulation_parameters.multiphysics.free_surface)
     {
@@ -174,11 +174,11 @@ HeatTransfer<dim>::assemble_system(
       dof_handler_fs =
         this->multiphysics->get_dof_handler(PhysicsID::free_surface);
 
-      FEValues<dim> fe_values_free_surface(dof_handler_fs->get_fe(),
-                                           *this->cell_quadrature,
-                                           update_values | update_gradients |
-                                             update_quadrature_points);
-      fe_values_fs = &fe_values_free_surface;
+      fe_values_fs =
+        std::make_shared<FEValues<dim>>(dof_handler_fs->get_fe(),
+                                        *this->cell_quadrature,
+                                        update_values | update_gradients |
+                                          update_quadrature_points);
     }
 
   for (const auto &cell : dof_handler.active_cell_iterators())

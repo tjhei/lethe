@@ -25,6 +25,7 @@
 #include "core/multiphysics.h"
 #include "core/sdirk.h"
 #include "core/time_integration_utilities.h"
+#include "solvers/free_surface.h"
 
 
 // Constructor for class GLSNavierStokesSolver
@@ -1020,6 +1021,11 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
               // Calculation of the equivalent density at the quadrature point
+              //              double density_eq = calculate_point_property(
+              //                phase_values[q],
+              //                this->simulation_parameters.physical_properties.fluids[0],
+              //                this->simulation_parameters.physical_properties.fluids[1]);
+
               double density_eq =
                 phase_values[q] *
                   this->simulation_parameters.physical_properties.fluids[1]
@@ -1065,14 +1071,14 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   .dynamic_viscosity,
                 this->simulation_parameters.physical_properties.fluids[1]
                   .dynamic_viscosity);
-              if (density_eq < density_min)
-                {
-                  density_eq = density_min;
-                }
-              if (density_eq > density_max)
-                {
-                  density_eq = density_max;
-                }
+              //              if (density_eq < density_min)
+              //                {
+              //                  density_eq = density_min;
+              //                }
+              //              if (density_eq > density_max)
+              //                {
+              //                  density_eq = density_max;
+              //                }
               if (density_eq_m1 < density_min)
                 {
                   density_eq_m1 = density_min;
@@ -1117,9 +1123,9 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               const double JxW = fe_values.JxW(q);
 
               // Calculation of the GLS stabilization parameter. The
-              // stabilization parameter used is different if the simulation is
-              // steady or unsteady. In the unsteady case it includes the value
-              // of the time-step
+              // stabilization parameter used is different if the simulation
+              // is steady or unsteady. In the unsteady case it includes the
+              // value of the time-step
               const double tau =
                 is_steady(scheme) ?
                   1. / std::sqrt(std::pow(2. * density_eq * u_mag / h, 2) +
@@ -1129,8 +1135,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                  9 * std::pow(4 * viscosity_eq / (h * h), 2));
 
 
-              // Gather the shape functions, their gradient and their laplacian
-              // for the velocity and the pressure
+              // Gather the shape functions, their gradient and their
+              // laplacian for the velocity and the pressure
               for (unsigned int k = 0; k < dofs_per_cell; ++k)
                 {
                   div_phi_u[k]  = fe_values[velocities].divergence(k, q);
@@ -1191,9 +1197,9 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               /* Adjust the strong residual in cases where the scheme is
                transient.
                The BDF schemes require values at previous time steps which are
-               stored in the p1, p2 and p3 vectors. The SDIRK scheme require the
-               values at the different stages, which are also stored in the same
-               arrays.
+               stored in the p1, p2 and p3 vectors. The SDIRK scheme require
+               the values at the different stages, which are also stored in
+               the same arrays.
                */
 
               if (scheme ==
@@ -1280,8 +1286,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                             }
 
 
-                          // PSPG TAU term is currently disabled because it does
-                          // not alter the matrix sufficiently
+                          // PSPG TAU term is currently disabled because it
+                          // does not alter the matrix sufficiently
                           // local_matrix(i, j) +=
                           //  -tau * tau * tau * 4 / h / h *
                           //  (velocity *phi_u_j) *
@@ -1297,8 +1303,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                  strong_residual * (grad_phi_u_i * phi_u_j)) *
                                 JxW;
 
-                              // SUPG TAU term is currently disabled because it
-                              // does not alter the matrix sufficiently
+                              // SUPG TAU term is currently disabled because
+                              // it does not alter the matrix sufficiently
                               // local_matrix(i, j)
                               // +=
                               //   -strong_residual
