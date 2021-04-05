@@ -616,6 +616,8 @@ FreeSurface<dim>::setup_dofs()
   // the fluid at present iteration is solved before the free surface, and after
   // percolate is called for the previous iteration, so at the time the getter
   // is called solution_m2 = solution_m1
+  // TODO deactivated for now (inertia is considered with a constant density),
+  // see if needed / to be debugged
   multiphysics->set_solution_m1(PhysicsID::free_surface, &this->solution_m1);
 }
 

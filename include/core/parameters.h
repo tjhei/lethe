@@ -185,6 +185,7 @@ namespace Parameters
     PhysicalProperties()
     {}
 
+    // TODO remove after prm homogeneization for mono vs multiple fluids
     // Kinematic viscosity (nu = mu/rho) in units of L^2/s
     double viscosity;
     // volumetric mass density (rho) in units of kg/m^3
@@ -195,6 +196,7 @@ namespace Parameters
     double thermal_conductivity;
     // tracer diffusivity) in L^2/s
     double tracer_diffusivity;
+    // end TODO remove
 
     void
     declare_parameters(ParameterHandler &prm);

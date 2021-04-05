@@ -1071,14 +1071,14 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   .dynamic_viscosity,
                 this->simulation_parameters.physical_properties.fluids[1]
                   .dynamic_viscosity);
-              //              if (density_eq < density_min)
-              //                {
-              //                  density_eq = density_min;
-              //                }
-              //              if (density_eq > density_max)
-              //                {
-              //                  density_eq = density_max;
-              //                }
+              if (density_eq < density_min)
+                {
+                  density_eq = density_min;
+                }
+              if (density_eq > density_max)
+                {
+                  density_eq = density_max;
+                }
               if (density_eq_m1 < density_min)
                 {
                   density_eq_m1 = density_min;
@@ -1285,15 +1285,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                   phi_u_i * JxW;
                             }
 
-
-                          // PSPG TAU term is currently disabled because it
-                          // does not alter the matrix sufficiently
-                          // local_matrix(i, j) +=
-                          //  -tau * tau * tau * 4 / h / h *
-                          //  (velocity *phi_u_j) *
-                          //  strong_residual * grad_phi_p_i *
-                          //  fe_values.JxW(q);
-
                           // Jacobian is currently incomplete
                           if (SUPG)
                             {
@@ -1302,21 +1293,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                                 (strong_jac * (grad_phi_u_i * velocity) +
                                  strong_residual * (grad_phi_u_i * phi_u_j)) *
                                 JxW;
-
-                              // SUPG TAU term is currently disabled because
-                              // it does not alter the matrix sufficiently
-                              // local_matrix(i, j)
-                              // +=
-                              //   -strong_residual
-                              //   * (grad_phi_u_i
-                              //   *
-                              //   velocity)
-                              //   * tau * tau *
-                              //   tau * 4 / h / h
-                              //   *
-                              //   (velocity
-                              //   *phi_u_j) *
-                              //   fe_values.JxW(q);
                             }
                         }
                     }

@@ -194,7 +194,7 @@ namespace Parameters
 
     prm.enter_subsection("physical properties");
     {
-      // TODO remove
+      // TODO remove after prm homogeneization for mono vs multiple fluids
       prm.declare_entry("kinematic viscosity",
                         "1",
                         Patterns::Double(),
@@ -233,7 +233,7 @@ namespace Parameters
   {
     prm.enter_subsection("physical properties");
     {
-      // TODO remove
+      // TODO remove after prm homogeneization for mono vs multiple fluids
       viscosity            = prm.get_double("kinematic viscosity");
       density              = prm.get_double("density");
       specific_heat        = prm.get_double("specific heat");
@@ -301,7 +301,13 @@ namespace Parameters
       density           = prm.get_double("density");
       dynamic_viscosity = prm.get_double("dynamic viscosity");
       // TODO manage viscosity definition
-      viscosity            = prm.get_double("kinematic viscosity");
+      //      viscosity = prm.get_double("kinematic viscosity");
+      if (dynamic_viscosity != 0)
+        // if the dynamic_viscosity is given in prm
+        viscosity = dynamic_viscosity / dynamic_viscosity;
+      else
+        viscosity = prm.get_double("kinematic viscosity");
+
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
