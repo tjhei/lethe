@@ -1021,7 +1021,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
               // Calculation of the equivalent density at the quadrature point
-              //              double density_eq = calculate_point_property(
+              //              double density_eq =
+              //              FreeSurface<dim>::calculate_point_property(
               //                phase_values[q],
               //                this->simulation_parameters.physical_properties.fluids[0],
               //                this->simulation_parameters.physical_properties.fluids[1]);

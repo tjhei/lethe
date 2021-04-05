@@ -94,7 +94,7 @@ public:
    * @brief FreeSurface - Base destructor. At the present
    * moment this is an interface with nothing.
    */
-  virtual ~FreeSurface()
+  ~FreeSurface()
   {}
 
   /**
@@ -102,7 +102,7 @@ public:
    *
    * @param time_stepping_method Time-Stepping method with which the assembly is called
    */
-  virtual void
+  void
   assemble_matrix_and_rhs(
     const Parameters::SimulationControl::TimeSteppingMethod
       time_stepping_method) override;
@@ -112,7 +112,7 @@ public:
    *
    * @param time_stepping_method Time-Stepping method with which the assembly is called
    */
-  virtual void
+  void
   assemble_rhs(const Parameters::SimulationControl::TimeSteppingMethod
                  time_stepping_method) override;
 
@@ -120,26 +120,26 @@ public:
    * @brief Attach the solution vector to the DataOut provided. This function
    * enable the auxiliary physics to output their solution via the core solver.
    */
-  virtual void
+  void
   attach_solution_to_output(DataOut<dim> &data_out);
 
   /**
    * @brief Carry out the operations required to finish a simulation correctly.
    */
-  virtual void
+  void
   finish_simulation();
 
   /**
    * @brief Carry out the operations required to finish a time step correctly.
    */
-  virtual void
+  void
   finish_time_step();
 
   /**
    * @brief Carry out the operations required to rearrange the values of the
    * previous solution at the end of a time step
    */
-  virtual void
+  void
   percolate_time_vectors();
 
   /**
@@ -149,7 +149,7 @@ public:
    * DataOutObject, which is accomplished through the attach_solution_to_output
    * function
    */
-  virtual void
+  void
   postprocess(bool first_iteration);
 
 
@@ -157,32 +157,32 @@ public:
    * @brief pre_mesh_adaption Prepares the auxiliary physics variables for a
    * mesh refinement/coarsening
    */
-  virtual void
+  void
   pre_mesh_adaptation();
 
   /**
    * @brief post_mesh_adaption Interpolates the auxiliary physics variables to the new mesh
    */
-  virtual void
+  void
   post_mesh_adaptation();
 
   /**
    * @brief Prepares auxiliary physics to write checkpoint
    */
-  virtual void
+  void
   write_checkpoint();
 
 
   /**
    * @brief Set solution vector of Auxiliary Physics using checkpoint
    */
-  virtual void
+  void
   read_checkpoint();
 
   /**
    * @brief Sets-up the DofHandler and the degree of freedom associated with the physics.
    */
-  virtual void
+  void
   setup_dofs();
 
   /**
@@ -190,7 +190,7 @@ public:
    * only support imposing nodal values, but some physics additionnaly support
    * the use of L2 projection or steady-state solutions.
    */
-  virtual void
+  void
   set_initial_conditions();
 
   /**
@@ -202,7 +202,7 @@ public:
    *
    * @param renewed_matrix Indicates to the linear solve if the system matrix has been recalculated or not
    */
-  virtual void
+  void
   solve_linear_system(const bool initial_step,
                       const bool renewed_matrix = true);
 
@@ -218,25 +218,25 @@ public:
   double
   calculate_point_property(const double phase,
                            const double property0,
-                           const double property1)
-  {
-    double property_eq = phase * property1 + (1 - phase) * property0;
+                           const double property1);
+  //  {
+  //    double property_eq = phase * property1 + (1 - phase) * property0;
 
-    // Limit parameters value (patch)
-    // TODO see if necessary after compression term is added
-    const double property_min = std::min(property0, property1);
-    const double property_max = std::max(property0, property1);
-    if (property_eq < property_min)
-      {
-        property_eq = property_min;
-      }
-    if (property_eq > property_max)
-      {
-        property_eq = property_max;
-      }
+  //    // Limit parameters value (patch)
+  //    // TODO see if necessary after compression term is added
+  //    const double property_min = std::min(property0, property1);
+  //    const double property_max = std::max(property0, property1);
+  //    if (property_eq < property_min)
+  //      {
+  //        property_eq = property_min;
+  //      }
+  //    if (property_eq > property_max)
+  //      {
+  //        property_eq = property_max;
+  //      }
 
-    return property_eq;
-  }
+  //    return property_eq;
+  //  }
 
   /**
    * @brief Getter methods to get the private attributes for the physic currently solved
@@ -244,37 +244,37 @@ public:
    * multiphysics interface at the end of the setup_dofs method
    * //TODO See if they are necessary
    */
-  virtual const DoFHandler<dim> &
+  const DoFHandler<dim> &
   get_dof_handler() override
   {
     return dof_handler;
   }
-  virtual TrilinosWrappers::MPI::Vector &
+  TrilinosWrappers::MPI::Vector &
   get_evaluation_point() override
   {
     return evaluation_point;
   }
-  virtual TrilinosWrappers::MPI::Vector &
+  TrilinosWrappers::MPI::Vector &
   get_local_evaluation_point() override
   {
     return local_evaluation_point;
   }
-  virtual TrilinosWrappers::MPI::Vector &
+  TrilinosWrappers::MPI::Vector &
   get_newton_update() override
   {
     return newton_update;
   }
-  virtual TrilinosWrappers::MPI::Vector &
+  TrilinosWrappers::MPI::Vector &
   get_present_solution() override
   {
     return present_solution;
   }
-  virtual TrilinosWrappers::MPI::Vector &
+  TrilinosWrappers::MPI::Vector &
   get_system_rhs() override
   {
     return system_rhs;
   }
-  virtual AffineConstraints<double> &
+  AffineConstraints<double> &
   get_nonzero_constraints() override
   {
     return nonzero_constraints;
