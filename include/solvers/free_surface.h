@@ -216,27 +216,25 @@ public:
    * @param property1 Property value for the fluid with index 1 (fluid for phase = 1)
    */
   double
-  calculate_point_property(const double phase,
-                           const double property0,
-                           const double property1);
-  //  {
-  //    double property_eq = phase * property1 + (1 - phase) * property0;
+  calculate_point_property(double phase, double property0, double property1) //;
+  {
+    double property_eq = phase * property1 + (1 - phase) * property0;
 
-  //    // Limit parameters value (patch)
-  //    // TODO see if necessary after compression term is added
-  //    const double property_min = std::min(property0, property1);
-  //    const double property_max = std::max(property0, property1);
-  //    if (property_eq < property_min)
-  //      {
-  //        property_eq = property_min;
-  //      }
-  //    if (property_eq > property_max)
-  //      {
-  //        property_eq = property_max;
-  //      }
+    // Limit parameters value (patch)
+    // TODO see if necessary after compression term is added
+    const double property_min = std::min(property0, property1);
+    const double property_max = std::max(property0, property1);
+    if (property_eq < property_min)
+      {
+        property_eq = property_min;
+      }
+    if (property_eq > property_max)
+      {
+        property_eq = property_max;
+      }
 
-  //    return property_eq;
-  //  }
+    return property_eq;
+  }
 
   /**
    * @brief Getter methods to get the private attributes for the physic currently solved

@@ -176,8 +176,6 @@ namespace Parameters
    * take the subset of properties they require
    * Defined as a class with public attributes in order to use a non-static
    * declare_paremeters methods (useful for multiple fluid simulations).
-   * TODO : homogeneize with the physical properties for one fluid (beware of
-   * dynamic vs static viscosity)
    */
   class PhysicalProperties
   {
@@ -198,15 +196,48 @@ namespace Parameters
     double tracer_diffusivity;
     // end TODO remove
 
+    // fluid objects
+    std::vector<Fluid>        fluids;
+    unsigned int              number_fluids;
+    static const unsigned int max_fluids = 2;
+
     void
     declare_parameters(ParameterHandler &prm);
     void
     parse_parameters(ParameterHandler &prm);
 
-    // fluid objects
-    std::vector<Fluid>        fluids;
-    unsigned int              number_fluids;
-    static const unsigned int max_fluids = 2;
+    /**
+     * @brief Calculates the equivalent properties for a given phase, called in quadrature points loop
+     *
+     * @param phase Phase value for the given quadrature point
+     *
+     * @param property0 Property value for the fluid with index 0 (fluid for phase = 0)
+     *
+     * @param property1 Property value for the fluid with index 1 (fluid for phase = 1)
+     */
+    double
+    calculate_point_property(const double phase,
+                             const double property0,
+                             const double property1)
+    {
+      double property_eq = phase * property1 + (1 - phase) * property0;
+
+      // Limit parameters value (patch)
+      // TODO see if necessary after compression term is added in the
+      // free_surface advection equation
+      const double property_min = std::min(property0, property1);
+      const double property_max = std::max(property0, property1);
+      if (property_eq < property_min)
+        {
+          property_eq = property_min;
+        }
+      if (property_eq > property_max)
+        {
+          property_eq = property_max;
+        }
+
+      return property_eq;
+    }
   };
 
   /**

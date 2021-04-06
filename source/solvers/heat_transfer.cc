@@ -44,14 +44,14 @@ void
 HeatTransfer<dim>::assemble_system(
   const Parameters::SimulationControl::TimeSteppingMethod time_stepping_method)
 {
-  // Gather physical properties (to be modified in case of multiple fluids
-  // simulations)
-  double density = simulation_parameters.physical_properties.density;
-  double specific_heat =
-    simulation_parameters.physical_properties.specific_heat;
-  double thermal_conductivity =
-    simulation_parameters.physical_properties.thermal_conductivity;
-  double viscosity = simulation_parameters.physical_properties.viscosity;
+  // Gather physical properties in case of mono fluids simulations (to be
+  // modified in case of multiple fluids simulations)
+  auto &physical_properties = this->simulation_parameters.physical_properties;
+
+  double density              = physical_properties.density;
+  double specific_heat        = physical_properties.specific_heat;
+  double thermal_conductivity = physical_properties.thermal_conductivity;
+  double viscosity            = physical_properties.viscosity;
 
   double dynamic_viscosity = viscosity * density;
   double rho_cp            = density * specific_heat;
@@ -289,111 +289,27 @@ HeatTransfer<dim>::assemble_system(
                 {
                   // Calculation of the equivalent physical properties at the
                   // quadrature point
-                  density =
-                    phase_values[q] *
-                      simulation_parameters.physical_properties.fluids[1]
-                        .density +
-                    (1 - phase_values[q]) *
-                      simulation_parameters.physical_properties.fluids[0]
-                        .density;
+                  density = physical_properties.calculate_point_property(
+                    phase_values[q],
+                    physical_properties.fluids[0].density,
+                    physical_properties.fluids[1].density);
 
-                  // dynamic viscosity
                   dynamic_viscosity =
-                    phase_values[q] *
-                      simulation_parameters.physical_properties.fluids[1]
-                        .dynamic_viscosity +
-                    (1 - phase_values[q]) *
-                      simulation_parameters.physical_properties.fluids[0]
-                        .dynamic_viscosity;
+                    physical_properties.calculate_point_property(
+                      phase_values[q],
+                      physical_properties.fluids[0].dynamic_viscosity,
+                      physical_properties.fluids[1].dynamic_viscosity);
 
-                  specific_heat =
-                    phase_values[q] *
-                      simulation_parameters.physical_properties.fluids[1]
-                        .specific_heat +
-                    (1 - phase_values[q]) *
-                      simulation_parameters.physical_properties.fluids[0]
-                        .specific_heat;
+                  specific_heat = physical_properties.calculate_point_property(
+                    phase_values[q],
+                    physical_properties.fluids[0].specific_heat,
+                    physical_properties.fluids[1].specific_heat);
 
                   thermal_conductivity =
-                    phase_values[q] *
-                      simulation_parameters.physical_properties.fluids[1]
-                        .thermal_conductivity +
-                    (1 - phase_values[q]) *
-                      simulation_parameters.physical_properties.fluids[0]
-                        .thermal_conductivity;
-
-                  // Limit parameters value (patch)
-                  // TODO see if necessary after compression term is added
-                  const double density_min = std::min(
-                    simulation_parameters.physical_properties.fluids[0].density,
-                    simulation_parameters.physical_properties.fluids[1]
-                      .density);
-                  const double density_max = std::max(
-                    simulation_parameters.physical_properties.fluids[0].density,
-                    simulation_parameters.physical_properties.fluids[1]
-                      .density);
-                  if (density < density_min)
-                    {
-                      density = density_min;
-                    }
-                  if (density > density_max)
-                    {
-                      density = density_max;
-                    }
-                  const double viscosity_min =
-                    std::min(simulation_parameters.physical_properties.fluids[0]
-                               .dynamic_viscosity,
-                             simulation_parameters.physical_properties.fluids[1]
-                               .dynamic_viscosity);
-                  const double viscosity_max =
-                    std::max(simulation_parameters.physical_properties.fluids[0]
-                               .dynamic_viscosity,
-                             simulation_parameters.physical_properties.fluids[1]
-                               .dynamic_viscosity);
-                  if (dynamic_viscosity < viscosity_min)
-                    {
-                      dynamic_viscosity = viscosity_min;
-                    }
-                  if (dynamic_viscosity > viscosity_max)
-                    {
-                      dynamic_viscosity = viscosity_max;
-                    }
-                  const double specific_heat_min =
-                    std::min(simulation_parameters.physical_properties.fluids[0]
-                               .specific_heat,
-                             simulation_parameters.physical_properties.fluids[1]
-                               .specific_heat);
-                  const double specific_heat_max =
-                    std::max(simulation_parameters.physical_properties.fluids[0]
-                               .specific_heat,
-                             simulation_parameters.physical_properties.fluids[1]
-                               .specific_heat);
-                  if (specific_heat < specific_heat_min)
-                    {
-                      specific_heat = specific_heat_min;
-                    }
-                  if (specific_heat > specific_heat_max)
-                    {
-                      specific_heat = specific_heat_max;
-                    }
-                  const double thermal_conductivity_min =
-                    std::min(simulation_parameters.physical_properties.fluids[0]
-                               .thermal_conductivity,
-                             simulation_parameters.physical_properties.fluids[1]
-                               .thermal_conductivity);
-                  const double thermal_conductivity_max =
-                    std::max(simulation_parameters.physical_properties.fluids[0]
-                               .thermal_conductivity,
-                             simulation_parameters.physical_properties.fluids[1]
-                               .thermal_conductivity);
-                  if (thermal_conductivity < thermal_conductivity_min)
-                    {
-                      thermal_conductivity = thermal_conductivity_min;
-                    }
-                  if (thermal_conductivity > thermal_conductivity_max)
-                    {
-                      thermal_conductivity = thermal_conductivity_max;
-                    }
+                    physical_properties.calculate_point_property(
+                      phase_values[q],
+                      physical_properties.fluids[0].thermal_conductivity,
+                      physical_properties.fluids[1].thermal_conductivity);
 
                   // Useful definitions
                   rho_cp = density * specific_heat;

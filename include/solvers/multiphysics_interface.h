@@ -54,7 +54,7 @@ public:
    *
    */
   MultiphysicsInterface(
-    const SimulationParameters<dim> &nsparam,
+    SimulationParameters<dim> &nsparam,
     std::shared_ptr<parallel::DistributedTriangulationBase<dim>>
                                        p_triangulation,
     std::shared_ptr<SimulationControl> p_simulation_control);

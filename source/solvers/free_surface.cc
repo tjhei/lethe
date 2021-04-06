@@ -706,29 +706,5 @@ FreeSurface<dim>::solve_linear_system(const bool initial_step,
   newton_update = completely_distributed_solution;
 }
 
-template <int dim>
-double
-FreeSurface<dim>::calculate_point_property(const double phase,
-                                           const double property0,
-                                           const double property1)
-{
-  double property_eq = phase * property1 + (1 - phase) * property0;
-
-  // Limit parameters value (patch)
-  // TODO see if necessary after compression term is added
-  const double property_min = std::min(property0, property1);
-  const double property_max = std::max(property0, property1);
-  if (property_eq < property_min)
-    {
-      property_eq = property_min;
-    }
-  if (property_eq > property_max)
-    {
-      property_eq = property_max;
-    }
-
-  return property_eq;
-}
-
 template class FreeSurface<2>;
 template class FreeSurface<3>;

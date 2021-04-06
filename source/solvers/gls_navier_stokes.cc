@@ -25,8 +25,6 @@
 #include "core/multiphysics.h"
 #include "core/sdirk.h"
 #include "core/time_integration_utilities.h"
-#include "solvers/free_surface.h"
-
 
 // Constructor for class GLSNavierStokesSolver
 template <int dim>
@@ -829,13 +827,9 @@ template <bool                                              assemble_matrix,
 void
 GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 {
-  //  std::cout << "Je suis dans assembleGLSFreeSurface" << std::endl;
-
   // FreeSurface FEValues information gathering
-  //  std::cout << "FreeSurface FEValues information gathering..." << std::endl;
   const DoFHandler<dim> *dof_handler_fs =
     this->multiphysics->get_dof_handler(PhysicsID::free_surface);
-  //  std::cout << "...get_dof_handler..." << std::endl;
 
   FEValues<dim> fe_values_fs(dof_handler_fs->get_fe(),
                              *this->cell_quadrature,
@@ -847,8 +841,6 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
     system_matrix = 0;
   this->system_rhs = 0;
 
-  //  double viscosity =
-  //  this->simulation_parameters.physical_properties.viscosity;
   Function<dim> *l_forcing_function = this->forcing_function;
 
   FEValues<dim>                    fe_values(*this->mapping,
@@ -945,7 +937,9 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
   // Element size
   double h;
-  auto & evaluation_point = this->evaluation_point;
+
+  auto &evaluation_point    = this->evaluation_point;
+  auto &physical_properties = this->simulation_parameters.physical_properties;
 
   for (const auto &cell : this->dof_handler.active_cell_iterators())
     {
@@ -1021,81 +1015,22 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
               // Calculation of the equivalent density at the quadrature point
-              //              double density_eq =
-              //              FreeSurface<dim>::calculate_point_property(
-              //                phase_values[q],
-              //                this->simulation_parameters.physical_properties.fluids[0],
-              //                this->simulation_parameters.physical_properties.fluids[1]);
+              double density_eq = physical_properties.calculate_point_property(
+                phase_values[q],
+                physical_properties.fluids[0].density,
+                physical_properties.fluids[1].density);
 
-              double density_eq =
-                phase_values[q] *
-                  this->simulation_parameters.physical_properties.fluids[1]
-                    .density +
-                (1 - phase_values[q]) *
-                  this->simulation_parameters.physical_properties.fluids[0]
-                    .density;
               double density_eq_m1 =
-                phase_values_m1[q] *
-                  this->simulation_parameters.physical_properties.fluids[1]
-                    .density +
-                (1 - phase_values_m1[q]) *
-                  this->simulation_parameters.physical_properties.fluids[0]
-                    .density;
+                physical_properties.calculate_point_property(
+                  phase_values_m1[q],
+                  physical_properties.fluids[0].density,
+                  physical_properties.fluids[1].density);
 
-              double viscosity_eq =
-                phase_values[q] *
-                  this->simulation_parameters.physical_properties.fluids[1]
-                    .dynamic_viscosity +
-                (1 - phase_values[q]) *
-                  this->simulation_parameters.physical_properties.fluids[0]
-                    .dynamic_viscosity;
-
-              // Limit parameters value (patch)
-              // TODO see if necessary after compression term is added
-              const double density_min = std::min(
-                this->simulation_parameters.physical_properties.fluids[0]
-                  .density,
-                this->simulation_parameters.physical_properties.fluids[1]
-                  .density);
-              const double density_max = std::max(
-                this->simulation_parameters.physical_properties.fluids[0]
-                  .density,
-                this->simulation_parameters.physical_properties.fluids[1]
-                  .density);
-              const double viscosity_min = std::min(
-                this->simulation_parameters.physical_properties.fluids[0]
-                  .dynamic_viscosity,
-                this->simulation_parameters.physical_properties.fluids[1]
-                  .dynamic_viscosity);
-              const double viscosity_max = std::max(
-                this->simulation_parameters.physical_properties.fluids[0]
-                  .dynamic_viscosity,
-                this->simulation_parameters.physical_properties.fluids[1]
-                  .dynamic_viscosity);
-              if (density_eq < density_min)
-                {
-                  density_eq = density_min;
-                }
-              if (density_eq > density_max)
-                {
-                  density_eq = density_max;
-                }
-              if (density_eq_m1 < density_min)
-                {
-                  density_eq_m1 = density_min;
-                }
-              if (density_eq_m1 > density_max)
-                {
-                  density_eq_m1 = density_max;
-                }
-              if (viscosity_eq < viscosity_min)
-                {
-                  viscosity_eq = viscosity_min;
-                }
-              if (viscosity_eq > viscosity_max)
-                {
-                  viscosity_eq = viscosity_max;
-                }
+              double dynamic_viscosity_eq =
+                physical_properties.calculate_point_property(
+                  phase_values[q],
+                  physical_properties.fluids[0].dynamic_viscosity,
+                  physical_properties.fluids[1].dynamic_viscosity);
 
               // BB temporary
               // Limitations for cases where air becomes liquid
@@ -1129,11 +1064,13 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               // value of the time-step
               const double tau =
                 is_steady(scheme) ?
-                  1. / std::sqrt(std::pow(2. * density_eq * u_mag / h, 2) +
-                                 9 * std::pow(4 * viscosity_eq / (h * h), 2)) :
-                  1. / std::sqrt(std::pow(sdt, 2) +
-                                 std::pow(2. * density_eq * u_mag / h, 2) +
-                                 9 * std::pow(4 * viscosity_eq / (h * h), 2));
+                  1. / std::sqrt(
+                         std::pow(2. * density_eq * u_mag / h, 2) +
+                         9 * std::pow(4 * dynamic_viscosity_eq / (h * h), 2)) :
+                  1. / std::sqrt(
+                         std::pow(sdt, 2) +
+                         std::pow(2. * density_eq * u_mag / h, 2) +
+                         9 * std::pow(4 * dynamic_viscosity_eq / (h * h), 2));
 
 
               // Gather the shape functions, their gradient and their
@@ -1168,7 +1105,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
               auto strong_residual =
                 density_eq * velocity_gradient * velocity +
                 present_pressure_gradients[q] -
-                viscosity_eq * present_velocity_laplacians[q] -
+                dynamic_viscosity_eq * present_velocity_laplacians[q] -
                 density_eq * force;
 
               if (velocity_source ==
@@ -1226,7 +1163,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                       auto strong_jac =
                         (density_eq * velocity_gradient * phi_u_j +
                          density_eq * grad_phi_u_j * velocity + grad_phi_p_j -
-                         viscosity_eq * laplacian_phi_u[j]);
+                         dynamic_viscosity_eq * laplacian_phi_u[j]);
 
                       if (is_bdf(scheme))
                         strong_jac += density_eq * phi_u_j * bdf_coefs[0];
@@ -1253,7 +1190,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                           local_matrix(i, j) +=
                             (
                               // Momentum terms
-                              viscosity_eq *
+                              dynamic_viscosity_eq *
                                 scalar_product(grad_phi_u_j, grad_phi_u_i) +
                               density_eq * velocity_gradient * phi_u_j *
                                 phi_u_i +
@@ -1313,7 +1250,7 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
                   local_rhs(i) +=
                     (
                       // Momentum
-                      -viscosity_eq *
+                      -dynamic_viscosity_eq *
                         scalar_product(velocity_gradient, grad_phi_u_i) -
                       density_eq * velocity_gradient * velocity * phi_u_i +
                       current_pressure * div_phi_u_i +
