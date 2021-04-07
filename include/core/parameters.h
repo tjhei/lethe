@@ -183,23 +183,19 @@ namespace Parameters
     PhysicalProperties()
     {}
 
-    // TODO remove after prm homogeneization for mono vs multiple fluids
-    // Kinematic viscosity (nu = mu/rho) in units of L^2/s
-    double viscosity;
-    // volumetric mass density (rho) in units of kg/m^3
-    double density;
-    // specific heat capacity (cp) in J/K/kg
-    double specific_heat;
-    // thermal conductivity (k) in W/m/K
-    double thermal_conductivity;
-    // tracer diffusivity) in L^2/s
-    double tracer_diffusivity;
-    // end TODO remove
-
-    // fluid objects
+    // general fluid objects
     std::vector<Fluid>        fluids;
     unsigned int              number_fluids;
     static const unsigned int max_fluids = 2;
+
+    // Monophasic simulations parameters definition
+    // TODO see if refactoring wanted (fluid[0] used explicitely in the code +
+    // "subsection fluid 0" always present in prm)
+    double viscosity;
+    double density;
+    double specific_heat;
+    double thermal_conductivity;
+    double tracer_diffusivity;
 
     void
     declare_parameters(ParameterHandler &prm);

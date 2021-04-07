@@ -194,7 +194,16 @@ namespace Parameters
 
     prm.enter_subsection("physical properties");
     {
-      // TODO remove after prm homogeneization for mono vs multiple fluids
+      // General case
+      for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
+        {
+          fluids[i_fluid] = Fluid();
+          fluids[i_fluid].declare_parameters(prm, i_fluid);
+        }
+
+      // Monophasic simulations parameters definition
+      // TODO see if refactoring wanted (fluid[0] used explicitely in the code +
+      // "subsection fluid 0" always present in prm)
       prm.declare_entry("kinematic viscosity",
                         "1",
                         Patterns::Double(),
@@ -218,12 +227,6 @@ namespace Parameters
                         "1",
                         Patterns::Integer(),
                         "Number of fluids");
-      // end TODO remove
-      for (unsigned int i_fluid = 0; i_fluid < max_fluids; ++i_fluid)
-        {
-          fluids[i_fluid] = Fluid();
-          fluids[i_fluid].declare_parameters(prm, i_fluid);
-        }
     }
     prm.leave_subsection();
   }
@@ -233,17 +236,29 @@ namespace Parameters
   {
     prm.enter_subsection("physical properties");
     {
-      // TODO remove after prm homogeneization for mono vs multiple fluids
+      // General case
+      number_fluids = prm.get_integer("number of fluids");
+      for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
+        {
+          fluids[i_fluid].parse_parameters(prm, i_fluid);
+        }
+
+      // Monophasic simulations parameters definition
+      // TODO see if refactoring wanted (fluid[0] used explicitely in the code +
+      // "subsection fluid 0" always present in prm)
       viscosity            = prm.get_double("kinematic viscosity");
       density              = prm.get_double("density");
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
       tracer_diffusivity   = prm.get_double("tracer diffusivity");
-      // end TODO remove
-      number_fluids = prm.get_integer("number of fluids");
-      for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
+
+      if (number_fluids == 1)
         {
-          fluids[i_fluid].parse_parameters(prm, i_fluid);
+          viscosity            = fluids[0].viscosity;
+          density              = fluids[0].density;
+          specific_heat        = fluids[0].specific_heat;
+          thermal_conductivity = fluids[0].thermal_conductivity;
+          tracer_diffusivity   = fluids[0].tracer_diffusivity;
         }
     }
     prm.leave_subsection();
@@ -300,8 +315,6 @@ namespace Parameters
     {
       density           = prm.get_double("density");
       dynamic_viscosity = prm.get_double("dynamic viscosity");
-      // TODO manage viscosity definition
-      //      viscosity = prm.get_double("kinematic viscosity");
       if (dynamic_viscosity != 0)
         // if the dynamic_viscosity is given in prm
         viscosity = dynamic_viscosity / dynamic_viscosity;
