@@ -1,5 +1,7 @@
 #include "core/parameters.h"
 
+#include <sys/stat.h>
+
 namespace Parameters
 {
   void
@@ -152,9 +154,22 @@ namespace Parameters
       group_files   = prm.get_integer("group files");
       log_frequency = prm.get_integer("log frequency");
       log_precision = prm.get_integer("log precision");
+
+      // Create output_folder if does not exist
+      if (mkdir(output_folder.c_str(), 0777) == -1)
+        {
+          if (errno != EEXIST)
+            {
+              // if error other than "already exists"
+              std::cerr << "Could not create Output folder:  "
+                        << strerror(errno) << std::endl;
+            }
+        }
+      else
+        std::cout << "Output folder created: " << output_folder << std::endl;
     }
     prm.leave_subsection();
-  }
+  } // namespace Parameters
 
   void
   Timer::declare_parameters(ParameterHandler &prm)
