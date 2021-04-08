@@ -1005,6 +1005,11 @@ namespace Parameters
       checkpoint = prm.get_bool("checkpoint");
       restart    = prm.get_bool("restart");
       frequency  = prm.get_integer("frequency");
+
+      //      std::cout << filename << std::endl
+      //                << parameters.simulation_control.output_folder +
+      //                filename
+      //                << std::endl;
     }
     prm.leave_subsection();
   }
