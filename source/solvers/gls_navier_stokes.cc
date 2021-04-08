@@ -19,6 +19,8 @@
 
 #include "solvers/gls_navier_stokes.h"
 
+#include <core/utilities.h>
+
 #include "core/bdf.h"
 #include "core/grids.h"
 #include "core/manifolds.h"
@@ -1015,22 +1017,20 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
           for (unsigned int q = 0; q < n_q_points; ++q)
             {
               // Calculation of the equivalent density at the quadrature point
-              double density_eq = physical_properties.calculate_point_property(
-                phase_values[q],
-                physical_properties.fluids[0].density,
-                physical_properties.fluids[1].density);
+              double density_eq =
+                calculate_point_property(phase_values[q],
+                                         physical_properties.fluids[0].density,
+                                         physical_properties.fluids[1].density);
 
               double density_eq_m1 =
-                physical_properties.calculate_point_property(
-                  phase_values_m1[q],
-                  physical_properties.fluids[0].density,
-                  physical_properties.fluids[1].density);
+                calculate_point_property(phase_values_m1[q],
+                                         physical_properties.fluids[0].density,
+                                         physical_properties.fluids[1].density);
 
-              double dynamic_viscosity_eq =
-                physical_properties.calculate_point_property(
-                  phase_values[q],
-                  physical_properties.fluids[0].dynamic_viscosity,
-                  physical_properties.fluids[1].dynamic_viscosity);
+              double dynamic_viscosity_eq = calculate_point_property(
+                phase_values[q],
+                physical_properties.fluids[0].dynamic_viscosity,
+                physical_properties.fluids[1].dynamic_viscosity);
 
               // BB temporary
               // Limitations for cases where air becomes liquid

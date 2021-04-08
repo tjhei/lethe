@@ -51,8 +51,8 @@ template <int dim>
 class HeatTransfer : public AuxiliaryPhysics<dim, TrilinosWrappers::MPI::Vector>
 {
 public:
-  HeatTransfer<dim>(MultiphysicsInterface<dim> *multiphysics_interface,
-                    SimulationParameters<dim> & p_simulation_parameters,
+  HeatTransfer<dim>(MultiphysicsInterface<dim> *     multiphysics_interface,
+                    const SimulationParameters<dim> &p_simulation_parameters,
                     std::shared_ptr<parallel::DistributedTriangulationBase<dim>>
                                                        p_triangulation,
                     std::shared_ptr<SimulationControl> p_simulation_control)
@@ -260,8 +260,8 @@ private:
   assemble_system(const Parameters::SimulationControl::TimeSteppingMethod
                     time_stepping_method);
 
-  MultiphysicsInterface<dim> *multiphysics;
-  SimulationParameters<dim> & simulation_parameters;
+  MultiphysicsInterface<dim> *     multiphysics;
+  const SimulationParameters<dim> &simulation_parameters;
 
 
   // Core elements for the heat transfer simulation

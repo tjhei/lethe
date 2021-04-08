@@ -7,7 +7,7 @@
 
 template <int dim>
 MultiphysicsInterface<dim>::MultiphysicsInterface(
-  SimulationParameters<dim> &                                  nsparam,
+  const SimulationParameters<dim> &                            nsparam,
   std::shared_ptr<parallel::DistributedTriangulationBase<dim>> p_triangulation,
   std::shared_ptr<SimulationControl> p_simulation_control)
   : multiphysics_parameters(nsparam.multiphysics)

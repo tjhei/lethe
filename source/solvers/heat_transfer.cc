@@ -19,7 +19,6 @@
 #include <core/utilities.h>
 #include <solvers/heat_transfer.h>
 
-
 template <int dim>
 void
 HeatTransfer<dim>::assemble_matrix_and_rhs(
@@ -289,27 +288,25 @@ HeatTransfer<dim>::assemble_system(
                 {
                   // Calculation of the equivalent physical properties at the
                   // quadrature point
-                  density = physical_properties.calculate_point_property(
+                  density = calculate_point_property(
                     phase_values[q],
                     physical_properties.fluids[0].density,
                     physical_properties.fluids[1].density);
 
-                  dynamic_viscosity =
-                    physical_properties.calculate_point_property(
-                      phase_values[q],
-                      physical_properties.fluids[0].dynamic_viscosity,
-                      physical_properties.fluids[1].dynamic_viscosity);
+                  dynamic_viscosity = calculate_point_property(
+                    phase_values[q],
+                    physical_properties.fluids[0].dynamic_viscosity,
+                    physical_properties.fluids[1].dynamic_viscosity);
 
-                  specific_heat = physical_properties.calculate_point_property(
+                  specific_heat = calculate_point_property(
                     phase_values[q],
                     physical_properties.fluids[0].specific_heat,
                     physical_properties.fluids[1].specific_heat);
 
-                  thermal_conductivity =
-                    physical_properties.calculate_point_property(
-                      phase_values[q],
-                      physical_properties.fluids[0].thermal_conductivity,
-                      physical_properties.fluids[1].thermal_conductivity);
+                  thermal_conductivity = calculate_point_property(
+                    phase_values[q],
+                    physical_properties.fluids[0].thermal_conductivity,
+                    physical_properties.fluids[1].thermal_conductivity);
 
                   // Useful definitions
                   rho_cp = density * specific_heat;
