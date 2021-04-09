@@ -136,7 +136,14 @@ public:
     void_fraction->parse_parameters(prm);
     multiphysics.parse_parameters(prm);
 
-    // update restart filename with the output_folder
+    // Create output_folder if does not exist
+    if (mkdir(simulation_control.output_folder.c_str(), 0777) == 0)
+      { // error cannot be catched for now without being spotted in ctest
+        std::cout << "Output folder created: "
+                  << simulation_control.output_folder << std::endl;
+      }
+
+    // Update restart filename with the output_folder
     restart_parameters.filename =
       simulation_control.output_folder + restart_parameters.filename;
   }

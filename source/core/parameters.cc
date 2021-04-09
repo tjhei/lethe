@@ -154,19 +154,6 @@ namespace Parameters
       group_files   = prm.get_integer("group files");
       log_frequency = prm.get_integer("log frequency");
       log_precision = prm.get_integer("log precision");
-
-      // Create output_folder if does not exist
-      if (mkdir(output_folder.c_str(), 0777) == -1)
-        {
-          if (errno != EEXIST)
-            {
-              // if error other than "already exists"
-              std::cerr << "Could not create Output folder:  "
-                        << strerror(errno) << std::endl;
-            }
-        }
-      else
-        std::cout << "Output folder created: " << output_folder << std::endl;
     }
     prm.leave_subsection();
   } // namespace Parameters
@@ -317,11 +304,12 @@ namespace Parameters
     {
       density           = prm.get_double("density");
       dynamic_viscosity = prm.get_double("dynamic viscosity");
-      if (dynamic_viscosity != 0)
-        // if the dynamic_viscosity is given in prm
-        viscosity = dynamic_viscosity / dynamic_viscosity;
-      else
-        viscosity = prm.get_double("kinematic viscosity");
+      viscosity         = prm.get_double("kinematic viscosity");
+      //      if (dynamic_viscosity != 0)
+      //        // if the dynamic_viscosity is given in prm
+      //        viscosity = dynamic_viscosity / dynamic_viscosity;
+      //      else
+      //        viscosity = prm.get_double("kinematic viscosity");
 
       specific_heat        = prm.get_double("specific heat");
       thermal_conductivity = prm.get_double("thermal conductivity");
