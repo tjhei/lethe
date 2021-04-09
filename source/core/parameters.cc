@@ -1,7 +1,5 @@
 #include "core/parameters.h"
 
-#include <sys/stat.h>
-
 namespace Parameters
 {
   void
@@ -248,6 +246,15 @@ namespace Parameters
       for (unsigned int i_fluid = 0; i_fluid < number_fluids; ++i_fluid)
         {
           fluids[i_fluid].parse_parameters(prm, i_fluid);
+        }
+      // Compatibility from multiphasic to monophasic parameter definition
+      if (number_fluids == 1)
+        {
+          viscosity            = fluids[0].viscosity;
+          density              = fluids[0].density;
+          specific_heat        = fluids[0].specific_heat;
+          thermal_conductivity = fluids[0].thermal_conductivity;
+          tracer_diffusivity   = fluids[0].tracer_diffusivity;
         }
     }
     prm.leave_subsection();
