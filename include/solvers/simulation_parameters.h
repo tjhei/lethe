@@ -136,18 +136,43 @@ public:
     void_fraction->parse_parameters(prm);
     multiphysics.parse_parameters(prm);
 
-    //    // Create output_folder if does not exist //COMMENT BEFORE PUSH, not
-    //    taken
-    //    // by CI (or use -fpermissive)
-    //    if (mkdir(simulation_control.output_folder.c_str(), 0777) == 0)
-    //      { // error cannot be catched for now without being spotted in ctest
-    //        std::cout << "Output folder created: "
-    //                  << simulation_control.output_folder << std::endl;
-    //      }
+    // Create output_folder if does not exist
+    if (simulation_control.make_folder)
+      {
+        if (mkdir(simulation_control.output_folder.c_str(), 0777) == -1)
+          {
+            if (errno != EEXIST)
+              {
+                // if error other than "already exists"
+                std::cerr << "Could not create Output folder:  "
+                          << strerror(errno) << std::endl;
+              }
+          }
+        else
+          std::cout << "Output folder created: "
+                    << simulation_control.output_folder << std::endl;
+      }
 
-    //    // Update restart filename with the output_folder
-    //    restart_parameters.filename =
-    //      simulation_control.output_folder + restart_parameters.filename;
+    // Update filenames with the output_folder
+    restart_parameters.filename =
+      simulation_control.output_folder + restart_parameters.filename;
+
+    forces_parameters.force_output_name =
+      simulation_control.output_folder + forces_parameters.force_output_name;
+
+    forces_parameters.torque_output_name =
+      simulation_control.output_folder + forces_parameters.torque_output_name;
+
+    post_processing.kinetic_energy_output_name =
+      simulation_control.output_folder +
+      post_processing.kinetic_energy_output_name;
+
+    post_processing.enstrophy_output_name =
+      simulation_control.output_folder + post_processing.enstrophy_output_name;
+
+    particlesParameters.ib_force_output_file =
+      simulation_control.output_folder +
+      particlesParameters.ib_force_output_file;
   }
 };
 

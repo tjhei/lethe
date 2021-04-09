@@ -59,6 +59,11 @@ namespace Parameters
                         Patterns::Integer(),
                         "Output frequency");
 
+      prm.declare_entry("make folder",
+                        "false",
+                        Patterns::Bool(),
+                        "Create output folder if does not exist");
+
       prm.declare_entry(
         "output boundaries",
         "false",
@@ -147,6 +152,7 @@ namespace Parameters
       output_name       = prm.get("output name");
       output_frequency  = prm.get_integer("output frequency");
       output_boundaries = prm.get_bool("output boundaries");
+      make_folder       = prm.get_bool("make folder");
 
       subdivision   = prm.get_integer("subdivision");
       group_files   = prm.get_integer("group files");
@@ -987,11 +993,6 @@ namespace Parameters
       checkpoint = prm.get_bool("checkpoint");
       restart    = prm.get_bool("restart");
       frequency  = prm.get_integer("frequency");
-
-      //      std::cout << filename << std::endl
-      //                << parameters.simulation_control.output_folder +
-      //                filename
-      //                << std::endl;
     }
     prm.leave_subsection();
   }

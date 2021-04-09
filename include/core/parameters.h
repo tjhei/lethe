@@ -124,6 +124,9 @@ namespace Parameters
     // Enable output of the boundaries
     bool output_boundaries;
 
+    // Enable automatic folder creation if does not exist
+    bool make_folder;
+
     // Frequency of the log output to the terminal
     unsigned int log_frequency;
 

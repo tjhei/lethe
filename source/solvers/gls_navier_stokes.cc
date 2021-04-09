@@ -1034,8 +1034,8 @@ GLSNavierStokesSolver<dim>::assembleGLSFreeSurface()
 
               // BB temporary
               // Limitations for cases where air becomes liquid
-              //              if (density_eq < density_eq_m1)
-              //                density_eq_m1 = 0;
+              if (density_eq < density_eq_m1)
+                density_eq_m1 = 0;
 
               // BB temporary
               // define epsilon below which gravity is not applied
